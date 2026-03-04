@@ -16,6 +16,20 @@
   <!-- Beat indicator -->
   <div class="beat-row" id="beatRow"></div>
 
+  <!-- BPM -->
+  <div class="bpm-block">
+    <div class="bpm-label">BPM</div>
+    <div class="bpm-value" id="bpmDisplay">120</div>
+    <input type="range" class="bpm-slider" id="bpmSlider"
+           min="20" max="300" value="120" step="1">
+    <div class="bpm-btns">
+      <button id="bpmMinus10">-10</button>
+      <button id="bpmMinus1">-1</button>
+      <button id="bpmPlus1">+1</button>
+      <button id="bpmPlus10">+10</button>
+    </div>
+  </div>
+
   <!-- Ball Animation -->
   <div class="ball-controls">
     <div class="toggle-row">
@@ -44,18 +58,10 @@
   </div>
   <canvas id="ballCanvas" class="ball-canvas"></canvas>
 
-  <!-- BPM -->
-  <div class="bpm-block">
-    <div class="bpm-label">BPM</div>
-    <div class="bpm-value" id="bpmDisplay">120</div>
-    <input type="range" class="bpm-slider" id="bpmSlider"
-           min="20" max="300" value="120" step="1">
-    <div class="bpm-btns">
-      <button id="bpmMinus10">-10</button>
-      <button id="bpmMinus1">-1</button>
-      <button id="bpmPlus1">+1</button>
-      <button id="bpmPlus10">+10</button>
-    </div>
+  <!-- Play / Tap -->
+  <div class="action-row">
+    <button class="btn-play" id="playBtn">▶ START</button>
+    <button class="btn-tap" id="tapBtn">TAP<br>TEMPO</button>
   </div>
 
   <!-- Controls -->
@@ -104,15 +110,6 @@
     </div>
   </div>
 
-  <!-- Play / Tap -->
-  <div class="action-row">
-    <button class="btn-play" id="playBtn">▶ START</button>
-    <button class="btn-tap" id="tapBtn">TAP<br>TEMPO</button>
-  </div>
-
-  <div class="hint">
-    <kbd>Space</kbd> スタート/ストップ &nbsp;|&nbsp; <kbd>T</kbd> タップテンポ
-  </div>
 
 </div><!-- /viewMetronome -->
 
