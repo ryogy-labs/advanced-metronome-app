@@ -131,99 +131,106 @@
 
 <!-- ── View: Setlist ── -->
 <div class="view" id="viewSetlist">
-  <h1 class="view-title">Metro<span>Beat</span></h1>
-
-  <!-- Beat indicator (mirrors metronome tab) -->
-  <div class="beat-row sl-beat-row" id="beatRowSetlist"></div>
-
-  <!-- Now Playing banner -->
-  <div class="now-playing" id="nowPlaying" style="display:none">
-    <span class="np-icon">▶</span>
-    <span class="np-name" id="nowPlayingName">—</span>
-    <span class="np-bpm" id="nowPlayingBpm">— BPM</span>
+  <div class="view-top-section">
+    <h1 class="view-title">Metro<span>Beat</span></h1>
+    <!-- Beat indicator (mirrors metronome tab) -->
+    <div class="beat-row sl-beat-row" id="beatRowSetlist"></div>
   </div>
 
-  <!-- Sub-view A: Setlist Index -->
-  <div class="sl-subview active" id="slIndex">
-    <section class="setlist-section setlist-full">
-      <div class="setlist-header">
-        <span class="card-label">♩ SETLISTS</span>
-        <button class="btn-sl-add" id="btnAddSetlist">＋ 新規作成</button>
-      </div>
-      <div class="setlist-list" id="slIndexList"></div>
-      <div class="preset-form" id="slForm" style="display:none">
-        <div class="pf-fields">
-          <input class="pf-name" type="text" id="slName" placeholder="セットリスト名 (例: ワンマンライブ)">
-        </div>
-        <div class="pf-btns">
-          <button class="pf-save"   id="slSave">保存</button>
-          <button class="pf-cancel" id="slCancel">キャンセル</button>
-        </div>
-      </div>
-    </section>
-  </div>
-
-  <!-- Sub-view B: Song List -->
-  <div class="sl-subview" id="slDetail">
-    <div class="sl-detail-header">
-      <button class="btn-sl-back" id="btnBack">← 戻る</button>
-      <span class="sl-detail-title" id="slDetailTitle">—</span>
+  <div class="view-body">
+    <!-- Now Playing banner -->
+    <div class="now-playing" id="nowPlaying" style="display:none">
+      <span class="np-icon">▶</span>
+      <span class="np-name" id="nowPlayingName">—</span>
+      <span class="np-bpm" id="nowPlayingBpm">— BPM</span>
     </div>
-    <section class="setlist-section setlist-full">
-      <div class="setlist-header">
-        <span class="card-label">♩ 曲リスト</span>
-        <button class="btn-sl-add" id="btnAddSong">＋ 追加</button>
-      </div>
-      <div class="setlist-list" id="songList"></div>
-      <div class="preset-form" id="presetForm" style="display:none">
-        <div class="pf-mode-row">
-          <div class="toggle-pair">
-            <button class="tgl-btn active" id="pfModeManual">直接入力</button>
-            <button class="tgl-btn" id="pfModeLib">ライブラリから</button>
-          </div>
+
+    <!-- Sub-view A: Setlist Index -->
+    <div class="sl-subview active" id="slIndex">
+      <section class="setlist-section setlist-full">
+        <div class="setlist-header">
+          <span class="card-label">♩ SETLISTS</span>
+          <button class="btn-sl-add" id="btnAddSetlist">＋ 新規作成</button>
         </div>
-        <div id="pfManual">
+        <div class="setlist-list" id="slIndexList"></div>
+        <div class="preset-form" id="slForm" style="display:none">
           <div class="pf-fields">
-            <input class="pf-name" type="text" id="pfName" placeholder="曲名">
-            <input class="pf-bpm"  type="number" id="pfBpm"  placeholder="BPM" min="20" max="300">
+            <input class="pf-name" type="text" id="slName" placeholder="セットリスト名 (例: ワンマンライブ)">
           </div>
           <div class="pf-btns">
-            <button class="pf-save"   id="pfSave">保存</button>
-            <button class="pf-cancel" id="pfCancel">キャンセル</button>
+            <button class="pf-save"   id="slSave">保存</button>
+            <button class="pf-cancel" id="slCancel">キャンセル</button>
           </div>
         </div>
-        <div id="pfLibPicker" style="display:none">
-          <div class="setlist-list pf-lib-list" id="pfLibList"></div>
-          <div class="pf-btns" style="margin-top:8px">
-            <button class="pf-cancel" id="pfLibPickerCancel">キャンセル</button>
-          </div>
-        </div>
+      </section>
+    </div>
+
+    <!-- Sub-view B: Song List -->
+    <div class="sl-subview" id="slDetail">
+      <div class="sl-detail-header">
+        <button class="btn-sl-back" id="btnBack">← 戻る</button>
+        <span class="sl-detail-title" id="slDetailTitle">—</span>
       </div>
-    </section>
+      <section class="setlist-section setlist-full">
+        <div class="setlist-header">
+          <span class="card-label">♩ 曲リスト</span>
+          <button class="btn-sl-add" id="btnAddSong">＋ 追加</button>
+        </div>
+        <div class="setlist-list" id="songList"></div>
+        <div class="preset-form" id="presetForm" style="display:none">
+          <div class="pf-mode-row">
+            <div class="toggle-pair">
+              <button class="tgl-btn active" id="pfModeManual">直接入力</button>
+              <button class="tgl-btn" id="pfModeLib">ライブラリから</button>
+            </div>
+          </div>
+          <div id="pfManual">
+            <div class="pf-fields">
+              <input class="pf-name" type="text" id="pfName" placeholder="曲名">
+              <input class="pf-bpm"  type="number" id="pfBpm"  placeholder="BPM" min="20" max="300">
+            </div>
+            <div class="pf-btns">
+              <button class="pf-save"   id="pfSave">保存</button>
+              <button class="pf-cancel" id="pfCancel">キャンセル</button>
+            </div>
+          </div>
+          <div id="pfLibPicker" style="display:none">
+            <div class="setlist-list pf-lib-list" id="pfLibList"></div>
+            <div class="pf-btns" style="margin-top:8px">
+              <button class="pf-cancel" id="pfLibPickerCancel">キャンセル</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
   </div>
 
 </div><!-- /viewSetlist -->
 
 <!-- ── View: Library ── -->
 <div class="view" id="viewLibrary">
-  <h1 class="view-title">Metro<span>Beat</span></h1>
-  <section class="setlist-section setlist-full">
-    <div class="setlist-header">
-      <span class="card-label">♩ 曲ライブラリ</span>
-      <button class="btn-sl-add" id="btnAddLibSong">＋ 追加</button>
-    </div>
-    <div class="setlist-list" id="libSongList"></div>
-    <div class="preset-form" id="libForm" style="display:none">
-      <div class="pf-fields">
-        <input class="pf-name" type="text"   id="libName" placeholder="曲名">
-        <input class="pf-bpm"  type="number" id="libBpm"  placeholder="BPM" min="20" max="300">
+  <div class="view-top-section">
+    <h1 class="view-title">Metro<span>Beat</span></h1>
+  </div>
+  <div class="view-body">
+    <section class="setlist-section setlist-full">
+      <div class="setlist-header">
+        <span class="card-label">♩ 曲ライブラリ</span>
+        <button class="btn-sl-add" id="btnAddLibSong">＋ 追加</button>
       </div>
-      <div class="pf-btns">
-        <button class="pf-save"   id="libSave">保存</button>
-        <button class="pf-cancel" id="libCancel">キャンセル</button>
+      <div class="setlist-list" id="libSongList"></div>
+      <div class="preset-form" id="libForm" style="display:none">
+        <div class="pf-fields">
+          <input class="pf-name" type="text"   id="libName" placeholder="曲名">
+          <input class="pf-bpm"  type="number" id="libBpm"  placeholder="BPM" min="20" max="300">
+        </div>
+        <div class="pf-btns">
+          <button class="pf-save"   id="libSave">保存</button>
+          <button class="pf-cancel" id="libCancel">キャンセル</button>
+        </div>
       </div>
-    </div>
-  </section>
+    </section>
+  </div>
 </div><!-- /viewLibrary -->
 
 <!-- ── Bottom Nav ── -->
