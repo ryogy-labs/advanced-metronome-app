@@ -16,6 +16,20 @@
   <!-- Beat indicator -->
   <div class="beat-row" id="beatRow"></div>
 
+  <!-- BPM -->
+  <div class="bpm-block">
+    <div class="bpm-label">BPM</div>
+    <div class="bpm-value" id="bpmDisplay">120</div>
+    <input type="range" class="bpm-slider" id="bpmSlider"
+           min="20" max="300" value="120" step="1">
+    <div class="bpm-btns">
+      <button id="bpmMinus10">-10</button>
+      <button id="bpmMinus1">-1</button>
+      <button id="bpmPlus1">+1</button>
+      <button id="bpmPlus10">+10</button>
+    </div>
+  </div>
+
   <!-- Ball Animation -->
   <div class="ball-controls">
     <div class="toggle-row">
@@ -43,20 +57,6 @@
     </div>
   </div>
   <canvas id="ballCanvas" class="ball-canvas"></canvas>
-
-  <!-- BPM -->
-  <div class="bpm-block">
-    <div class="bpm-label">BPM</div>
-    <div class="bpm-value" id="bpmDisplay">120</div>
-    <input type="range" class="bpm-slider" id="bpmSlider"
-           min="20" max="300" value="120" step="1">
-    <div class="bpm-btns">
-      <button id="bpmMinus10">-10</button>
-      <button id="bpmMinus1">-1</button>
-      <button id="bpmPlus1">+1</button>
-      <button id="bpmPlus10">+10</button>
-    </div>
-  </div>
 
   <!-- Controls -->
   <div class="controls">
