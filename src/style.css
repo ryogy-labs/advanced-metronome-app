@@ -92,6 +92,12 @@ h1 {
 }
 h1 span { color: var(--accent); }
 
+.view-title {
+  width: 100%;
+  text-align: center;
+  margin-top: 2px;
+}
+
 /* ── Beat Indicator ── */
 .beat-row {
   display: flex;
