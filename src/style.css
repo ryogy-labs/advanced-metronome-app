@@ -27,16 +27,18 @@
   }
 }
 
+/* ── Base: fixed full-height, no scroll ── */
+html { height: 100%; }
+
 body {
   background: var(--bg);
   color: var(--text);
   font-family: 'Segoe UI', system-ui, sans-serif;
-  min-height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  padding: 24px 16px 80px;
-  gap: 20px;
+  align-items: stretch;
 }
 
 /* ── Views ── */
@@ -44,13 +46,43 @@ body {
   display: none;
   width: 100%;
   flex-direction: column;
-  align-items: center;
-  gap: 20px;
 }
-.view.active { display: flex; }
+
+/* Metronome view: 3-zone, no scroll, fills space above nav */
+#viewMetronome.active {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Setlist / Library views: scrollable */
+#viewSetlist.active,
+#viewLibrary.active {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 16px 80px;
+}
+
+/* ── A: Metro Top (fixed) ── */
+.metro-top {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px 8px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
 
 h1 {
-  font-size: 1.6rem;
+  font-size: 1.35rem;
   font-weight: 700;
   letter-spacing: 0.12em;
   color: var(--text);
@@ -61,14 +93,14 @@ h1 span { color: var(--accent); }
 /* ── Beat Indicator ── */
 .beat-row {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   justify-content: center;
   flex-wrap: wrap;
 }
 
 .beat-dot {
-  width: 52px;
-  height: 52px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   background: var(--surface2);
   border: 2px solid var(--border);
@@ -76,46 +108,46 @@ h1 span { color: var(--accent); }
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   color: var(--text2);
   font-weight: 600;
 }
 .beat-dot.active-1 {
   background: var(--beat1);
   border-color: var(--beat1);
-  box-shadow: 0 0 18px var(--beat1);
+  box-shadow: 0 0 14px var(--beat1);
   transform: scale(1.18);
   color: #fff;
 }
 .beat-dot.active-n {
   background: var(--beat2);
   border-color: var(--beat2);
-  box-shadow: 0 0 14px var(--beat2);
+  box-shadow: 0 0 10px var(--beat2);
   transform: scale(1.1);
   color: #fff;
 }
 
-/* ── BPM Display ── */
+/* ── BPM Display (flat, inside metro-top) ── */
 .bpm-block {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 20px 32px;
   text-align: center;
   width: 100%;
   max-width: 420px;
-  box-shadow: 0 2px 12px rgba(100,80,200,0.06);
 }
 
 .bpm-value {
-  font-size: 5rem;
+  font-size: 4rem;
   font-weight: 800;
   line-height: 1;
   color: var(--text);
   cursor: default;
   user-select: none;
 }
-.bpm-label { font-size: 0.8rem; color: var(--text2); letter-spacing: 0.15em; margin-bottom: 14px; }
+.bpm-label {
+  font-size: 0.72rem;
+  color: var(--text2);
+  letter-spacing: 0.15em;
+  margin-bottom: 6px;
+}
 
 .bpm-slider {
   width: 100%;
@@ -125,7 +157,7 @@ h1 span { color: var(--accent); }
   border-radius: 3px;
   background: linear-gradient(to right, var(--accent) var(--pct,50%), var(--border) var(--pct,50%));
   outline: none;
-  margin: 6px 0 14px;
+  margin: 6px 0 10px;
   cursor: pointer;
 }
 .bpm-slider::-webkit-slider-thumb {
@@ -147,7 +179,7 @@ h1 span { color: var(--accent); }
 
 .bpm-btns {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   justify-content: center;
 }
 .bpm-btns button {
@@ -155,49 +187,207 @@ h1 span { color: var(--accent); }
   border: 1px solid var(--border);
   color: var(--text);
   border-radius: 8px;
-  padding: 6px 18px;
-  font-size: 1.1rem;
+  padding: 5px 16px;
+  font-size: 1rem;
   cursor: pointer;
   transition: background 0.15s;
 }
 .bpm-btns button:hover { background: var(--border); }
 
-/* ── Controls Grid ── */
-.controls {
-  width: 100%;
-  max-width: 420px;
+/* ── B: Swipe Center ── */
+.swipe-wrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
-.card {
+.swipe-pages {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: row;
+  width: 500%;          /* 5 slots × 100% container = 500% (clone carousel) */
+  transition: transform 0.35s cubic-bezier(0.25, 0.8, 0.25, 1);
+  will-change: transform;
+}
+
+.swipe-page {
+  width: 20%;           /* 1/5 of 500% parent = 100% of container */
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 16px;
+  gap: 12px;
+}
+
+/* ── Page indicator dots ── */
+.page-dots {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  padding: 6px 0 4px;
+}
+
+.page-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: none;
+  background: var(--border);
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.2s, transform 0.2s;
+}
+.page-dot.active {
+  background: var(--accent);
+  transform: scale(1.4);
+}
+
+/* ── C: Metro Bottom (fixed) ── */
+.metro-bottom {
+  flex-shrink: 0;
+  padding: 8px 16px;
+  padding-bottom: calc(8px + 60px); /* extra space for bottom nav */
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+
+/* ── Play / Tap ── */
+.action-row {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+.btn-play {
+  flex: 1;
+  padding: 16px;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--accent);
+  box-shadow: inset 0 0 0 2px var(--accent);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.1s, background 0.2s, color 0.2s, box-shadow 0.2s;
+  text-transform: uppercase;
+}
+.btn-play:hover { opacity: 0.85; transform: translateY(-1px); }
+.btn-play:active { transform: translateY(0); }
+.btn-play.running {
+  background: linear-gradient(135deg, var(--accent), #5a3de0);
+  color: #fff;
+  box-shadow: 0 4px 20px rgba(124,92,252,0.35);
+}
+
+.btn-tap {
+  flex: 0 0 110px;
+  padding: 16px 10px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface2);
+  color: var(--text);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: background 0.1s, border-color 0.1s;
+  text-transform: uppercase;
+  text-align: center;
+  line-height: 1.3;
+}
+.btn-tap:hover { background: var(--surface2); border-color: var(--accent); }
+.btn-tap:active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+/* ── Ball Animation ── */
+.ball-canvas {
+  flex: 1;
+  min-height: 80px;
+  width: 100%;
+  max-width: 420px;
+  display: block;
+}
+.ball-canvas.hidden { display: none; }
+
+.ball-controls {
+  width: 100%;
+  max-width: 420px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 14px 16px;
+  padding: 4px 16px;
+  flex-shrink: 0;
   box-shadow: 0 2px 12px rgba(100,80,200,0.06);
 }
-.card-label {
-  font-size: 0.72rem;
-  color: var(--text2);
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  margin-bottom: 10px;
-}
 
-select {
+.ball-sub-options {
+  border-top: 1px solid var(--border);
+  padding-top: 2px;
+}
+.ball-sub-options.hidden { display: none; }
+
+/* ── Swipe page titles ── */
+.swipe-page-title {
   width: 100%;
-  background: var(--surface2);
-  border: 1px solid var(--border);
+  max-width: 420px;
+  font-size: 1.1rem;
+  font-weight: 800;
   color: var(--text);
-  border-radius: 8px;
-  padding: 8px 10px;
-  font-size: 0.95rem;
-  cursor: pointer;
-  outline: none;
+  letter-spacing: 0.04em;
+  text-align: center;
+  padding: 4px 2px 2px;
 }
-select:focus { border-color: var(--accent); }
 
+/* ── Toggle Row ── */
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 2px;
+}
 
-/* ── Volume Section ── */
+.toggle-label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 0.04em;
+}
+
+.toggle-pair {
+  display: flex;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.tgl-btn {
+  background: var(--surface2);
+  color: var(--text2);
+  border: none;
+  padding: 5px 14px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.08em;
+  transition: background 0.15s, color 0.15s;
+}
+.tgl-btn:not(:last-child) {
+  border-right: 1px solid var(--border);
+}
+.tgl-btn.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* ── Volume Section (Page 1) ── */
 .vol-section {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -257,21 +447,13 @@ select:focus { border-color: var(--accent); }
   text-align: right;
 }
 
-.master-vol-row {
-  margin-bottom: 4px;
-}
-.master-vol-name b {
-  font-size: 0.9rem;
-}
+.master-vol-row { margin-bottom: 4px; }
+.master-vol-name b { font-size: 0.9rem; }
 .master-vol-slider {
   background: linear-gradient(to right, var(--accent) var(--pct,100%), var(--border) var(--pct,100%)) !important;
 }
-.master-vol-slider::-webkit-slider-thumb {
-  background: var(--accent) !important;
-}
-.master-vol-slider::-moz-range-thumb {
-  background: var(--accent) !important;
-}
+.master-vol-slider::-webkit-slider-thumb { background: var(--accent) !important; }
+.master-vol-slider::-moz-range-thumb     { background: var(--accent) !important; }
 
 .vol-divider {
   border: none;
@@ -279,118 +461,73 @@ select:focus { border-color: var(--accent); }
   margin: 10px 0 12px;
 }
 
-/* ── Play / Tap ── */
-.action-row {
-  display: flex;
-  gap: 12px;
-  width: 100%;
-  max-width: 420px;
-}
-
-.btn-play {
-  flex: 1;
-  padding: 18px;
-  border: none;
-  border-radius: var(--radius);
-  background: var(--surface);
-  color: var(--accent);
-  box-shadow: inset 0 0 0 2px var(--accent);
-  font-size: 1rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  cursor: pointer;
-  transition: opacity 0.15s, transform 0.1s, background 0.2s, color 0.2s, box-shadow 0.2s;
-  text-transform: uppercase;
-}
-.btn-play:hover { opacity: 0.85; transform: translateY(-1px); }
-.btn-play:active { transform: translateY(0); }
-.btn-play.running {
-  background: linear-gradient(135deg, var(--accent), #5a3de0);
-  color: #fff;
-  box-shadow: 0 4px 20px rgba(124,92,252,0.35);
-}
-
-.btn-tap {
-  flex: 0 0 120px;
-  padding: 18px 10px;
-  border: 2px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-  color: var(--text);
-  font-size: 0.85rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  cursor: pointer;
-  transition: background 0.1s, border-color 0.1s;
-  text-transform: uppercase;
-}
-.btn-tap:hover { background: var(--surface2); border-color: var(--accent); }
-.btn-tap:active { background: var(--accent); border-color: var(--accent); color: #fff; }
-
-/* ── Ball Animation ── */
-.ball-canvas {
-  width: 100%;
-  max-width: 420px;
-  height: 270px;
-  display: block;
-}
-.ball-canvas.hidden { display: none; }
-
-.ball-controls {
-  width: 100%;
-  max-width: 420px;
+/* ── Time Signature Picker (Page 2) ── */
+.ts-picker-wrap {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 4px 16px;
+  padding: 28px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  width: 100%;
+  max-width: 420px;
   box-shadow: 0 2px 12px rgba(100,80,200,0.06);
 }
 
-.ball-sub-options {
-  border-top: 1px solid var(--border);
-  padding-top: 2px;
-}
-.ball-sub-options.hidden { display: none; }
-
-/* ── Toggle Row (ボール / 移動方向 / スクワッシュ) ── */
-.toggle-row {
+.ts-picker-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 6px 2px;
+  gap: 24px;
 }
 
-.toggle-label {
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: var(--text);
-  letter-spacing: 0.04em;
-}
-
-.toggle-pair {
+.ts-picker-col {
   display: flex;
-  border-radius: 6px;
-  overflow: hidden;
-  border: 1px solid var(--border);
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
 }
 
-.tgl-btn {
+.ts-val {
+  font-size: 5rem;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--text);
+  width: 100px;
+  text-align: center;
+  user-select: none;
+}
+
+.ts-arrow {
+  width: 60px;
+  height: 42px;
   background: var(--surface2);
-  color: var(--text2);
-  border: none;
-  padding: 5px 16px;
-  font-size: 0.72rem;
-  font-weight: 700;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  font-size: 0.85rem;
   cursor: pointer;
-  letter-spacing: 0.08em;
-  transition: background 0.15s, color 0.15s;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
-.tgl-btn:not(:last-child) {
-  border-right: 1px solid var(--border);
+.ts-arrow:hover  { background: var(--accent); color: #fff; border-color: var(--accent); }
+.ts-arrow:active { opacity: 0.7; }
+
+.ts-slash {
+  font-size: 5.5rem;
+  font-weight: 200;
+  color: var(--text2);
+  line-height: 1;
+  user-select: none;
 }
-.tgl-btn.active {
-  background: var(--accent);
-  color: #fff;
+
+/* ── card-label (shared) ── */
+.card-label {
+  font-size: 0.72rem;
+  color: var(--text2);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 10px;
 }
 
 /* ── Setlist ── */
@@ -534,7 +671,7 @@ select:focus { border-color: var(--accent); }
 }
 .drag-handle:active { cursor: grabbing; }
 
-/* ── DnD: insert-between ── */
+/* ── DnD ── */
 .dnd-source { opacity: 0 !important; }
 
 .dnd-ghost {
@@ -543,23 +680,19 @@ select:focus { border-color: var(--accent); }
   box-shadow: 0 8px 28px rgba(124, 92, 252, 0.22);
   border-radius: 8px;
 }
-/* Match .setlist-full child styles in ghost (no parent context) */
-.dnd-ghost .preset-apply     { padding: 12px 12px; }
-.dnd-ghost .preset-name      { font-size: 0.95rem; }
-.dnd-ghost .preset-bpm       { font-size: 0.85rem; }
-.dnd-ghost .preset-num       { width: 30px; height: 30px; font-size: 0.75rem; }
-.dnd-ghost .preset-icon-btn  { width: 34px; height: 34px; }
+.dnd-ghost .preset-apply    { padding: 12px 12px; }
+.dnd-ghost .preset-name     { font-size: 0.95rem; }
+.dnd-ghost .preset-bpm      { font-size: 0.85rem; }
+.dnd-ghost .preset-num      { width: 30px; height: 30px; font-size: 0.75rem; }
+.dnd-ghost .preset-icon-btn { width: 34px; height: 34px; }
 
-/* Smooth row shifting during drag */
 .dnd-active .preset-row:not(.dnd-source),
 .dnd-active .sl-row:not(.dnd-source) {
   transition: transform 150ms cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
 /* Beat row on setlist page */
-.sl-beat-row {
-  justify-content: center;
-}
+.sl-beat-row { justify-content: center; }
 
 /* ── Preset form mode selector ── */
 .pf-mode-row {
@@ -626,21 +759,6 @@ select:focus { border-color: var(--accent); }
 }
 .pf-cancel:hover { background: var(--border); }
 
-/* ── Keyboard hint ── */
-.hint {
-  font-size: 0.72rem;
-  color: var(--text2);
-  text-align: center;
-  letter-spacing: 0.05em;
-}
-kbd {
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 1px 6px;
-  font-family: inherit;
-}
-
 /* ── Bottom Navigation ── */
 .bottom-nav {
   position: fixed;
@@ -701,7 +819,7 @@ kbd {
   width: 100%;
   flex-direction: column;
   align-items: center;
-  gap: 20px;
+  gap: 16px;
 }
 .sl-subview.active { display: flex; }
 
@@ -784,24 +902,11 @@ kbd {
   background: transparent !important;
   padding: 0 !important;
 }
-.setlist-full .preset-apply {
-  padding: 12px 12px;
-}
-.setlist-full .preset-name {
-  font-size: 0.95rem;
-}
-.setlist-full .preset-bpm {
-  font-size: 0.85rem;
-}
-.setlist-full .preset-num {
-  width: 30px;
-  height: 30px;
-  font-size: 0.75rem;
-}
-.setlist-full .preset-icon-btn {
-  width: 34px;
-  height: 34px;
-}
+.setlist-full .preset-apply  { padding: 12px 12px; }
+.setlist-full .preset-name   { font-size: 0.95rem; }
+.setlist-full .preset-bpm    { font-size: 0.85rem; }
+.setlist-full .preset-num    { width: 30px; height: 30px; font-size: 0.75rem; }
+.setlist-full .preset-icon-btn { width: 34px; height: 34px; }
 
 /* ── Now Playing banner ── */
 .now-playing {

@@ -4,6 +4,9 @@ import './style.css';
   // ──── State ────
   let bpm = 120;
   let beatsPerMeasure = 4;
+  // Time signature picker state
+  let tsNum = 4;          // numerator  : 2-7
+  let tsDen = 4;          // denominator: 4 or 8
   let masterVol = 1.0;
   let volBeat1 = 1.0, volQuarter = 0.8, volEighth = 0.5, volSixteenth = 0.0;
   let running = false;
@@ -33,7 +36,12 @@ import './style.css';
   const beatRowEls      = [beatRow, beatRowSetlist];
   const playBtn         = document.getElementById('playBtn');
   const tapBtn          = document.getElementById('tapBtn');
-  const timeSigSel      = document.getElementById('timeSig');
+  // Time sig picker elements
+  const tsNumValEl      = document.getElementById('tsNumVal');
+  const tsDenValEl      = document.getElementById('tsDenVal');
+  // Swipe panel
+  const swipePagesEl    = document.getElementById('swipePages');
+  const pageDotEls      = document.querySelectorAll('.page-dot');
 
   const volMasterEl     = document.getElementById('volMaster');
   const volMasterNum    = document.getElementById('volMasterNum');
@@ -193,10 +201,33 @@ import './style.css';
   document.getElementById('bpmPlus1').addEventListener('click',   () => setBPM(bpm + 1));
   document.getElementById('bpmPlus10').addEventListener('click',  () => setBPM(bpm + 10));
 
-  timeSigSel.addEventListener('change', () => {
-    beatsPerMeasure = Number(timeSigSel.value);
+  // ──── Time Signature Picker ────
+  const TS_NUMS = [2, 3, 4, 5, 6, 7];
+  const TS_DENS = [4, 8];
+
+  function applyTimeSig() {
+    beatsPerMeasure = tsNum;
+    tsNumValEl.textContent = tsNum;
+    tsDenValEl.textContent = tsDen;
     buildBeatDots();
     if (running) { stopMetronome(); startMetronome(); }
+  }
+
+  document.getElementById('tsNumUp').addEventListener('click', () => {
+    const idx = TS_NUMS.indexOf(tsNum);
+    if (idx < TS_NUMS.length - 1) { tsNum = TS_NUMS[idx + 1]; applyTimeSig(); }
+  });
+  document.getElementById('tsNumDn').addEventListener('click', () => {
+    const idx = TS_NUMS.indexOf(tsNum);
+    if (idx > 0) { tsNum = TS_NUMS[idx - 1]; applyTimeSig(); }
+  });
+  document.getElementById('tsDenUp').addEventListener('click', () => {
+    const idx = TS_DENS.indexOf(tsDen);
+    if (idx < TS_DENS.length - 1) { tsDen = TS_DENS[idx + 1]; applyTimeSig(); }
+  });
+  document.getElementById('tsDenDn').addEventListener('click', () => {
+    const idx = TS_DENS.indexOf(tsDen);
+    if (idx > 0) { tsDen = TS_DENS[idx - 1]; applyTimeSig(); }
   });
 
   volMasterEl.addEventListener('input', () => {
@@ -252,22 +283,6 @@ import './style.css';
   updateVolSlider(volEighthEl,    volEighthNum);
   updateVolSlider(volSixteenthEl, volSixteenthNum);
 
-  // ── Ball toggle ──
-  const ballOnBtn      = document.getElementById('ballOnBtn');
-  const ballOffBtn     = document.getElementById('ballOffBtn');
-  const ballSubOptions = document.getElementById('ballSubOptions');
-  let ballVisible = true;
-
-  function setBallVisible(v) {
-    ballVisible = v;
-    ballCanvas.classList.toggle('hidden',     !v);
-    ballSubOptions.classList.toggle('hidden', !v);
-    ballOnBtn.classList.toggle('active',       v);
-    ballOffBtn.classList.toggle('active',     !v);
-  }
-  ballOnBtn.addEventListener('click',  () => setBallVisible(true));
-  ballOffBtn.addEventListener('click', () => setBallVisible(false));
-
   // ── Mode toggle (移動方向: 縦 / 横) ──
   const modeVertical   = document.getElementById('modeVertical');
   const modeHorizontal = document.getElementById('modeHorizontal');
@@ -293,47 +308,32 @@ import './style.css';
   squashOffBtn.addEventListener('click', () => setSquash(false));
 
   // ──── Ball Animation ────
-  const ballCanvas = document.getElementById('ballCanvas');
-  const ballCtx2d  = ballCanvas.getContext('2d');
+  let ballCanvasViews = [];
   const BALL_MAX_H = 160; // px: max height above ground
   const BALL_R     = 30;  // px: ball radius
 
-  function resizeCanvas() {
-    ballCanvas.width  = ballCanvas.offsetWidth;
-    ballCanvas.height = ballCanvas.offsetHeight;
+  function refreshBallCanvases() {
+    ballCanvasViews = Array.from(document.querySelectorAll('.ball-canvas'))
+      .map(canvas => ({ canvas, ctx: canvas.getContext('2d') }))
+      .filter(v => !!v.ctx);
   }
-  resizeCanvas();
-  window.addEventListener('resize', resizeCanvas);
 
-  function drawBall() {
-    const w = ballCanvas.width;
-    const h = ballCanvas.height;
-    ballCtx2d.clearRect(0, 0, w, h);
+  function resizeBallCanvases() {
+    ballCanvasViews.forEach(({ canvas }) => {
+      const w = canvas.offsetWidth;
+      const h = canvas.offsetHeight;
+      if (w > 0 && h > 0) {
+        canvas.width  = w;
+        canvas.height = h;
+      }
+    });
+  }
+
+  function drawBallFrame(ctx, w, h, phase, beatIdx) {
+    ctx.clearRect(0, 0, w, h);
 
     const groundY = h - 10;
-
-    // Beat phase: 0 = ground contact, 0.5 = apex, 1 = next ground contact
-    // Computed from the most recent scheduled beat that has already passed,
-    // so it stays in sync even when BPM changes mid-play.
-    let phase   = 0;
-    let beatIdx = 0;
-    if (running && audioCtx) {
-      const now = audioCtx.currentTime;
-      let lastBeat = null;
-      for (let i = scheduledBeatTimes.length - 1; i >= 0; i--) {
-        if (scheduledBeatTimes[i].time <= now) {
-          lastBeat = scheduledBeatTimes[i];
-          break;
-        }
-      }
-      if (lastBeat) {
-        const beatDur = 60 / bpm;
-        phase   = Math.min((now - lastBeat.time) / beatDur, 1);
-        beatIdx = lastBeat.beatIdx;
-      }
-    }
     const isBeat1 = beatIdx === 0;
-
     const margin = BALL_R + 4;
     const cx = animMode === 'horizontal'
       ? margin + ((beatIdx + phase) / beatsPerMeasure) * (w - 2 * margin)
@@ -368,34 +368,68 @@ import './style.css';
     // Shadow (grows darker/larger as ball approaches ground)
     const shadowAlpha = 0.08 + 0.22 * (1 - heightFrac);
     const shadowRx    = BALL_R * (0.5 + 0.9 * (1 - heightFrac));
-    ballCtx2d.save();
-    ballCtx2d.fillStyle = `rgba(124, 92, 252, ${shadowAlpha})`;
-    ballCtx2d.beginPath();
-    ballCtx2d.ellipse(cx, groundY, shadowRx, 4, 0, 0, Math.PI * 2);
-    ballCtx2d.fill();
-    ballCtx2d.restore();
+    ctx.save();
+    ctx.fillStyle = `rgba(124, 92, 252, ${shadowAlpha})`;
+    ctx.beginPath();
+    ctx.ellipse(cx, groundY, shadowRx, 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
 
     // Ground line
-    ballCtx2d.save();
-    ballCtx2d.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--border').trim();
-    ballCtx2d.lineWidth = 2;
-    ballCtx2d.beginPath();
-    ballCtx2d.moveTo(0, groundY);
-    ballCtx2d.lineTo(w, groundY);
-    ballCtx2d.stroke();
-    ballCtx2d.restore();
+    ctx.save();
+    ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--border').trim();
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, groundY);
+    ctx.lineTo(w, groundY);
+    ctx.stroke();
+    ctx.restore();
 
     // Ball: flash pink only on Beat 1 impact; other beats stay purple
     const isImpact  = phase < 0.15 && running;
     const ballColor = (isImpact && isBeat1) ? '#fc5c7d' : '#7c5cfc';
-    ballCtx2d.save();
-    ballCtx2d.shadowColor = ballColor;
-    ballCtx2d.shadowBlur  = (isImpact && isBeat1) ? 24 : 14;
-    ballCtx2d.fillStyle   = ballColor;
-    ballCtx2d.beginPath();
-    ballCtx2d.ellipse(cx, ballY, rx, ry, 0, 0, Math.PI * 2);
-    ballCtx2d.fill();
-    ballCtx2d.restore();
+    ctx.save();
+    ctx.shadowColor = ballColor;
+    ctx.shadowBlur  = (isImpact && isBeat1) ? 24 : 14;
+    ctx.fillStyle   = ballColor;
+    ctx.beginPath();
+    ctx.ellipse(cx, ballY, rx, ry, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // Call once immediately, then again after first paint when flex layout is complete
+  refreshBallCanvases();
+  resizeBallCanvases();
+  requestAnimationFrame(() => requestAnimationFrame(resizeBallCanvases));
+  window.addEventListener('resize', resizeBallCanvases);
+
+  function drawBall() {
+    // Beat phase: 0 = ground contact, 0.5 = apex, 1 = next ground contact
+    // Computed from the most recent scheduled beat that has already passed,
+    // so it stays in sync even when BPM changes mid-play.
+    let phase   = 0;
+    let beatIdx = 0;
+    if (running && audioCtx) {
+      const now = audioCtx.currentTime;
+      let lastBeat = null;
+      for (let i = scheduledBeatTimes.length - 1; i >= 0; i--) {
+        if (scheduledBeatTimes[i].time <= now) {
+          lastBeat = scheduledBeatTimes[i];
+          break;
+        }
+      }
+      if (lastBeat) {
+        const beatDur = 60 / bpm;
+        phase   = Math.min((now - lastBeat.time) / beatDur, 1);
+        beatIdx = lastBeat.beatIdx;
+      }
+    }
+
+    ballCanvasViews.forEach(({ canvas, ctx }) => {
+      if (canvas.width === 0 || canvas.height === 0) return;
+      drawBallFrame(ctx, canvas.width, canvas.height, phase, beatIdx);
+    });
 
     requestAnimationFrame(drawBall);
   }
@@ -1031,6 +1065,187 @@ import './style.css';
   showSlIndex();
   updateNowPlaying();
   renderLibrary();
+
+  // ──── Swipe Panel (5-slot clone carousel) ────
+  // Slot layout: [clone-P2][P0][P1][P2][clone-P0]
+  // physicalIdx: 0=clone-P2, 1=P0, 2=P1, 3=P2, 4=clone-P0
+  const TOTAL_PAGES = 3;
+  const SLOT_STEP   = 20; // % per slot (100% / 5 slots)
+  let currentPage   = 0;
+  let physicalIdx   = 1;  // start at slot 1 (real page 0)
+
+  // Inject clone sentinels into the DOM
+  (() => {
+    const pages = Array.from(swipePagesEl.querySelectorAll('.swipe-page'));
+    // slot 0: clone of page 2 (shows when dragging right past page 0)
+    swipePagesEl.insertBefore(pages[2].cloneNode(true), pages[0]);
+    // slot 4: clone of page 0 (shows when dragging left past page 2)
+    swipePagesEl.appendChild(pages[0].cloneNode(true));
+  })();
+  refreshBallCanvases();
+  resizeBallCanvases();
+
+  // Set initial position instantly (no animation)
+  swipePagesEl.style.transition = 'none';
+  swipePagesEl.style.transform  = `translateX(-${physicalIdx * SLOT_STEP}%)`;
+  // Re-enable transition after layout settles
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    swipePagesEl.style.transition = '';
+  }));
+
+  // After a wrap transition lands on a clone slot, silently jump to the real slot.
+  // IMPORTANT: force a synchronous reflow (offsetWidth read) between setting
+  // transition:none+transform and re-enabling the transition, so the browser
+  // commits the instant jump before any future animated transition can start.
+  swipePagesEl.addEventListener('transitionend', () => {
+    if (physicalIdx === 4) {
+      // clone-P0 → real P0 (slot 1)
+      physicalIdx = 1;
+      swipePagesEl.style.transition = 'none';
+      swipePagesEl.style.transform  = `translateX(-${physicalIdx * SLOT_STEP}%)`;
+      void swipePagesEl.offsetWidth; // flush styles / force reflow
+      swipePagesEl.style.transition = '';
+    } else if (physicalIdx === 0) {
+      // clone-P2 → real P2 (slot 3)
+      physicalIdx = 3;
+      swipePagesEl.style.transition = 'none';
+      swipePagesEl.style.transform  = `translateX(-${physicalIdx * SLOT_STEP}%)`;
+      void swipePagesEl.offsetWidth; // flush styles / force reflow
+      swipePagesEl.style.transition = '';
+    }
+  });
+
+  function updateDots() {
+    pageDotEls.forEach((dot, i) => dot.classList.toggle('active', i === currentPage));
+  }
+
+  // Direct navigation to a logical page (dot clicks)
+  function goToPage(targetLogical) {
+    currentPage = ((targetLogical % TOTAL_PAGES) + TOTAL_PAGES) % TOTAL_PAGES;
+    physicalIdx = currentPage + 1; // 0→1, 1→2, 2→3
+    swipePagesEl.style.transition = '';
+    swipePagesEl.style.transform  = `translateX(-${physicalIdx * SLOT_STEP}%)`;
+    updateDots();
+    if (currentPage === 0) resizeBallCanvases();
+  }
+
+  // Navigate one step forward (swipe-left = next page, wraps naturally via clone-P0)
+  function goForward() {
+    currentPage = (currentPage + 1) % TOTAL_PAGES;
+    physicalIdx = physicalIdx + 1; // may reach 4 (clone-P0); transitionend jumps back
+    swipePagesEl.style.transition = '';
+    swipePagesEl.style.transform  = `translateX(-${physicalIdx * SLOT_STEP}%)`;
+    updateDots();
+    if (currentPage === 0) resizeBallCanvases();
+  }
+
+  // Navigate one step backward (swipe-right = prev page, wraps naturally via clone-P2)
+  function goBackward() {
+    currentPage = (currentPage + TOTAL_PAGES - 1) % TOTAL_PAGES;
+    physicalIdx = physicalIdx - 1; // may reach 0 (clone-P2); transitionend jumps back
+    swipePagesEl.style.transition = '';
+    swipePagesEl.style.transform  = `translateX(-${physicalIdx * SLOT_STEP}%)`;
+    updateDots();
+    if (currentPage === 0) resizeBallCanvases();
+  }
+
+  // Dot tap-to-switch
+  pageDotEls.forEach(dot =>
+    dot.addEventListener('click', () => goToPage(parseInt(dot.dataset.page))));
+
+  // Touch swipe gesture
+  let swipeStartX    = null;
+  let swipeStartY    = null;
+  let swipeActive    = false;
+  let swipeStartPhys = 0;  // physicalIdx at drag start
+
+  swipePagesEl.addEventListener('touchstart', e => {
+    const tgt = e.target;
+    // Don't intercept touches that start on interactive elements
+    if (tgt.tagName === 'INPUT' || tgt.tagName === 'BUTTON' || tgt.tagName === 'SELECT') return;
+    swipeStartX    = e.touches[0].clientX;
+    swipeStartY    = e.touches[0].clientY;
+    swipeActive    = false;
+    swipeStartPhys = physicalIdx;
+  }, { passive: true });
+
+  swipePagesEl.addEventListener('touchmove', e => {
+    if (swipeStartX === null) return;
+    const dx = e.touches[0].clientX - swipeStartX;
+    const dy = e.touches[0].clientY - swipeStartY;
+
+    if (!swipeActive) {
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+      if (Math.abs(dx) > Math.abs(dy)) {
+        swipeActive = true;
+        swipePagesEl.style.transition = 'none';
+      } else {
+        swipeStartX = null; // vertical scroll — don't hijack
+        return;
+      }
+    }
+
+    e.preventDefault();
+    const containerW = swipePagesEl.parentElement.offsetWidth;
+    const dragPct    = (dx / containerW) * SLOT_STEP;
+    const basePct    = swipeStartPhys * SLOT_STEP;
+    swipePagesEl.style.transform = `translateX(${-(basePct - dragPct)}%)`;
+  }, { passive: false });
+
+  swipePagesEl.addEventListener('touchend', e => {
+    if (!swipeActive) { swipeStartX = null; return; }
+    swipePagesEl.style.transition = '';
+    const dx = e.changedTouches[0].clientX - swipeStartX;
+    const THRESHOLD = 50;
+    if      (dx < -THRESHOLD) goForward();
+    else if (dx >  THRESHOLD) goBackward();
+    else {
+      // Snap back to where drag started
+      physicalIdx = swipeStartPhys;
+      swipePagesEl.style.transform = `translateX(-${physicalIdx * SLOT_STEP}%)`;
+    }
+    swipeStartX = null;
+    swipeActive  = false;
+  });
+
+  // Mouse drag (for desktop testing)
+  let mouseSwipeX    = null;
+  let mouseSwipePhys = 0;
+  let mouseActive    = false;
+
+  swipePagesEl.addEventListener('mousedown', e => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') return;
+    mouseSwipeX    = e.clientX;
+    mouseSwipePhys = physicalIdx;
+    mouseActive    = false;
+  });
+  document.addEventListener('mousemove', e => {
+    if (mouseSwipeX === null) return;
+    const dx = e.clientX - mouseSwipeX;
+    if (!mouseActive && Math.abs(dx) > 8) {
+      mouseActive = true;
+      swipePagesEl.style.transition = 'none';
+    }
+    if (!mouseActive) return;
+    const containerW = swipePagesEl.parentElement.offsetWidth;
+    const dragPct    = (dx / containerW) * SLOT_STEP;
+    const basePct    = mouseSwipePhys * SLOT_STEP;
+    swipePagesEl.style.transform = `translateX(${-(basePct - dragPct)}%)`;
+  });
+  document.addEventListener('mouseup', e => {
+    if (mouseSwipeX === null) return;
+    swipePagesEl.style.transition = '';
+    const dx = e.clientX - mouseSwipeX;
+    const THRESHOLD = 50;
+    if      (dx < -THRESHOLD) goForward();
+    else if (dx >  THRESHOLD) goBackward();
+    else {
+      physicalIdx = mouseSwipePhys;
+      swipePagesEl.style.transform = `translateX(-${physicalIdx * SLOT_STEP}%)`;
+    }
+    mouseSwipeX = null;
+    mouseActive  = false;
+  });
 
   // ──── Bottom Navigation ────
   const navMetronomeBtn = document.getElementById('navMetronome');

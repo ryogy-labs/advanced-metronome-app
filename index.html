@@ -8,110 +8,123 @@
 </head>
 <body>
 
-<h1>Metro<span>Beat</span></h1>
-
 <!-- ── View: Metronome ── -->
 <div class="view active" id="viewMetronome">
 
-  <!-- Beat indicator -->
-  <div class="beat-row" id="beatRow"></div>
-
-  <!-- Ball Animation -->
-  <div class="ball-controls">
-    <div class="toggle-row">
-      <span class="toggle-label">ボール</span>
-      <div class="toggle-pair">
-        <button class="tgl-btn active" id="ballOnBtn">ON</button>
-        <button class="tgl-btn" id="ballOffBtn">OFF</button>
+  <!-- A: Fixed top area -->
+  <div class="metro-top">
+    <h1>Metro<span>Beat</span></h1>
+    <div class="beat-row" id="beatRow"></div>
+    <div class="bpm-block">
+      <div class="bpm-label">BPM</div>
+      <div class="bpm-value" id="bpmDisplay">120</div>
+      <input type="range" class="bpm-slider" id="bpmSlider"
+             min="20" max="300" value="120" step="1">
+      <div class="bpm-btns">
+        <button id="bpmMinus10">-10</button>
+        <button id="bpmMinus1">-1</button>
+        <button id="bpmPlus1">+1</button>
+        <button id="bpmPlus10">+10</button>
       </div>
     </div>
-    <div class="ball-sub-options" id="ballSubOptions">
-      <div class="toggle-row">
-        <span class="toggle-label">移動方向</span>
-        <div class="toggle-pair">
-          <button class="tgl-btn active" id="modeVertical">縦</button>
-          <button class="tgl-btn" id="modeHorizontal">横</button>
+  </div>
+
+  <!-- B: Swipe center area (3 pages) -->
+  <div class="swipe-wrap">
+    <div class="swipe-pages" id="swipePages">
+
+      <!-- Page 0: Ball Animation -->
+      <div class="swipe-page" id="spBall">
+        <div class="swipe-page-title">ボール</div>
+        <canvas id="ballCanvas" class="ball-canvas"></canvas>
+        <div class="ball-controls">
+          <div class="toggle-row">
+            <span class="toggle-label">移動方向</span>
+            <div class="toggle-pair">
+              <button class="tgl-btn active" id="modeVertical">縦</button>
+              <button class="tgl-btn" id="modeHorizontal">横</button>
+            </div>
+          </div>
+          <div class="toggle-row">
+            <span class="toggle-label">スクワッシュ</span>
+            <div class="toggle-pair">
+              <button class="tgl-btn active" id="squashOnBtn">ON</button>
+              <button class="tgl-btn" id="squashOffBtn">OFF</button>
+            </div>
+          </div>
         </div>
       </div>
-      <div class="toggle-row">
-        <span class="toggle-label">スクワッシュ</span>
-        <div class="toggle-pair">
-          <button class="tgl-btn active" id="squashOnBtn">ON</button>
-          <button class="tgl-btn" id="squashOffBtn">OFF</button>
+
+      <!-- Page 1: Volume -->
+      <div class="swipe-page" id="spVolume">
+        <div class="swipe-page-title">音量調整</div>
+        <div class="vol-section">
+          <div class="vol-row master-vol-row">
+            <div class="vol-name master-vol-name"><b>Master</b>全体音量</div>
+            <input type="range" class="vol-slider master-vol-slider" id="volMaster" min="0" max="100" value="100">
+            <div class="vol-num" id="volMasterNum">100</div>
+          </div>
+          <div class="vol-divider"></div>
+          <div class="card-label">個別音量</div>
+          <div class="vol-row">
+            <div class="vol-name"><b>頭拍</b>Beat 1</div>
+            <input type="range" class="vol-slider" id="volBeat1" min="0" max="100" value="100">
+            <div class="vol-num" id="volBeat1Num">100</div>
+          </div>
+          <div class="vol-row">
+            <div class="vol-name"><b>4分</b>Quarter</div>
+            <input type="range" class="vol-slider" id="volQuarter" min="0" max="100" value="80">
+            <div class="vol-num" id="volQuarterNum">80</div>
+          </div>
+          <div class="vol-row">
+            <div class="vol-name"><b>8分</b>Eighth</div>
+            <input type="range" class="vol-slider" id="volEighth" min="0" max="100" value="50">
+            <div class="vol-num" id="volEighthNum">50</div>
+          </div>
+          <div class="vol-row">
+            <div class="vol-name"><b>16分</b>Sixteenth</div>
+            <input type="range" class="vol-slider" id="volSixteenth" min="0" max="100" value="0">
+            <div class="vol-num" id="volSixteenthNum">0</div>
+          </div>
         </div>
       </div>
-    </div>
-  </div>
-  <canvas id="ballCanvas" class="ball-canvas"></canvas>
 
-  <!-- BPM -->
-  <div class="bpm-block">
-    <div class="bpm-label">BPM</div>
-    <div class="bpm-value" id="bpmDisplay">120</div>
-    <input type="range" class="bpm-slider" id="bpmSlider"
-           min="20" max="300" value="120" step="1">
-    <div class="bpm-btns">
-      <button id="bpmMinus10">-10</button>
-      <button id="bpmMinus1">-1</button>
-      <button id="bpmPlus1">+1</button>
-      <button id="bpmPlus10">+10</button>
-    </div>
-  </div>
+      <!-- Page 2: Time Signature -->
+      <div class="swipe-page" id="spTimeSig">
+        <div class="swipe-page-title">拍子</div>
+        <div class="ts-picker-wrap">
+          <div class="ts-picker-row">
+            <div class="ts-picker-col">
+              <button class="ts-arrow" id="tsNumUp">▲</button>
+              <div class="ts-val" id="tsNumVal">4</div>
+              <button class="ts-arrow" id="tsNumDn">▼</button>
+            </div>
+            <div class="ts-slash">/</div>
+            <div class="ts-picker-col">
+              <button class="ts-arrow" id="tsDenUp">▲</button>
+              <div class="ts-val" id="tsDenVal">4</div>
+              <button class="ts-arrow" id="tsDenDn">▼</button>
+            </div>
+          </div>
+        </div>
+      </div>
 
-  <!-- Controls -->
-  <div class="controls">
-    <div class="card">
-      <div class="card-label">拍子記号</div>
-      <select id="timeSig">
-        <option value="2">2/4</option>
-        <option value="3">3/4</option>
-        <option value="4" selected>4/4</option>
-        <option value="5">5/4</option>
-        <option value="6">6/8</option>
-        <option value="7">7/8</option>
-      </select>
-    </div>
-  </div>
+    </div><!-- /swipe-pages -->
 
-  <!-- Volume -->
-  <div class="vol-section">
-    <div class="vol-row master-vol-row">
-      <div class="vol-name master-vol-name"><b>Master</b>全体音量</div>
-      <input type="range" class="vol-slider master-vol-slider" id="volMaster" min="0" max="100" value="100">
-      <div class="vol-num" id="volMasterNum">100</div>
+    <!-- Page indicator dots -->
+    <div class="page-dots">
+      <button class="page-dot active" data-page="0"></button>
+      <button class="page-dot" data-page="1"></button>
+      <button class="page-dot" data-page="2"></button>
     </div>
-    <div class="vol-divider"></div>
-    <div class="card-label">個別音量</div>
-    <div class="vol-row">
-      <div class="vol-name"><b>頭拍</b>Beat 1</div>
-      <input type="range" class="vol-slider" id="volBeat1" min="0" max="100" value="100">
-      <div class="vol-num" id="volBeat1Num">100</div>
-    </div>
-    <div class="vol-row">
-      <div class="vol-name"><b>4分</b>Quarter</div>
-      <input type="range" class="vol-slider" id="volQuarter" min="0" max="100" value="80">
-      <div class="vol-num" id="volQuarterNum">80</div>
-    </div>
-    <div class="vol-row">
-      <div class="vol-name"><b>8分</b>Eighth</div>
-      <input type="range" class="vol-slider" id="volEighth" min="0" max="100" value="50">
-      <div class="vol-num" id="volEighthNum">50</div>
-    </div>
-    <div class="vol-row">
-      <div class="vol-name"><b>16分</b>Sixteenth</div>
-      <input type="range" class="vol-slider" id="volSixteenth" min="0" max="100" value="0">
-      <div class="vol-num" id="volSixteenthNum">0</div>
-    </div>
-  </div>
+  </div><!-- /swipe-wrap -->
 
-  <!-- Play / Tap -->
-  <div class="action-row">
-    <button class="btn-play" id="playBtn">▶ START</button>
-    <button class="btn-tap" id="tapBtn">TAP<br>TEMPO</button>
-  </div>
-
-  <div class="hint">
-    <kbd>Space</kbd> スタート/ストップ &nbsp;|&nbsp; <kbd>T</kbd> タップテンポ
+  <!-- C: Fixed bottom area -->
+  <div class="metro-bottom">
+    <div class="action-row">
+      <button class="btn-play" id="playBtn">▶ START</button>
+      <button class="btn-tap" id="tapBtn">TAP<br>TEMPO</button>
+    </div>
   </div>
 
 </div><!-- /viewMetronome -->
