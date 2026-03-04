@@ -4,6 +4,9 @@ import './style.css';
   // ──── State ────
   let bpm = 120;
   let beatsPerMeasure = 4;
+  // Time signature picker state
+  let tsNum = 4;          // numerator  : 2-7
+  let tsDen = 4;          // denominator: 4 or 8
   let masterVol = 1.0;
   let volBeat1 = 1.0, volQuarter = 0.8, volEighth = 0.5, volSixteenth = 0.0;
   let running = false;
@@ -33,7 +36,12 @@ import './style.css';
   const beatRowEls      = [beatRow, beatRowSetlist];
   const playBtn         = document.getElementById('playBtn');
   const tapBtn          = document.getElementById('tapBtn');
-  const timeSigSel      = document.getElementById('timeSig');
+  // Time sig picker elements
+  const tsNumValEl      = document.getElementById('tsNumVal');
+  const tsDenValEl      = document.getElementById('tsDenVal');
+  // Swipe panel
+  const swipePagesEl    = document.getElementById('swipePages');
+  const pageDotEls      = document.querySelectorAll('.page-dot');
 
   const volMasterEl     = document.getElementById('volMaster');
   const volMasterNum    = document.getElementById('volMasterNum');
@@ -193,10 +201,33 @@ import './style.css';
   document.getElementById('bpmPlus1').addEventListener('click',   () => setBPM(bpm + 1));
   document.getElementById('bpmPlus10').addEventListener('click',  () => setBPM(bpm + 10));
 
-  timeSigSel.addEventListener('change', () => {
-    beatsPerMeasure = Number(timeSigSel.value);
+  // ──── Time Signature Picker ────
+  const TS_NUMS = [2, 3, 4, 5, 6, 7];
+  const TS_DENS = [4, 8];
+
+  function applyTimeSig() {
+    beatsPerMeasure = tsNum;
+    tsNumValEl.textContent = tsNum;
+    tsDenValEl.textContent = tsDen;
     buildBeatDots();
     if (running) { stopMetronome(); startMetronome(); }
+  }
+
+  document.getElementById('tsNumUp').addEventListener('click', () => {
+    const idx = TS_NUMS.indexOf(tsNum);
+    if (idx < TS_NUMS.length - 1) { tsNum = TS_NUMS[idx + 1]; applyTimeSig(); }
+  });
+  document.getElementById('tsNumDn').addEventListener('click', () => {
+    const idx = TS_NUMS.indexOf(tsNum);
+    if (idx > 0) { tsNum = TS_NUMS[idx - 1]; applyTimeSig(); }
+  });
+  document.getElementById('tsDenUp').addEventListener('click', () => {
+    const idx = TS_DENS.indexOf(tsDen);
+    if (idx < TS_DENS.length - 1) { tsDen = TS_DENS[idx + 1]; applyTimeSig(); }
+  });
+  document.getElementById('tsDenDn').addEventListener('click', () => {
+    const idx = TS_DENS.indexOf(tsDen);
+    if (idx > 0) { tsDen = TS_DENS[idx - 1]; applyTimeSig(); }
   });
 
   volMasterEl.addEventListener('input', () => {
@@ -299,10 +330,16 @@ import './style.css';
   const BALL_R     = 30;  // px: ball radius
 
   function resizeCanvas() {
-    ballCanvas.width  = ballCanvas.offsetWidth;
-    ballCanvas.height = ballCanvas.offsetHeight;
+    const w = ballCanvas.offsetWidth;
+    const h = ballCanvas.offsetHeight;
+    if (w > 0 && h > 0) {
+      ballCanvas.width  = w;
+      ballCanvas.height = h;
+    }
   }
+  // Call once immediately, then again after first paint when flex layout is complete
   resizeCanvas();
+  requestAnimationFrame(() => requestAnimationFrame(resizeCanvas));
   window.addEventListener('resize', resizeCanvas);
 
   function drawBall() {
@@ -1031,6 +1068,111 @@ import './style.css';
   showSlIndex();
   updateNowPlaying();
   renderLibrary();
+
+  // ──── Swipe Panel ────
+  let currentPage   = 0;
+  const TOTAL_PAGES = 3;
+
+  function goToPage(idx) {
+    currentPage = Math.max(0, Math.min(TOTAL_PAGES - 1, idx));
+    // translateX: each page = 1/3 of swipe-pages (300% wide), so step = 33.333%
+    swipePagesEl.style.transform = `translateX(-${currentPage * (100 / TOTAL_PAGES)}%)`;
+    pageDotEls.forEach((dot, i) => dot.classList.toggle('active', i === currentPage));
+    // Resize canvas whenever the ball page becomes visible
+    if (currentPage === 0) resizeCanvas();
+  }
+
+  // Dot tap-to-switch
+  pageDotEls.forEach(dot =>
+    dot.addEventListener('click', () => goToPage(parseInt(dot.dataset.page))));
+
+  // Touch swipe gesture
+  let swipeStartX    = null;
+  let swipeStartY    = null;
+  let swipeActive    = false;
+  let swipeStartPage = 0;
+
+  swipePagesEl.addEventListener('touchstart', e => {
+    const tgt = e.target;
+    // Don't intercept touches that start on interactive elements
+    if (tgt.tagName === 'INPUT' || tgt.tagName === 'BUTTON' || tgt.tagName === 'SELECT') return;
+    swipeStartX    = e.touches[0].clientX;
+    swipeStartY    = e.touches[0].clientY;
+    swipeActive    = false;
+    swipeStartPage = currentPage;
+  }, { passive: true });
+
+  swipePagesEl.addEventListener('touchmove', e => {
+    if (swipeStartX === null) return;
+    const dx = e.touches[0].clientX - swipeStartX;
+    const dy = e.touches[0].clientY - swipeStartY;
+
+    if (!swipeActive) {
+      // Determine swipe axis after minimum movement
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+      if (Math.abs(dx) > Math.abs(dy)) {
+        swipeActive = true;
+        swipePagesEl.style.transition = 'none'; // disable snap during drag
+      } else {
+        swipeStartX = null; // vertical scroll — don't hijack
+        return;
+      }
+    }
+
+    e.preventDefault(); // prevent page scroll during horizontal swipe
+    const containerW = swipePagesEl.parentElement.offsetWidth;
+    const pct        = (dx / containerW) * (100 / TOTAL_PAGES);
+    const basePct    = swipeStartPage * (100 / TOTAL_PAGES);
+    swipePagesEl.style.transform = `translateX(${-(basePct - pct)}%)`;
+  }, { passive: false });
+
+  swipePagesEl.addEventListener('touchend', e => {
+    if (!swipeActive) { swipeStartX = null; return; }
+    swipePagesEl.style.transition = ''; // re-enable CSS transition
+    const dx = e.changedTouches[0].clientX - swipeStartX;
+    const THRESHOLD = 50; // px
+    if      (dx < -THRESHOLD && currentPage < TOTAL_PAGES - 1) goToPage(currentPage + 1);
+    else if (dx >  THRESHOLD && currentPage > 0)               goToPage(currentPage - 1);
+    else                                                        goToPage(currentPage); // snap back
+    swipeStartX = null;
+    swipeActive  = false;
+  });
+
+  // Mouse drag (for desktop testing)
+  let mouseSwipeX    = null;
+  let mouseSwipePage = 0;
+  let mouseActive    = false;
+
+  swipePagesEl.addEventListener('mousedown', e => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') return;
+    mouseSwipeX    = e.clientX;
+    mouseSwipePage = currentPage;
+    mouseActive    = false;
+  });
+  document.addEventListener('mousemove', e => {
+    if (mouseSwipeX === null) return;
+    const dx = e.clientX - mouseSwipeX;
+    if (!mouseActive && Math.abs(dx) > 8) {
+      mouseActive = true;
+      swipePagesEl.style.transition = 'none';
+    }
+    if (!mouseActive) return;
+    const containerW = swipePagesEl.parentElement.offsetWidth;
+    const pct        = (dx / containerW) * (100 / TOTAL_PAGES);
+    const basePct    = mouseSwipePage * (100 / TOTAL_PAGES);
+    swipePagesEl.style.transform = `translateX(${-(basePct - pct)}%)`;
+  });
+  document.addEventListener('mouseup', e => {
+    if (mouseSwipeX === null) return;
+    swipePagesEl.style.transition = '';
+    const dx = e.clientX - mouseSwipeX;
+    const THRESHOLD = 50;
+    if      (dx < -THRESHOLD && currentPage < TOTAL_PAGES - 1) goToPage(currentPage + 1);
+    else if (dx >  THRESHOLD && currentPage > 0)               goToPage(currentPage - 1);
+    else                                                        goToPage(currentPage);
+    mouseSwipeX = null;
+    mouseActive  = false;
+  });
 
   // ──── Bottom Navigation ────
   const navMetronomeBtn = document.getElementById('navMetronome');
