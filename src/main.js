@@ -308,53 +308,32 @@ import './style.css';
   squashOffBtn.addEventListener('click', () => setSquash(false));
 
   // ──── Ball Animation ────
-  const ballCanvas = document.getElementById('ballCanvas');
-  const ballCtx2d  = ballCanvas.getContext('2d');
+  let ballCanvasViews = [];
   const BALL_MAX_H = 160; // px: max height above ground
   const BALL_R     = 30;  // px: ball radius
 
-  function resizeCanvas() {
-    const w = ballCanvas.offsetWidth;
-    const h = ballCanvas.offsetHeight;
-    if (w > 0 && h > 0) {
-      ballCanvas.width  = w;
-      ballCanvas.height = h;
-    }
+  function refreshBallCanvases() {
+    ballCanvasViews = Array.from(document.querySelectorAll('.ball-canvas'))
+      .map(canvas => ({ canvas, ctx: canvas.getContext('2d') }))
+      .filter(v => !!v.ctx);
   }
-  // Call once immediately, then again after first paint when flex layout is complete
-  resizeCanvas();
-  requestAnimationFrame(() => requestAnimationFrame(resizeCanvas));
-  window.addEventListener('resize', resizeCanvas);
 
-  function drawBall() {
-    const w = ballCanvas.width;
-    const h = ballCanvas.height;
-    ballCtx2d.clearRect(0, 0, w, h);
+  function resizeBallCanvases() {
+    ballCanvasViews.forEach(({ canvas }) => {
+      const w = canvas.offsetWidth;
+      const h = canvas.offsetHeight;
+      if (w > 0 && h > 0) {
+        canvas.width  = w;
+        canvas.height = h;
+      }
+    });
+  }
+
+  function drawBallFrame(ctx, w, h, phase, beatIdx) {
+    ctx.clearRect(0, 0, w, h);
 
     const groundY = h - 10;
-
-    // Beat phase: 0 = ground contact, 0.5 = apex, 1 = next ground contact
-    // Computed from the most recent scheduled beat that has already passed,
-    // so it stays in sync even when BPM changes mid-play.
-    let phase   = 0;
-    let beatIdx = 0;
-    if (running && audioCtx) {
-      const now = audioCtx.currentTime;
-      let lastBeat = null;
-      for (let i = scheduledBeatTimes.length - 1; i >= 0; i--) {
-        if (scheduledBeatTimes[i].time <= now) {
-          lastBeat = scheduledBeatTimes[i];
-          break;
-        }
-      }
-      if (lastBeat) {
-        const beatDur = 60 / bpm;
-        phase   = Math.min((now - lastBeat.time) / beatDur, 1);
-        beatIdx = lastBeat.beatIdx;
-      }
-    }
     const isBeat1 = beatIdx === 0;
-
     const margin = BALL_R + 4;
     const cx = animMode === 'horizontal'
       ? margin + ((beatIdx + phase) / beatsPerMeasure) * (w - 2 * margin)
@@ -389,34 +368,68 @@ import './style.css';
     // Shadow (grows darker/larger as ball approaches ground)
     const shadowAlpha = 0.08 + 0.22 * (1 - heightFrac);
     const shadowRx    = BALL_R * (0.5 + 0.9 * (1 - heightFrac));
-    ballCtx2d.save();
-    ballCtx2d.fillStyle = `rgba(124, 92, 252, ${shadowAlpha})`;
-    ballCtx2d.beginPath();
-    ballCtx2d.ellipse(cx, groundY, shadowRx, 4, 0, 0, Math.PI * 2);
-    ballCtx2d.fill();
-    ballCtx2d.restore();
+    ctx.save();
+    ctx.fillStyle = `rgba(124, 92, 252, ${shadowAlpha})`;
+    ctx.beginPath();
+    ctx.ellipse(cx, groundY, shadowRx, 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
 
     // Ground line
-    ballCtx2d.save();
-    ballCtx2d.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--border').trim();
-    ballCtx2d.lineWidth = 2;
-    ballCtx2d.beginPath();
-    ballCtx2d.moveTo(0, groundY);
-    ballCtx2d.lineTo(w, groundY);
-    ballCtx2d.stroke();
-    ballCtx2d.restore();
+    ctx.save();
+    ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--border').trim();
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, groundY);
+    ctx.lineTo(w, groundY);
+    ctx.stroke();
+    ctx.restore();
 
     // Ball: flash pink only on Beat 1 impact; other beats stay purple
     const isImpact  = phase < 0.15 && running;
     const ballColor = (isImpact && isBeat1) ? '#fc5c7d' : '#7c5cfc';
-    ballCtx2d.save();
-    ballCtx2d.shadowColor = ballColor;
-    ballCtx2d.shadowBlur  = (isImpact && isBeat1) ? 24 : 14;
-    ballCtx2d.fillStyle   = ballColor;
-    ballCtx2d.beginPath();
-    ballCtx2d.ellipse(cx, ballY, rx, ry, 0, 0, Math.PI * 2);
-    ballCtx2d.fill();
-    ballCtx2d.restore();
+    ctx.save();
+    ctx.shadowColor = ballColor;
+    ctx.shadowBlur  = (isImpact && isBeat1) ? 24 : 14;
+    ctx.fillStyle   = ballColor;
+    ctx.beginPath();
+    ctx.ellipse(cx, ballY, rx, ry, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // Call once immediately, then again after first paint when flex layout is complete
+  refreshBallCanvases();
+  resizeBallCanvases();
+  requestAnimationFrame(() => requestAnimationFrame(resizeBallCanvases));
+  window.addEventListener('resize', resizeBallCanvases);
+
+  function drawBall() {
+    // Beat phase: 0 = ground contact, 0.5 = apex, 1 = next ground contact
+    // Computed from the most recent scheduled beat that has already passed,
+    // so it stays in sync even when BPM changes mid-play.
+    let phase   = 0;
+    let beatIdx = 0;
+    if (running && audioCtx) {
+      const now = audioCtx.currentTime;
+      let lastBeat = null;
+      for (let i = scheduledBeatTimes.length - 1; i >= 0; i--) {
+        if (scheduledBeatTimes[i].time <= now) {
+          lastBeat = scheduledBeatTimes[i];
+          break;
+        }
+      }
+      if (lastBeat) {
+        const beatDur = 60 / bpm;
+        phase   = Math.min((now - lastBeat.time) / beatDur, 1);
+        beatIdx = lastBeat.beatIdx;
+      }
+    }
+
+    ballCanvasViews.forEach(({ canvas, ctx }) => {
+      if (canvas.width === 0 || canvas.height === 0) return;
+      drawBallFrame(ctx, canvas.width, canvas.height, phase, beatIdx);
+    });
 
     requestAnimationFrame(drawBall);
   }
@@ -1069,6 +1082,8 @@ import './style.css';
     // slot 4: clone of page 0 (shows when dragging left past page 2)
     swipePagesEl.appendChild(pages[0].cloneNode(true));
   })();
+  refreshBallCanvases();
+  resizeBallCanvases();
 
   // Set initial position instantly (no animation)
   swipePagesEl.style.transition = 'none';
@@ -1111,7 +1126,7 @@ import './style.css';
     swipePagesEl.style.transition = '';
     swipePagesEl.style.transform  = `translateX(-${physicalIdx * SLOT_STEP}%)`;
     updateDots();
-    if (currentPage === 0) resizeCanvas();
+    if (currentPage === 0) resizeBallCanvases();
   }
 
   // Navigate one step forward (swipe-left = next page, wraps naturally via clone-P0)
@@ -1121,7 +1136,7 @@ import './style.css';
     swipePagesEl.style.transition = '';
     swipePagesEl.style.transform  = `translateX(-${physicalIdx * SLOT_STEP}%)`;
     updateDots();
-    if (currentPage === 0) resizeCanvas();
+    if (currentPage === 0) resizeBallCanvases();
   }
 
   // Navigate one step backward (swipe-right = prev page, wraps naturally via clone-P2)
@@ -1131,7 +1146,7 @@ import './style.css';
     swipePagesEl.style.transition = '';
     swipePagesEl.style.transform  = `translateX(-${physicalIdx * SLOT_STEP}%)`;
     updateDots();
-    if (currentPage === 0) resizeCanvas();
+    if (currentPage === 0) resizeBallCanvases();
   }
 
   // Dot tap-to-switch
