@@ -1078,20 +1078,25 @@ import './style.css';
     swipePagesEl.style.transition = '';
   }));
 
-  // After a wrap transition lands on a clone slot, silently jump to the real slot
+  // After a wrap transition lands on a clone slot, silently jump to the real slot.
+  // IMPORTANT: force a synchronous reflow (offsetWidth read) between setting
+  // transition:none+transform and re-enabling the transition, so the browser
+  // commits the instant jump before any future animated transition can start.
   swipePagesEl.addEventListener('transitionend', () => {
     if (physicalIdx === 4) {
       // clone-P0 → real P0 (slot 1)
       physicalIdx = 1;
       swipePagesEl.style.transition = 'none';
       swipePagesEl.style.transform  = `translateX(-${physicalIdx * SLOT_STEP}%)`;
-      requestAnimationFrame(() => { swipePagesEl.style.transition = ''; });
+      void swipePagesEl.offsetWidth; // flush styles / force reflow
+      swipePagesEl.style.transition = '';
     } else if (physicalIdx === 0) {
       // clone-P2 → real P2 (slot 3)
       physicalIdx = 3;
       swipePagesEl.style.transition = 'none';
       swipePagesEl.style.transform  = `translateX(-${physicalIdx * SLOT_STEP}%)`;
-      requestAnimationFrame(() => { swipePagesEl.style.transition = ''; });
+      void swipePagesEl.offsetWidth; // flush styles / force reflow
+      swipePagesEl.style.transition = '';
     }
   });
 
