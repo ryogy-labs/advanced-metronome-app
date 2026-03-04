@@ -60,7 +60,11 @@ import './style.css';
   }
   buildBeatDots();
 
-  function flashBeat(beatIdx) {
+  function flashBeat(beatIdx, scheduledTime) {
+    // Skip visual updates in background, or if the beat is stale (> 0.5s off)
+    if (document.hidden) return;
+    if (audioCtx && typeof scheduledTime === 'number' &&
+        Math.abs(audioCtx.currentTime - scheduledTime) > 0.5) return;
     beatRowEls.forEach(rowEl => {
       const dots = rowEl.querySelectorAll('.beat-dot');
       dots.forEach((d, i) => {
@@ -106,7 +110,7 @@ import './style.css';
 
       // Quarter note position — also triggers visual flash
       const delay = (time - getCtx().currentTime) * 1000;
-      setTimeout(() => flashBeat(beatIdx), Math.max(0, delay));
+      setTimeout(() => flashBeat(beatIdx, time), Math.max(0, delay));
       if (beatIdx === 0) {
         playClick(time, volBeat1   * masterVol, 1200, 0.030);
       } else {
@@ -141,6 +145,7 @@ import './style.css';
     nextNoteTime = ctx.currentTime + 0.05;
     scheduledBeatTimes = [];
     scheduler();
+    bgAudioStart();
     playBtn.textContent = '■ STOP';
     playBtn.classList.add('running');
     document.getElementById('navMetronome').classList.add('nav-running');
@@ -151,6 +156,7 @@ import './style.css';
     if (!running) return;
     running = false;
     clearTimeout(timerID);
+    bgAudioStop();
     scheduledBeatTimes = [];
     playBtn.textContent = '▶ START';
     playBtn.classList.remove('running');
@@ -395,6 +401,90 @@ import './style.css';
   }
 
   drawBall();
+
+  // ──── iOS Background Playback ────
+  // Strategy:
+  //   1. Looping silent <audio> keeps the iOS audio session alive so
+  //      AudioContext is not forcibly suspended when the screen locks.
+  //   2. On visibilitychange → hidden: pre-schedule 10 s of beats and stop
+  //      the JS timer (it would be throttled anyway).
+  //   3. The silent audio's `timeupdate` (~4 Hz) refills the schedule while
+  //      in background, so playback continues indefinitely.
+  //   4. On visibilitychange → visible: resume AudioContext + JS scheduler.
+
+  let _silentEl  = null;
+  let _silentUrl = null;
+
+  function getSilentWavUrl() {
+    if (_silentUrl) return _silentUrl;
+    // Build a 1-second mono silent PCM WAV in memory
+    const rate = 22050, len = rate; // 1 s × 22050 samples × 2 bytes = 44100 bytes
+    const ab = new ArrayBuffer(44 + len * 2);
+    const dv = new DataView(ab);
+    const ws = (o, s) => { for (let i = 0; i < s.length; i++) dv.setUint8(o + i, s.charCodeAt(i)); };
+    ws(0, 'RIFF'); dv.setUint32(4, 36 + len * 2, true);
+    ws(8, 'WAVE'); ws(12, 'fmt ');
+    dv.setUint32(16, 16, true);  // chunk size
+    dv.setUint16(20,  1, true);  // PCM
+    dv.setUint16(22,  1, true);  // mono
+    dv.setUint32(24, rate, true);
+    dv.setUint32(28, rate * 2, true); // byte rate
+    dv.setUint16(32,  2, true);  // block align
+    dv.setUint16(34, 16, true);  // bits per sample
+    ws(36, 'data'); dv.setUint32(40, len * 2, true);
+    // sample data is all zeros → silence
+    _silentUrl = URL.createObjectURL(new Blob([ab], { type: 'audio/wav' }));
+    return _silentUrl;
+  }
+
+  function initSilentEl() {
+    if (_silentEl) return;
+    _silentEl = new Audio(getSilentWavUrl());
+    _silentEl.loop   = true;
+    _silentEl.volume = 0.001; // inaudible
+
+    // timeupdate fires ~4×/s on iOS even in background while audio is playing.
+    // Use it to keep the Web Audio schedule topped up.
+    _silentEl.addEventListener('timeupdate', () => {
+      if (!running || !document.hidden || !audioCtx) return;
+      const interval = 60 / bpm / 4; // 16th-note duration
+      const horizon  = audioCtx.currentTime + 10; // keep 10 s ahead
+      while (nextNoteTime < horizon) {
+        scheduleNote(nextNoteTime, subBeatCount);
+        subBeatCount = (subBeatCount + 1) % (beatsPerMeasure * 4);
+        nextNoteTime += interval;
+      }
+    });
+  }
+
+  function bgAudioStart() {
+    initSilentEl();
+    _silentEl.play().catch(() => {});
+  }
+
+  function bgAudioStop() {
+    if (_silentEl) _silentEl.pause();
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    if (!running || !audioCtx) return;
+    if (document.hidden) {
+      // Pre-schedule 10 s then let timeupdate maintain it; stop JS timer.
+      clearTimeout(timerID);
+      timerID = null;
+      const interval = 60 / bpm / 4;
+      const horizon  = audioCtx.currentTime + 10;
+      while (nextNoteTime < horizon) {
+        scheduleNote(nextNoteTime, subBeatCount);
+        subBeatCount = (subBeatCount + 1) % (beatsPerMeasure * 4);
+        nextNoteTime += interval;
+      }
+    } else {
+      // Back in foreground: ensure AudioContext is running, restart JS scheduler.
+      audioCtx.resume().catch(() => {});
+      if (!timerID) scheduler();
+    }
+  });
 
   // ──── Setlists ────
   let setlists      = JSON.parse(localStorage.getItem('metro-setlists') || '[]');
