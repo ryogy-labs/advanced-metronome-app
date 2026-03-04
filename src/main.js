@@ -33,7 +33,8 @@ import './style.css';
   const bpmSlider       = document.getElementById('bpmSlider');
   const beatRow         = document.getElementById('beatRow');
   const beatRowSetlist  = document.getElementById('beatRowSetlist');
-  const beatRowEls      = [beatRow, beatRowSetlist];
+  const beatRowLibrary  = document.getElementById('beatRowLibrary');
+  const beatRowEls      = [beatRow, beatRowSetlist, beatRowLibrary].filter(Boolean);
   const playBtn         = document.getElementById('playBtn');
   const tapBtn          = document.getElementById('tapBtn');
   // Time sig picker elements
@@ -156,7 +157,6 @@ import './style.css';
     bgAudioStart();
     playBtn.textContent = '■ STOP';
     playBtn.classList.add('running');
-    document.getElementById('navMetronome').classList.add('nav-running');
     updateNowPlayingState();
   }
 
@@ -168,9 +168,8 @@ import './style.css';
     scheduledBeatTimes = [];
     playBtn.textContent = '▶ START';
     playBtn.classList.remove('running');
-    document.getElementById('navMetronome').classList.remove('nav-running');
-    beatRow.querySelectorAll('.beat-dot').forEach(d => {
-      d.classList.remove('active-1', 'active-n');
+    beatRowEls.forEach(rowEl => {
+      rowEl.querySelectorAll('.beat-dot').forEach(d => d.classList.remove('active-1', 'active-n'));
     });
     updateNowPlayingState();
   }
