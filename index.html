@@ -35,28 +35,20 @@
 
       <!-- Page 0: Ball Animation -->
       <div class="swipe-page" id="spBall">
+        <div class="swipe-page-title">ボール</div>
         <div class="ball-controls">
           <div class="toggle-row">
-            <span class="toggle-label">ボール</span>
+            <span class="toggle-label">移動方向</span>
             <div class="toggle-pair">
-              <button class="tgl-btn active" id="ballOnBtn">ON</button>
-              <button class="tgl-btn" id="ballOffBtn">OFF</button>
+              <button class="tgl-btn active" id="modeVertical">縦</button>
+              <button class="tgl-btn" id="modeHorizontal">横</button>
             </div>
           </div>
-          <div class="ball-sub-options" id="ballSubOptions">
-            <div class="toggle-row">
-              <span class="toggle-label">移動方向</span>
-              <div class="toggle-pair">
-                <button class="tgl-btn active" id="modeVertical">縦</button>
-                <button class="tgl-btn" id="modeHorizontal">横</button>
-              </div>
-            </div>
-            <div class="toggle-row">
-              <span class="toggle-label">スクワッシュ</span>
-              <div class="toggle-pair">
-                <button class="tgl-btn active" id="squashOnBtn">ON</button>
-                <button class="tgl-btn" id="squashOffBtn">OFF</button>
-              </div>
+          <div class="toggle-row">
+            <span class="toggle-label">スクワッシュ</span>
+            <div class="toggle-pair">
+              <button class="tgl-btn active" id="squashOnBtn">ON</button>
+              <button class="tgl-btn" id="squashOffBtn">OFF</button>
             </div>
           </div>
         </div>
@@ -65,6 +57,7 @@
 
       <!-- Page 1: Volume -->
       <div class="swipe-page" id="spVolume">
+        <div class="swipe-page-title">音量調整</div>
         <div class="vol-section">
           <div class="vol-row master-vol-row">
             <div class="vol-name master-vol-name"><b>Master</b>全体音量</div>
@@ -98,6 +91,7 @@
 
       <!-- Page 2: Time Signature -->
       <div class="swipe-page" id="spTimeSig">
+        <div class="swipe-page-title">拍子</div>
         <div class="ts-picker-wrap">
           <div class="card-label">拍子記号</div>
           <div class="ts-picker-row">

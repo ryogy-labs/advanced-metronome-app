@@ -334,6 +334,18 @@ h1 span { color: var(--accent); }
 }
 .ball-sub-options.hidden { display: none; }
 
+/* ── Swipe page titles ── */
+.swipe-page-title {
+  width: 100%;
+  max-width: 420px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--text2);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 0 2px;
+}
+
 /* ── Toggle Row ── */
 .toggle-row {
   display: flex;

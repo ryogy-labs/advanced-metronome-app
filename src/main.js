@@ -283,22 +283,6 @@ import './style.css';
   updateVolSlider(volEighthEl,    volEighthNum);
   updateVolSlider(volSixteenthEl, volSixteenthNum);
 
-  // ── Ball toggle ──
-  const ballOnBtn      = document.getElementById('ballOnBtn');
-  const ballOffBtn     = document.getElementById('ballOffBtn');
-  const ballSubOptions = document.getElementById('ballSubOptions');
-  let ballVisible = true;
-
-  function setBallVisible(v) {
-    ballVisible = v;
-    ballCanvas.classList.toggle('hidden',     !v);
-    ballSubOptions.classList.toggle('hidden', !v);
-    ballOnBtn.classList.toggle('active',       v);
-    ballOffBtn.classList.toggle('active',     !v);
-  }
-  ballOnBtn.addEventListener('click',  () => setBallVisible(true));
-  ballOffBtn.addEventListener('click', () => setBallVisible(false));
-
   // ── Mode toggle (移動方向: 縦 / 横) ──
   const modeVertical   = document.getElementById('modeVertical');
   const modeHorizontal = document.getElementById('modeHorizontal');
@@ -1074,7 +1058,8 @@ import './style.css';
   const TOTAL_PAGES = 3;
 
   function goToPage(idx) {
-    currentPage = Math.max(0, Math.min(TOTAL_PAGES - 1, idx));
+    // Wrap around: 2→+1 goes to 0, 0→-1 goes to 2
+    currentPage = ((idx % TOTAL_PAGES) + TOTAL_PAGES) % TOTAL_PAGES;
     // translateX: each page = 1/3 of swipe-pages (300% wide), so step = 33.333%
     swipePagesEl.style.transform = `translateX(-${currentPage * (100 / TOTAL_PAGES)}%)`;
     pageDotEls.forEach((dot, i) => dot.classList.toggle('active', i === currentPage));
@@ -1131,9 +1116,9 @@ import './style.css';
     swipePagesEl.style.transition = ''; // re-enable CSS transition
     const dx = e.changedTouches[0].clientX - swipeStartX;
     const THRESHOLD = 50; // px
-    if      (dx < -THRESHOLD && currentPage < TOTAL_PAGES - 1) goToPage(currentPage + 1);
-    else if (dx >  THRESHOLD && currentPage > 0)               goToPage(currentPage - 1);
-    else                                                        goToPage(currentPage); // snap back
+    if      (dx < -THRESHOLD) goToPage(currentPage + 1); // wraps 2 → 0
+    else if (dx >  THRESHOLD) goToPage(currentPage - 1); // wraps 0 → 2
+    else                      goToPage(currentPage);     // snap back
     swipeStartX = null;
     swipeActive  = false;
   });
@@ -1167,9 +1152,9 @@ import './style.css';
     swipePagesEl.style.transition = '';
     const dx = e.clientX - mouseSwipeX;
     const THRESHOLD = 50;
-    if      (dx < -THRESHOLD && currentPage < TOTAL_PAGES - 1) goToPage(currentPage + 1);
-    else if (dx >  THRESHOLD && currentPage > 0)               goToPage(currentPage - 1);
-    else                                                        goToPage(currentPage);
+    if      (dx < -THRESHOLD) goToPage(currentPage + 1); // wraps 2 → 0
+    else if (dx >  THRESHOLD) goToPage(currentPage - 1); // wraps 0 → 2
+    else                      goToPage(currentPage);
     mouseSwipeX = null;
     mouseActive  = false;
   });
