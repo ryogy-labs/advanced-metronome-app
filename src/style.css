@@ -6,6 +6,7 @@
   --surface: #ffffff;
   --surface2: #ededf7;
   --border: #dcdcee;
+  --nav-divider: #cfd3dd;
   --accent: #7c5cfc;
   --accent2: #fc5c7d;
   --beat1: #fc5c7d;
@@ -22,6 +23,7 @@
     --surface: #1a1a24;
     --surface2: #22222f;
     --border: #2e2e40;
+    --nav-divider: #555a69;
     --text: #e8e8f0;
     --text2: #888899;
   }
@@ -767,7 +769,7 @@ h1 span { color: var(--accent); }
   right: 0;
   height: 60px;
   background: var(--surface);
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--nav-divider);
   display: flex;
   z-index: 100;
   box-shadow: 0 -2px 16px rgba(0,0,0,0.06);
