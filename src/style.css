@@ -337,8 +337,9 @@ h1 span { color: var(--accent); }
 
 /* ── Ball Animation ── */
 .ball-canvas {
-  flex: 1;
-  min-height: 80px;
+  flex: 0 0 auto;
+  height: clamp(220px, 42vh, 320px);
+  min-height: 220px;
   width: 100%;
   max-width: 420px;
   display: block;
@@ -382,6 +383,18 @@ h1 span { color: var(--accent); }
   padding: 6px 2px;
 }
 
+.ball-toggle-row {
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.ball-toggle-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
 .toggle-label {
   font-size: 0.85rem;
   font-weight: 700;
@@ -413,6 +426,10 @@ h1 span { color: var(--accent); }
 .tgl-btn.active {
   background: var(--accent);
   color: #fff;
+}
+
+#spBall {
+  overflow-y: auto;
 }
 
 /* ── Volume Section (Page 1) ── */
