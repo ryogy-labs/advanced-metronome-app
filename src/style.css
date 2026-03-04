@@ -832,18 +832,6 @@ h1 span { color: var(--accent); }
   letter-spacing: 0.04em;
 }
 
-/* Running indicator dot on metronome tab */
-.nav-btn.nav-running::after {
-  content: '';
-  position: absolute;
-  top: 7px;
-  right: calc(50% - 20px);
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--accent2);
-}
-
 /* ── Setlist sub-views ── */
 .sl-subview {
   display: none;

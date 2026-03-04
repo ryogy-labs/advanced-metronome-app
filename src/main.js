@@ -157,7 +157,6 @@ import './style.css';
     bgAudioStart();
     playBtn.textContent = '■ STOP';
     playBtn.classList.add('running');
-    document.getElementById('navMetronome').classList.add('nav-running');
     updateNowPlayingState();
   }
 
@@ -169,7 +168,6 @@ import './style.css';
     scheduledBeatTimes = [];
     playBtn.textContent = '▶ START';
     playBtn.classList.remove('running');
-    document.getElementById('navMetronome').classList.remove('nav-running');
     beatRowEls.forEach(rowEl => {
       rowEl.querySelectorAll('.beat-dot').forEach(d => d.classList.remove('active-1', 'active-n'));
     });
