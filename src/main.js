@@ -1053,17 +1053,79 @@ import './style.css';
   updateNowPlaying();
   renderLibrary();
 
-  // ──── Swipe Panel ────
-  let currentPage   = 0;
+  // ──── Swipe Panel (5-slot clone carousel) ────
+  // Slot layout: [clone-P2][P0][P1][P2][clone-P0]
+  // physicalIdx: 0=clone-P2, 1=P0, 2=P1, 3=P2, 4=clone-P0
   const TOTAL_PAGES = 3;
+  const SLOT_STEP   = 20; // % per slot (100% / 5 slots)
+  let currentPage   = 0;
+  let physicalIdx   = 1;  // start at slot 1 (real page 0)
 
-  function goToPage(idx) {
-    // Wrap around: 2→+1 goes to 0, 0→-1 goes to 2
-    currentPage = ((idx % TOTAL_PAGES) + TOTAL_PAGES) % TOTAL_PAGES;
-    // translateX: each page = 1/3 of swipe-pages (300% wide), so step = 33.333%
-    swipePagesEl.style.transform = `translateX(-${currentPage * (100 / TOTAL_PAGES)}%)`;
+  // Inject clone sentinels into the DOM
+  (() => {
+    const pages = Array.from(swipePagesEl.querySelectorAll('.swipe-page'));
+    // slot 0: clone of page 2 (shows when dragging right past page 0)
+    swipePagesEl.insertBefore(pages[2].cloneNode(true), pages[0]);
+    // slot 4: clone of page 0 (shows when dragging left past page 2)
+    swipePagesEl.appendChild(pages[0].cloneNode(true));
+  })();
+
+  // Set initial position instantly (no animation)
+  swipePagesEl.style.transition = 'none';
+  swipePagesEl.style.transform  = `translateX(-${physicalIdx * SLOT_STEP}%)`;
+  // Re-enable transition after layout settles
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    swipePagesEl.style.transition = '';
+  }));
+
+  // After a wrap transition lands on a clone slot, silently jump to the real slot
+  swipePagesEl.addEventListener('transitionend', () => {
+    if (physicalIdx === 4) {
+      // clone-P0 → real P0 (slot 1)
+      physicalIdx = 1;
+      swipePagesEl.style.transition = 'none';
+      swipePagesEl.style.transform  = `translateX(-${physicalIdx * SLOT_STEP}%)`;
+      requestAnimationFrame(() => { swipePagesEl.style.transition = ''; });
+    } else if (physicalIdx === 0) {
+      // clone-P2 → real P2 (slot 3)
+      physicalIdx = 3;
+      swipePagesEl.style.transition = 'none';
+      swipePagesEl.style.transform  = `translateX(-${physicalIdx * SLOT_STEP}%)`;
+      requestAnimationFrame(() => { swipePagesEl.style.transition = ''; });
+    }
+  });
+
+  function updateDots() {
     pageDotEls.forEach((dot, i) => dot.classList.toggle('active', i === currentPage));
-    // Resize canvas whenever the ball page becomes visible
+  }
+
+  // Direct navigation to a logical page (dot clicks)
+  function goToPage(targetLogical) {
+    currentPage = ((targetLogical % TOTAL_PAGES) + TOTAL_PAGES) % TOTAL_PAGES;
+    physicalIdx = currentPage + 1; // 0→1, 1→2, 2→3
+    swipePagesEl.style.transition = '';
+    swipePagesEl.style.transform  = `translateX(-${physicalIdx * SLOT_STEP}%)`;
+    updateDots();
+    if (currentPage === 0) resizeCanvas();
+  }
+
+  // Navigate one step forward (swipe-left = next page, wraps naturally via clone-P0)
+  function goForward() {
+    currentPage = (currentPage + 1) % TOTAL_PAGES;
+    physicalIdx = physicalIdx + 1; // may reach 4 (clone-P0); transitionend jumps back
+    swipePagesEl.style.transition = '';
+    swipePagesEl.style.transform  = `translateX(-${physicalIdx * SLOT_STEP}%)`;
+    updateDots();
+    if (currentPage === 0) resizeCanvas();
+  }
+
+  // Navigate one step backward (swipe-right = prev page, wraps naturally via clone-P2)
+  function goBackward() {
+    currentPage = (currentPage + TOTAL_PAGES - 1) % TOTAL_PAGES;
+    physicalIdx = physicalIdx - 1; // may reach 0 (clone-P2); transitionend jumps back
+    swipePagesEl.style.transition = '';
+    swipePagesEl.style.transform  = `translateX(-${physicalIdx * SLOT_STEP}%)`;
+    updateDots();
     if (currentPage === 0) resizeCanvas();
   }
 
@@ -1075,7 +1137,7 @@ import './style.css';
   let swipeStartX    = null;
   let swipeStartY    = null;
   let swipeActive    = false;
-  let swipeStartPage = 0;
+  let swipeStartPhys = 0;  // physicalIdx at drag start
 
   swipePagesEl.addEventListener('touchstart', e => {
     const tgt = e.target;
@@ -1084,7 +1146,7 @@ import './style.css';
     swipeStartX    = e.touches[0].clientX;
     swipeStartY    = e.touches[0].clientY;
     swipeActive    = false;
-    swipeStartPage = currentPage;
+    swipeStartPhys = physicalIdx;
   }, { passive: true });
 
   swipePagesEl.addEventListener('touchmove', e => {
@@ -1093,45 +1155,48 @@ import './style.css';
     const dy = e.touches[0].clientY - swipeStartY;
 
     if (!swipeActive) {
-      // Determine swipe axis after minimum movement
       if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
       if (Math.abs(dx) > Math.abs(dy)) {
         swipeActive = true;
-        swipePagesEl.style.transition = 'none'; // disable snap during drag
+        swipePagesEl.style.transition = 'none';
       } else {
         swipeStartX = null; // vertical scroll — don't hijack
         return;
       }
     }
 
-    e.preventDefault(); // prevent page scroll during horizontal swipe
+    e.preventDefault();
     const containerW = swipePagesEl.parentElement.offsetWidth;
-    const pct        = (dx / containerW) * (100 / TOTAL_PAGES);
-    const basePct    = swipeStartPage * (100 / TOTAL_PAGES);
-    swipePagesEl.style.transform = `translateX(${-(basePct - pct)}%)`;
+    const dragPct    = (dx / containerW) * SLOT_STEP;
+    const basePct    = swipeStartPhys * SLOT_STEP;
+    swipePagesEl.style.transform = `translateX(${-(basePct - dragPct)}%)`;
   }, { passive: false });
 
   swipePagesEl.addEventListener('touchend', e => {
     if (!swipeActive) { swipeStartX = null; return; }
-    swipePagesEl.style.transition = ''; // re-enable CSS transition
+    swipePagesEl.style.transition = '';
     const dx = e.changedTouches[0].clientX - swipeStartX;
-    const THRESHOLD = 50; // px
-    if      (dx < -THRESHOLD) goToPage(currentPage + 1); // wraps 2 → 0
-    else if (dx >  THRESHOLD) goToPage(currentPage - 1); // wraps 0 → 2
-    else                      goToPage(currentPage);     // snap back
+    const THRESHOLD = 50;
+    if      (dx < -THRESHOLD) goForward();
+    else if (dx >  THRESHOLD) goBackward();
+    else {
+      // Snap back to where drag started
+      physicalIdx = swipeStartPhys;
+      swipePagesEl.style.transform = `translateX(-${physicalIdx * SLOT_STEP}%)`;
+    }
     swipeStartX = null;
     swipeActive  = false;
   });
 
   // Mouse drag (for desktop testing)
   let mouseSwipeX    = null;
-  let mouseSwipePage = 0;
+  let mouseSwipePhys = 0;
   let mouseActive    = false;
 
   swipePagesEl.addEventListener('mousedown', e => {
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') return;
     mouseSwipeX    = e.clientX;
-    mouseSwipePage = currentPage;
+    mouseSwipePhys = physicalIdx;
     mouseActive    = false;
   });
   document.addEventListener('mousemove', e => {
@@ -1143,18 +1208,21 @@ import './style.css';
     }
     if (!mouseActive) return;
     const containerW = swipePagesEl.parentElement.offsetWidth;
-    const pct        = (dx / containerW) * (100 / TOTAL_PAGES);
-    const basePct    = mouseSwipePage * (100 / TOTAL_PAGES);
-    swipePagesEl.style.transform = `translateX(${-(basePct - pct)}%)`;
+    const dragPct    = (dx / containerW) * SLOT_STEP;
+    const basePct    = mouseSwipePhys * SLOT_STEP;
+    swipePagesEl.style.transform = `translateX(${-(basePct - dragPct)}%)`;
   });
   document.addEventListener('mouseup', e => {
     if (mouseSwipeX === null) return;
     swipePagesEl.style.transition = '';
     const dx = e.clientX - mouseSwipeX;
     const THRESHOLD = 50;
-    if      (dx < -THRESHOLD) goToPage(currentPage + 1); // wraps 2 → 0
-    else if (dx >  THRESHOLD) goToPage(currentPage - 1); // wraps 0 → 2
-    else                      goToPage(currentPage);
+    if      (dx < -THRESHOLD) goForward();
+    else if (dx >  THRESHOLD) goBackward();
+    else {
+      physicalIdx = mouseSwipePhys;
+      swipePagesEl.style.transform = `translateX(-${physicalIdx * SLOT_STEP}%)`;
+    }
     mouseSwipeX = null;
     mouseActive  = false;
   });

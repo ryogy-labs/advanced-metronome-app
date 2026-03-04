@@ -208,13 +208,13 @@ h1 span { color: var(--accent); }
   min-height: 0;
   display: flex;
   flex-direction: row;
-  width: 300%;          /* 3 pages × 100% container = 300% */
+  width: 500%;          /* 5 slots × 100% container = 500% (clone carousel) */
   transition: transform 0.35s cubic-bezier(0.25, 0.8, 0.25, 1);
   will-change: transform;
 }
 
 .swipe-page {
-  width: 33.333%;       /* 1/3 of 300% parent = 100% of container */
+  width: 20%;           /* 1/5 of 500% parent = 100% of container */
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -338,12 +338,12 @@ h1 span { color: var(--accent); }
 .swipe-page-title {
   width: 100%;
   max-width: 420px;
-  font-size: 0.68rem;
-  font-weight: 700;
-  color: var(--text2);
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  padding: 0 2px;
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: 0.04em;
+  text-align: center;
+  padding: 4px 2px 2px;
 }
 
 /* ── Toggle Row ── */
