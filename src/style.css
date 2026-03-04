@@ -790,6 +790,9 @@ h1 span { color: var(--accent); }
   position: relative;
   transition: color 0.15s;
 }
+.nav-btn + .nav-btn {
+  border-left: 1px solid var(--nav-divider);
+}
 .nav-btn.active  { color: var(--accent); }
 .nav-btn:hover:not(.active) { color: var(--text); }
 
