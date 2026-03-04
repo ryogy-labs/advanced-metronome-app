@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Metro Beat</title>
+<link rel="stylesheet" href="/src/style.css">
+</head>
+<body>
+
+<h1>Metro<span>Beat</span></h1>
+
+<!-- ── View: Metronome ── -->
+<div class="view active" id="viewMetronome">
+
+  <!-- Beat indicator -->
+  <div class="beat-row" id="beatRow"></div>
+
+  <!-- Ball Animation -->
+  <div class="ball-controls">
+    <div class="toggle-row">
+      <span class="toggle-label">ボール</span>
+      <div class="toggle-pair">
+        <button class="tgl-btn active" id="ballOnBtn">ON</button>
+        <button class="tgl-btn" id="ballOffBtn">OFF</button>
+      </div>
+    </div>
+    <div class="ball-sub-options" id="ballSubOptions">
+      <div class="toggle-row">
+        <span class="toggle-label">移動方向</span>
+        <div class="toggle-pair">
+          <button class="tgl-btn active" id="modeVertical">縦</button>
+          <button class="tgl-btn" id="modeHorizontal">横</button>
+        </div>
+      </div>
+      <div class="toggle-row">
+        <span class="toggle-label">スクワッシュ</span>
+        <div class="toggle-pair">
+          <button class="tgl-btn active" id="squashOnBtn">ON</button>
+          <button class="tgl-btn" id="squashOffBtn">OFF</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <canvas id="ballCanvas" class="ball-canvas"></canvas>
+
+  <!-- BPM -->
+  <div class="bpm-block">
+    <div class="bpm-label">BPM</div>
+    <div class="bpm-value" id="bpmDisplay">120</div>
+    <input type="range" class="bpm-slider" id="bpmSlider"
+           min="20" max="300" value="120" step="1">
+    <div class="bpm-btns">
+      <button id="bpmMinus10">-10</button>
+      <button id="bpmMinus1">-1</button>
+      <button id="bpmPlus1">+1</button>
+      <button id="bpmPlus10">+10</button>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls">
+    <div class="card">
+      <div class="card-label">拍子記号</div>
+      <select id="timeSig">
+        <option value="2">2/4</option>
+        <option value="3">3/4</option>
+        <option value="4" selected>4/4</option>
+        <option value="5">5/4</option>
+        <option value="6">6/8</option>
+        <option value="7">7/8</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Volume -->
+  <div class="vol-section">
+    <div class="vol-row master-vol-row">
+      <div class="vol-name master-vol-name"><b>Master</b>全体音量</div>
+      <input type="range" class="vol-slider master-vol-slider" id="volMaster" min="0" max="100" value="100">
+      <div class="vol-num" id="volMasterNum">100</div>
+    </div>
+    <div class="vol-divider"></div>
+    <div class="card-label">個別音量</div>
+    <div class="vol-row">
+      <div class="vol-name"><b>頭拍</b>Beat 1</div>
+      <input type="range" class="vol-slider" id="volBeat1" min="0" max="100" value="100">
+      <div class="vol-num" id="volBeat1Num">100</div>
+    </div>
+    <div class="vol-row">
+      <div class="vol-name"><b>4分</b>Quarter</div>
+      <input type="range" class="vol-slider" id="volQuarter" min="0" max="100" value="80">
+      <div class="vol-num" id="volQuarterNum">80</div>
+    </div>
+    <div class="vol-row">
+      <div class="vol-name"><b>8分</b>Eighth</div>
+      <input type="range" class="vol-slider" id="volEighth" min="0" max="100" value="50">
+      <div class="vol-num" id="volEighthNum">50</div>
+    </div>
+    <div class="vol-row">
+      <div class="vol-name"><b>16分</b>Sixteenth</div>
+      <input type="range" class="vol-slider" id="volSixteenth" min="0" max="100" value="0">
+      <div class="vol-num" id="volSixteenthNum">0</div>
+    </div>
+  </div>
+
+  <!-- Play / Tap -->
+  <div class="action-row">
+    <button class="btn-play" id="playBtn">▶ START</button>
+    <button class="btn-tap" id="tapBtn">TAP<br>TEMPO</button>
+  </div>
+
+  <div class="hint">
+    <kbd>Space</kbd> スタート/ストップ &nbsp;|&nbsp; <kbd>T</kbd> タップテンポ
+  </div>
+
+</div><!-- /viewMetronome -->
+
+<!-- ── View: Setlist ── -->
+<div class="view" id="viewSetlist">
+
+  <!-- Beat indicator (mirrors metronome tab) -->
+  <div class="beat-row sl-beat-row" id="beatRowSetlist"></div>
+
+  <!-- Now Playing banner -->
+  <div class="now-playing" id="nowPlaying" style="display:none">
+    <span class="np-icon">▶</span>
+    <span class="np-name" id="nowPlayingName">—</span>
+    <span class="np-bpm" id="nowPlayingBpm">— BPM</span>
+  </div>
+
+  <!-- Sub-view A: Setlist Index -->
+  <div class="sl-subview active" id="slIndex">
+    <section class="setlist-section setlist-full">
+      <div class="setlist-header">
+        <span class="card-label">♩ SETLISTS</span>
+        <button class="btn-sl-add" id="btnAddSetlist">＋ 新規作成</button>
+      </div>
+      <div class="setlist-list" id="slIndexList"></div>
+      <div class="preset-form" id="slForm" style="display:none">
+        <div class="pf-fields">
+          <input class="pf-name" type="text" id="slName" placeholder="セットリスト名 (例: ワンマンライブ)">
+        </div>
+        <div class="pf-btns">
+          <button class="pf-save"   id="slSave">保存</button>
+          <button class="pf-cancel" id="slCancel">キャンセル</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Sub-view B: Song List -->
+  <div class="sl-subview" id="slDetail">
+    <div class="sl-detail-header">
+      <button class="btn-sl-back" id="btnBack">← 戻る</button>
+      <span class="sl-detail-title" id="slDetailTitle">—</span>
+    </div>
+    <section class="setlist-section setlist-full">
+      <div class="setlist-header">
+        <span class="card-label">♩ 曲リスト</span>
+        <button class="btn-sl-add" id="btnAddSong">＋ 追加</button>
+      </div>
+      <div class="setlist-list" id="songList"></div>
+      <div class="preset-form" id="presetForm" style="display:none">
+        <div class="pf-mode-row">
+          <div class="toggle-pair">
+            <button class="tgl-btn active" id="pfModeManual">直接入力</button>
+            <button class="tgl-btn" id="pfModeLib">ライブラリから</button>
+          </div>
+        </div>
+        <div id="pfManual">
+          <div class="pf-fields">
+            <input class="pf-name" type="text" id="pfName" placeholder="曲名">
+            <input class="pf-bpm"  type="number" id="pfBpm"  placeholder="BPM" min="20" max="300">
+          </div>
+          <div class="pf-btns">
+            <button class="pf-save"   id="pfSave">保存</button>
+            <button class="pf-cancel" id="pfCancel">キャンセル</button>
+          </div>
+        </div>
+        <div id="pfLibPicker" style="display:none">
+          <div class="setlist-list pf-lib-list" id="pfLibList"></div>
+          <div class="pf-btns" style="margin-top:8px">
+            <button class="pf-cancel" id="pfLibPickerCancel">キャンセル</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+</div><!-- /viewSetlist -->
+
+<!-- ── View: Library ── -->
+<div class="view" id="viewLibrary">
+  <section class="setlist-section setlist-full">
+    <div class="setlist-header">
+      <span class="card-label">♩ 曲ライブラリ</span>
+      <button class="btn-sl-add" id="btnAddLibSong">＋ 追加</button>
+    </div>
+    <div class="setlist-list" id="libSongList"></div>
+    <div class="preset-form" id="libForm" style="display:none">
+      <div class="pf-fields">
+        <input class="pf-name" type="text"   id="libName" placeholder="曲名">
+        <input class="pf-bpm"  type="number" id="libBpm"  placeholder="BPM" min="20" max="300">
+      </div>
+      <div class="pf-btns">
+        <button class="pf-save"   id="libSave">保存</button>
+        <button class="pf-cancel" id="libCancel">キャンセル</button>
+      </div>
+    </div>
+  </section>
+</div><!-- /viewLibrary -->
+
+<!-- ── Bottom Nav ── -->
+<nav class="bottom-nav">
+  <button class="nav-btn active" id="navMetronome">
+    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polygon points="12 3 20 21 4 21"/>
+      <line x1="12" y1="14" x2="12" y2="21"/>
+      <circle cx="12" cy="11" r="2.2" fill="currentColor" stroke="none"/>
+    </svg>
+    <span class="nav-label">メトロノーム</span>
+  </button>
+  <button class="nav-btn" id="navSetlist">
+    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+      <line x1="9" y1="6"  x2="20" y2="6"/>
+      <line x1="9" y1="12" x2="20" y2="12"/>
+      <line x1="9" y1="18" x2="20" y2="18"/>
+      <circle cx="5" cy="6"  r="1.5" fill="currentColor" stroke="none"/>
+      <circle cx="5" cy="12" r="1.5" fill="currentColor" stroke="none"/>
+      <circle cx="5" cy="18" r="1.5" fill="currentColor" stroke="none"/>
+    </svg>
+    <span class="nav-label">セットリスト</span>
+  </button>
+  <button class="nav-btn" id="navLibrary">
+    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+    </svg>
+    <span class="nav-label">ライブラリ</span>
+  </button>
+</nav>
+
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>
