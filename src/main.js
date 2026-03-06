@@ -180,6 +180,7 @@ import './style.css';
     bpmDisplay.textContent = bpm;
     bpmSlider.value = bpm;
     updateSliderFill(bpmSlider, 20, 300);
+    if (running) refreshBgLoopTrack();
   }
 
   function updateSliderFill(slider, min, max) {
@@ -209,6 +210,7 @@ import './style.css';
     tsNumValEl.textContent = tsNum;
     tsDenValEl.textContent = tsDen;
     buildBeatDots();
+    if (running) refreshBgLoopTrack();
     if (running) { stopMetronome(); startMetronome(); }
   }
 
@@ -232,23 +234,28 @@ import './style.css';
   volMasterEl.addEventListener('input', () => {
     masterVol = volMasterEl.value / 100;
     updateVolSlider(volMasterEl, volMasterNum);
+    if (running) refreshBgLoopTrack();
   });
 
   volBeat1El.addEventListener('input', () => {
     volBeat1 = volBeat1El.value / 100;
     updateVolSlider(volBeat1El, volBeat1Num);
+    if (running) refreshBgLoopTrack();
   });
   volQuarterEl.addEventListener('input', () => {
     volQuarter = volQuarterEl.value / 100;
     updateVolSlider(volQuarterEl, volQuarterNum);
+    if (running) refreshBgLoopTrack();
   });
   volEighthEl.addEventListener('input', () => {
     volEighth = volEighthEl.value / 100;
     updateVolSlider(volEighthEl, volEighthNum);
+    if (running) refreshBgLoopTrack();
   });
   volSixteenthEl.addEventListener('input', () => {
     volSixteenth = volSixteenthEl.value / 100;
     updateVolSlider(volSixteenthEl, volSixteenthNum);
+    if (running) refreshBgLoopTrack();
   });
 
   playBtn.addEventListener('click', () => {
@@ -436,118 +443,132 @@ import './style.css';
   drawBall();
 
   // ──── iOS Background Playback ────
-  // Strategy:
-  //   1. Looping silent <audio> keeps the iOS audio session alive so
-  //      AudioContext is not forcibly suspended when the screen locks.
-  //   2. On visibilitychange → hidden: pre-schedule 10 s of beats and stop
-  //      the JS timer (it would be throttled anyway).
-  //   3. The silent audio's `timeupdate` (~4 Hz) refills the schedule while
-  //      in background, so playback continues indefinitely.
-  //   4. On visibilitychange → visible: resume AudioContext + JS scheduler.
+  // Keep an HTMLAudio click loop playing (muted in foreground, audible in background).
+  // Safari keeps media-element playback running after app backgrounding more reliably
+  // than WebAudio scheduler callbacks.
+  let _bgLoopEl = null;
+  let _bgLoopUrl = null;
+  let _bgLoopSig = '';
 
-  let _silentEl  = null;
-  let _silentUrl = null;
+  function buildClickLoopWavUrl() {
+    const sig = [
+      bpm, beatsPerMeasure,
+      masterVol, volBeat1, volQuarter, volEighth, volSixteenth,
+    ].join('|');
+    if (_bgLoopUrl && _bgLoopSig === sig) return _bgLoopUrl;
+    if (_bgLoopUrl) URL.revokeObjectURL(_bgLoopUrl);
 
-  function refillBackgroundSchedule(horizonSec = 12) {
-    if (!running || !audioCtx) return;
-    const interval = 60 / bpm / 4; // 16th-note duration
-    const horizon  = audioCtx.currentTime + horizonSec;
-    while (nextNoteTime < horizon) {
-      scheduleNote(nextNoteTime, subBeatCount);
-      subBeatCount = (subBeatCount + 1) % (beatsPerMeasure * 4);
-      nextNoteTime += interval;
-    }
-  }
-
-  function getSilentWavUrl() {
-    if (_silentUrl) return _silentUrl;
-    // Build a 1-second mono PCM WAV with ultra-low-level dither.
-    // Absolute silence can cause iOS to stop treating this as active audio.
-    const rate = 22050, len = rate; // 1 s × 22050 samples × 2 bytes = 44100 bytes
+    const rate = 22050;
+    const beatDur = 60 / bpm;
+    const beatSamples = Math.max(1, Math.round(rate * beatDur));
+    const subSamples = Math.max(1, Math.floor(beatSamples / 4));
+    const totalSamples = Math.max(1, beatSamples * beatsPerMeasure);
+    const len = totalSamples;
     const ab = new ArrayBuffer(44 + len * 2);
     const dv = new DataView(ab);
     const ws = (o, s) => { for (let i = 0; i < s.length; i++) dv.setUint8(o + i, s.charCodeAt(i)); };
+
     ws(0, 'RIFF'); dv.setUint32(4, 36 + len * 2, true);
     ws(8, 'WAVE'); ws(12, 'fmt ');
-    dv.setUint32(16, 16, true);  // chunk size
-    dv.setUint16(20,  1, true);  // PCM
-    dv.setUint16(22,  1, true);  // mono
+    dv.setUint32(16, 16, true);
+    dv.setUint16(20, 1, true);
+    dv.setUint16(22, 1, true);
     dv.setUint32(24, rate, true);
-    dv.setUint32(28, rate * 2, true); // byte rate
-    dv.setUint16(32,  2, true);  // block align
-    dv.setUint16(34, 16, true);  // bits per sample
+    dv.setUint32(28, rate * 2, true);
+    dv.setUint16(32, 2, true);
+    dv.setUint16(34, 16, true);
     ws(36, 'data'); dv.setUint32(40, len * 2, true);
-    for (let i = 0; i < len; i++) {
-      // Very low-level alternating noise (about -90 dBFS).
-      dv.setInt16(44 + i * 2, i % 2 === 0 ? 1 : -1, true);
+
+    const pcm = new Float32Array(len);
+    const clickLen = Math.max(24, Math.floor(rate * 0.028));
+
+    function addClick(samplePos, gain, freqHz) {
+      if (gain <= 0) return;
+      const amp = Math.min(0.9, gain * masterVol * 0.42);
+      for (let i = 0; i < clickLen; i++) {
+        const idx = samplePos + i;
+        if (idx >= len) break;
+        const t = i / rate;
+        const env = Math.exp(-i / (clickLen * 0.22));
+        pcm[idx] += Math.sin(2 * Math.PI * freqHz * t) * env * amp;
+      }
     }
-    _silentUrl = URL.createObjectURL(new Blob([ab], { type: 'audio/wav' }));
-    return _silentUrl;
+
+    for (let beat = 0; beat < beatsPerMeasure; beat++) {
+      const base = beat * beatSamples;
+      addClick(base, beat === 0 ? volBeat1 : volQuarter, beat === 0 ? 1200 : 900);
+      addClick(base + subSamples * 2, volEighth, 700);
+      addClick(base + subSamples, volSixteenth, 550);
+      addClick(base + subSamples * 3, volSixteenth, 550);
+    }
+
+    for (let i = 0; i < len; i++) {
+      const s = Math.max(-1, Math.min(1, pcm[i]));
+      dv.setInt16(44 + i * 2, s * 32767, true);
+    }
+
+    _bgLoopSig = sig;
+    _bgLoopUrl = URL.createObjectURL(new Blob([ab], { type: 'audio/wav' }));
+    return _bgLoopUrl;
   }
 
-  function initSilentEl() {
-    if (_silentEl) return;
-    _silentEl = new Audio(getSilentWavUrl());
-    _silentEl.loop = true;
-    _silentEl.volume = 1.0;
-    _silentEl.preload = 'auto';
-    _silentEl.playsInline = true;
-    _silentEl.setAttribute('playsinline', '');
-    _silentEl.setAttribute('webkit-playsinline', '');
-
-    // timeupdate fires ~4×/s on iOS even in background while audio is playing.
-    // Use it to keep the Web Audio schedule topped up.
-    _silentEl.addEventListener('timeupdate', () => {
-      if (!running || !document.hidden || !audioCtx) return;
-      refillBackgroundSchedule(12);
-    });
-
-    // Some iOS builds may pause low-level keepalive audio unexpectedly.
-    // Retry while running in background.
-    _silentEl.addEventListener('pause', () => {
+  function initBgLoopEl() {
+    if (_bgLoopEl) return;
+    _bgLoopEl = new Audio();
+    _bgLoopEl.loop = true;
+    _bgLoopEl.preload = 'auto';
+    _bgLoopEl.playsInline = true;
+    _bgLoopEl.setAttribute('playsinline', '');
+    _bgLoopEl.setAttribute('webkit-playsinline', '');
+    _bgLoopEl.volume = 0;
+    _bgLoopEl.addEventListener('pause', () => {
       if (!running || !document.hidden) return;
-      _silentEl.play().catch(() => {});
+      _bgLoopEl.play().catch(() => {});
     });
+  }
+
+  function refreshBgLoopTrack() {
+    initBgLoopEl();
+    const nextSrc = buildClickLoopWavUrl();
+    if (_bgLoopEl.src !== nextSrc) {
+      const wasPlaying = !_bgLoopEl.paused;
+      const v = _bgLoopEl.volume;
+      _bgLoopEl.src = nextSrc;
+      _bgLoopEl.load();
+      _bgLoopEl.volume = v;
+      if (wasPlaying) _bgLoopEl.play().catch(() => {});
+    }
   }
 
   function bgAudioStart() {
-    initSilentEl();
-    if (audioCtx && audioCtx.state === 'suspended') {
-      audioCtx.resume().catch(() => {});
-    }
-    _silentEl.play().catch(() => {});
+    refreshBgLoopTrack();
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
+    _bgLoopEl.volume = document.hidden ? 1 : 0;
+    _bgLoopEl.play().catch(() => {});
   }
 
   function bgAudioStop() {
-    if (_silentEl) _silentEl.pause();
+    if (_bgLoopEl) {
+      _bgLoopEl.pause();
+      _bgLoopEl.currentTime = 0;
+    }
   }
 
   document.addEventListener('visibilitychange', () => {
     if (!running || !audioCtx) return;
     if (document.hidden) {
-      // Pre-schedule 10 s then let timeupdate maintain it; stop JS timer.
       clearTimeout(timerID);
       timerID = null;
-      refillBackgroundSchedule(12);
       bgAudioStart();
+      _bgLoopEl.volume = 1;
     } else {
-      // Back in foreground: ensure AudioContext is running, restart JS scheduler.
+      if (_bgLoopEl) _bgLoopEl.volume = 0;
       audioCtx.resume().catch(() => {});
-      if (!timerID) scheduler();
+      if (!timerID) {
+        nextNoteTime = audioCtx.currentTime + 0.05;
+        scheduler();
+      }
     }
-  });
-
-  window.addEventListener('pagehide', () => {
-    if (!running) return;
-    clearTimeout(timerID);
-    timerID = null;
-    refillBackgroundSchedule(12);
-  });
-
-  window.addEventListener('pageshow', () => {
-    if (!running || !audioCtx) return;
-    audioCtx.resume().catch(() => {});
-    if (!timerID) scheduler();
   });
 
   // ──── Setlists ────
