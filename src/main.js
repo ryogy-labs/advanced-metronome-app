@@ -443,12 +443,12 @@ import './style.css';
   drawBall();
 
   // ──── iOS Background Playback ────
-  // Keep an HTMLAudio click loop playing (muted in foreground, audible in background).
-  // Safari keeps media-element playback running after app backgrounding more reliably
-  // than WebAudio scheduler callbacks.
+  // Foreground: WebAudio scheduler only.
+  // Background: HTMLAudio click loop (Safari keeps this alive more reliably).
   let _bgLoopEl = null;
   let _bgLoopUrl = null;
   let _bgLoopSig = '';
+  const BG_LOOP_MEASURES = 32;
 
   function buildClickLoopWavUrl() {
     const sig = [
@@ -462,7 +462,7 @@ import './style.css';
     const beatDur = 60 / bpm;
     const beatSamples = Math.max(1, Math.round(rate * beatDur));
     const subSamples = Math.max(1, Math.floor(beatSamples / 4));
-    const totalSamples = Math.max(1, beatSamples * beatsPerMeasure);
+    const totalSamples = Math.max(1, beatSamples * beatsPerMeasure * BG_LOOP_MEASURES);
     const len = totalSamples;
     const ab = new ArrayBuffer(44 + len * 2);
     const dv = new DataView(ab);
@@ -494,12 +494,15 @@ import './style.css';
       }
     }
 
-    for (let beat = 0; beat < beatsPerMeasure; beat++) {
-      const base = beat * beatSamples;
-      addClick(base, beat === 0 ? volBeat1 : volQuarter, beat === 0 ? 1200 : 900);
-      addClick(base + subSamples * 2, volEighth, 700);
-      addClick(base + subSamples, volSixteenth, 550);
-      addClick(base + subSamples * 3, volSixteenth, 550);
+    for (let measure = 0; measure < BG_LOOP_MEASURES; measure++) {
+      const measureBase = measure * beatSamples * beatsPerMeasure;
+      for (let beat = 0; beat < beatsPerMeasure; beat++) {
+        const base = measureBase + beat * beatSamples;
+        addClick(base, beat === 0 ? volBeat1 : volQuarter, beat === 0 ? 1200 : 900);
+        addClick(base + subSamples * 2, volEighth, 700);
+        addClick(base + subSamples, volSixteenth, 550);
+        addClick(base + subSamples * 3, volSixteenth, 550);
+      }
     }
 
     for (let i = 0; i < len; i++) {
@@ -520,7 +523,6 @@ import './style.css';
     _bgLoopEl.playsInline = true;
     _bgLoopEl.setAttribute('playsinline', '');
     _bgLoopEl.setAttribute('webkit-playsinline', '');
-    _bgLoopEl.volume = 0;
     _bgLoopEl.addEventListener('pause', () => {
       if (!running || !document.hidden) return;
       _bgLoopEl.play().catch(() => {});
@@ -532,10 +534,8 @@ import './style.css';
     const nextSrc = buildClickLoopWavUrl();
     if (_bgLoopEl.src !== nextSrc) {
       const wasPlaying = !_bgLoopEl.paused;
-      const v = _bgLoopEl.volume;
       _bgLoopEl.src = nextSrc;
       _bgLoopEl.load();
-      _bgLoopEl.volume = v;
       if (wasPlaying) _bgLoopEl.play().catch(() => {});
     }
   }
@@ -543,8 +543,7 @@ import './style.css';
   function bgAudioStart() {
     refreshBgLoopTrack();
     if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
-    _bgLoopEl.volume = document.hidden ? 1 : 0;
-    _bgLoopEl.play().catch(() => {});
+    if (document.hidden) _bgLoopEl.play().catch(() => {});
   }
 
   function bgAudioStop() {
@@ -560,9 +559,8 @@ import './style.css';
       clearTimeout(timerID);
       timerID = null;
       bgAudioStart();
-      _bgLoopEl.volume = 1;
     } else {
-      if (_bgLoopEl) _bgLoopEl.volume = 0;
+      bgAudioStop();
       audioCtx.resume().catch(() => {});
       if (!timerID) {
         nextNoteTime = audioCtx.currentTime + 0.05;
