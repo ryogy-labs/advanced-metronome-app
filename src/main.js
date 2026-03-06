@@ -448,9 +448,21 @@ import './style.css';
   let _silentEl  = null;
   let _silentUrl = null;
 
+  function refillBackgroundSchedule(horizonSec = 12) {
+    if (!running || !audioCtx) return;
+    const interval = 60 / bpm / 4; // 16th-note duration
+    const horizon  = audioCtx.currentTime + horizonSec;
+    while (nextNoteTime < horizon) {
+      scheduleNote(nextNoteTime, subBeatCount);
+      subBeatCount = (subBeatCount + 1) % (beatsPerMeasure * 4);
+      nextNoteTime += interval;
+    }
+  }
+
   function getSilentWavUrl() {
     if (_silentUrl) return _silentUrl;
-    // Build a 1-second mono silent PCM WAV in memory
+    // Build a 1-second mono PCM WAV with ultra-low-level dither.
+    // Absolute silence can cause iOS to stop treating this as active audio.
     const rate = 22050, len = rate; // 1 s × 22050 samples × 2 bytes = 44100 bytes
     const ab = new ArrayBuffer(44 + len * 2);
     const dv = new DataView(ab);
@@ -465,7 +477,10 @@ import './style.css';
     dv.setUint16(32,  2, true);  // block align
     dv.setUint16(34, 16, true);  // bits per sample
     ws(36, 'data'); dv.setUint32(40, len * 2, true);
-    // sample data is all zeros → silence
+    for (let i = 0; i < len; i++) {
+      // Very low-level alternating noise (about -90 dBFS).
+      dv.setInt16(44 + i * 2, i % 2 === 0 ? 1 : -1, true);
+    }
     _silentUrl = URL.createObjectURL(new Blob([ab], { type: 'audio/wav' }));
     return _silentUrl;
   }
@@ -473,25 +488,33 @@ import './style.css';
   function initSilentEl() {
     if (_silentEl) return;
     _silentEl = new Audio(getSilentWavUrl());
-    _silentEl.loop   = true;
-    _silentEl.volume = 0.001; // inaudible
+    _silentEl.loop = true;
+    _silentEl.volume = 1.0;
+    _silentEl.preload = 'auto';
+    _silentEl.playsInline = true;
+    _silentEl.setAttribute('playsinline', '');
+    _silentEl.setAttribute('webkit-playsinline', '');
 
     // timeupdate fires ~4×/s on iOS even in background while audio is playing.
     // Use it to keep the Web Audio schedule topped up.
     _silentEl.addEventListener('timeupdate', () => {
       if (!running || !document.hidden || !audioCtx) return;
-      const interval = 60 / bpm / 4; // 16th-note duration
-      const horizon  = audioCtx.currentTime + 10; // keep 10 s ahead
-      while (nextNoteTime < horizon) {
-        scheduleNote(nextNoteTime, subBeatCount);
-        subBeatCount = (subBeatCount + 1) % (beatsPerMeasure * 4);
-        nextNoteTime += interval;
-      }
+      refillBackgroundSchedule(12);
+    });
+
+    // Some iOS builds may pause low-level keepalive audio unexpectedly.
+    // Retry while running in background.
+    _silentEl.addEventListener('pause', () => {
+      if (!running || !document.hidden) return;
+      _silentEl.play().catch(() => {});
     });
   }
 
   function bgAudioStart() {
     initSilentEl();
+    if (audioCtx && audioCtx.state === 'suspended') {
+      audioCtx.resume().catch(() => {});
+    }
     _silentEl.play().catch(() => {});
   }
 
@@ -505,18 +528,26 @@ import './style.css';
       // Pre-schedule 10 s then let timeupdate maintain it; stop JS timer.
       clearTimeout(timerID);
       timerID = null;
-      const interval = 60 / bpm / 4;
-      const horizon  = audioCtx.currentTime + 10;
-      while (nextNoteTime < horizon) {
-        scheduleNote(nextNoteTime, subBeatCount);
-        subBeatCount = (subBeatCount + 1) % (beatsPerMeasure * 4);
-        nextNoteTime += interval;
-      }
+      refillBackgroundSchedule(12);
+      bgAudioStart();
     } else {
       // Back in foreground: ensure AudioContext is running, restart JS scheduler.
       audioCtx.resume().catch(() => {});
       if (!timerID) scheduler();
     }
+  });
+
+  window.addEventListener('pagehide', () => {
+    if (!running) return;
+    clearTimeout(timerID);
+    timerID = null;
+    refillBackgroundSchedule(12);
+  });
+
+  window.addEventListener('pageshow', () => {
+    if (!running || !audioCtx) return;
+    audioCtx.resume().catch(() => {});
+    if (!timerID) scheduler();
   });
 
   // ──── Setlists ────
