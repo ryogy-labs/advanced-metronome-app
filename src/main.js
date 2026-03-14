@@ -1125,6 +1125,14 @@ import './style.css';
     renderSetlists();
   });
 
+  // ── Library Song DnD ──
+  setupDnD(libSongList, '.preset-row', '.drag-handle', (srcIdx, at) => {
+    const [item] = songLibrary.splice(srcIdx, 1);
+    songLibrary.splice(at, 0, item);
+    saveSongLib();
+    renderLibrary();
+  });
+
   // ── Form mode toggle ──
   function setFormMode(mode) {
     const isManual = mode === 'manual';
@@ -1143,8 +1151,7 @@ import './style.css';
       pfLibList.innerHTML = '<div class="setlist-empty">ライブラリに曲がありません</div>';
       return;
     }
-    const sorted = [...songLibrary].sort((a, b) => a.name.localeCompare(b.name));
-    pfLibList.innerHTML = sorted.map(s => `
+    pfLibList.innerHTML = songLibrary.map(s => `
       <div class="preset-row">
         <button class="preset-apply" data-id="${s.id}">
           <span class="preset-name">${escHtml(s.name)}</span>
@@ -1183,9 +1190,9 @@ import './style.css';
       libSongList.innerHTML = '<div class="setlist-empty">曲を追加してください</div>';
       return;
     }
-    const sorted = [...songLibrary].sort((a, b) => a.name.localeCompare(b.name));
-    libSongList.innerHTML = sorted.map(s => `
-      <div class="preset-row">
+    libSongList.innerHTML = songLibrary.map((s, idx) => `
+      <div class="preset-row" data-idx="${idx}">
+        <span class="drag-handle">⠿</span>
         <div class="preset-apply" style="cursor:default; pointer-events:none">
           <span class="preset-name">${escHtml(s.name)}</span>
           <span class="preset-bpm">${escHtml(s.bpm)} BPM</span>
