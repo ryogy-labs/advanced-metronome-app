@@ -363,7 +363,7 @@ import './style.css';
 
   // ──── Ball Animation ────
   let ballCanvasViews = [];
-  const BALL_TOP_MARGIN = 24; // px: keep safe spacing from title area
+  const BALL_TOP_MARGIN = 10; // px: keep safe spacing from title area
   const BALL_R     = 30;  // px: ball radius
 
   function refreshBallCanvases() {
