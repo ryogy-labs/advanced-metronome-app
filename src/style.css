@@ -648,7 +648,9 @@ h1 span { color: var(--accent); }
 
 .lib-sort-row {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
+  gap: 8px;
   margin-bottom: 8px;
 }
 
@@ -962,7 +964,7 @@ h1 span { color: var(--accent); }
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  background: none;
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 7px;
   padding: 11px 13px;
