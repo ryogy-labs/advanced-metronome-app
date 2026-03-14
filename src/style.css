@@ -459,14 +459,15 @@ h1 span { color: var(--accent); }
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 18px;
+  --vol-vspace: 18px;
+  padding: var(--vol-vspace) 18px;
   width: 100%;
   max-width: 420px;
-  min-height: 360px; /* align with time-signature island vertical feel */
+  min-height: 0;
   box-shadow: 0 2px 12px rgba(100,80,200,0.06);
-  display: grid;
-  grid-template-rows: repeat(5, minmax(0, 1fr));
-  gap: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--vol-vspace);
 }
 .vol-section .card-label { margin-bottom: 14px; }
 
@@ -479,8 +480,15 @@ h1 span { color: var(--accent); }
 
 /* Divider between master and per-sound sliders */
 #spVolume .vol-section .vol-row:nth-child(2) {
+  position: relative;
+}
+#spVolume .vol-section .vol-row:nth-child(2)::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(var(--vol-vspace) * -0.5);
   border-top: 1px solid var(--border);
-  padding-top: 0;
 }
 
 .vol-name {

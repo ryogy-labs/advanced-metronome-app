@@ -384,6 +384,25 @@ import './style.css';
     });
   }
 
+  function syncVolumeSectionHeight() {
+    const tsCards = Array.from(document.querySelectorAll('.ts-picker-wrap'));
+    const targetH = tsCards.reduce((max, el) =>
+      Math.max(max, Math.round(el.getBoundingClientRect().height)), 0);
+    if (!targetH) return;
+    document.querySelectorAll('.vol-section').forEach(el => {
+      el.style.height = `${targetH}px`;
+      const rows = Array.from(el.querySelectorAll('.vol-row'));
+      if (rows.length === 0) return;
+      const rowsTotal = rows.reduce((sum, row) => sum + row.getBoundingClientRect().height, 0);
+      const cs = getComputedStyle(el);
+      const borderTop = parseFloat(cs.borderTopWidth) || 0;
+      const borderBottom = parseFloat(cs.borderBottomWidth) || 0;
+      const innerHeight = targetH - borderTop - borderBottom;
+      const slot = Math.max(0, (innerHeight - rowsTotal) / (rows.length + 1));
+      el.style.setProperty('--vol-vspace', `${slot}px`);
+    });
+  }
+
   function drawBallFrame(ctx, w, h, phase, beatIdx, topMargin) {
     ctx.clearRect(0, 0, w, h);
 
@@ -460,8 +479,15 @@ import './style.css';
   // Call once immediately, then again after first paint when flex layout is complete
   refreshBallCanvases();
   resizeBallCanvases();
-  requestAnimationFrame(() => requestAnimationFrame(resizeBallCanvases));
-  window.addEventListener('resize', resizeBallCanvases);
+  syncVolumeSectionHeight();
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    resizeBallCanvases();
+    syncVolumeSectionHeight();
+  }));
+  window.addEventListener('resize', () => {
+    resizeBallCanvases();
+    syncVolumeSectionHeight();
+  });
 
   function drawBall() {
     // Beat phase: 0 = ground contact, 0.5 = apex, 1 = next ground contact
@@ -1195,6 +1221,7 @@ import './style.css';
   })();
   refreshBallCanvases();
   resizeBallCanvases();
+  syncVolumeSectionHeight();
 
   // Set initial position instantly (no animation)
   swipePagesEl.style.transition = 'none';
@@ -1371,6 +1398,12 @@ import './style.css';
       v.classList.toggle('active', v === targetView));
     [navMetronomeBtn, navSetlistBtn, navLibraryBtn].forEach(n =>
       n.classList.toggle('active', n === targetNav));
+    if (targetView === viewMetronomeEl) {
+      requestAnimationFrame(() => {
+        resizeBallCanvases();
+        syncVolumeSectionHeight();
+      });
+    }
   }
 
   navMetronomeBtn.addEventListener('click', () => setView(viewMetronomeEl, navMetronomeBtn));
