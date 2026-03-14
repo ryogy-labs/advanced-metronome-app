@@ -364,6 +364,7 @@ import './style.css';
   // ──── Ball Animation ────
   let ballCanvasViews = [];
   const BALL_TOP_MARGIN = 15; // px: desired gap from title bottom to apex top
+  const BALL_RANGE_SCALE = 0.8; // shrink vertical travel by 20%
   const BALL_R     = 30;  // px: ball radius
 
   function refreshBallCanvases() {
@@ -386,7 +387,7 @@ import './style.css';
   function drawBallFrame(ctx, w, h, phase, beatIdx, topMargin) {
     ctx.clearRect(0, 0, w, h);
 
-    const groundY = h - 10;
+    const groundYBase = h - 10;
     const isBeat1 = beatIdx === 0;
     const margin = BALL_R + 4;
     const cx = animMode === 'horizontal'
@@ -417,8 +418,9 @@ import './style.css';
     const ry = BALL_R * (1 - 0.3 * squash);
 
     // Fit jump height to canvas so apex sits near the top instead of leaving large blank space.
-    const usableHeight = Math.max(60, groundY - (BALL_R * 2) - topMargin);
-    const ballMaxH = Math.max(60, usableHeight);
+    const fullRange = Math.max(60, groundYBase - (BALL_R * 2) - topMargin);
+    const ballMaxH = Math.max(60, fullRange * BALL_RANGE_SCALE);
+    const groundY = ballMaxH + (BALL_R * 2) + topMargin;
     // Ball center: bottom of ellipse touches groundY when heightFrac=0
     const ballY = groundY - ry - heightFrac * ballMaxH;
 
