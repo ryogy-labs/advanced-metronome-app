@@ -526,7 +526,7 @@ h1 span { color: var(--accent); }
 
 .vol-num-input {
   font-size: 0.8rem;
-  color: var(--text2);
+  color: var(--text);
   width: 46px;
   text-align: right;
   border: 1px solid var(--border);
