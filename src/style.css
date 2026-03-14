@@ -646,6 +646,14 @@ h1 span { color: var(--accent); }
 }
 .setlist-header .card-label { margin-bottom: 0; }
 
+.lib-sort-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
 .btn-sl-add {
   background: var(--accent);
   color: #fff;
@@ -956,7 +964,7 @@ h1 span { color: var(--accent); }
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  background: none;
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 7px;
   padding: 11px 13px;

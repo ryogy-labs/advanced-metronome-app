@@ -702,6 +702,7 @@ import './style.css';
   let editingSlId   = null;   // setlist being edited (index form)
   let editingSongId = null;   // song being edited (detail form)
   let songLibrary   = JSON.parse(localStorage.getItem('metro-song-lib') || '[]');
+  let libSortMode   = 'manual'; // 'manual' | 'name' | 'bpm'
   let editingLibId  = null;
 
   function saveSetlists() {
@@ -733,6 +734,9 @@ import './style.css';
   const libForm       = document.getElementById('libForm');
   const libNameInput  = document.getElementById('libName');
   const libBpmInput   = document.getElementById('libBpm');
+  const libSortManualBtn = document.getElementById('libSortManual');
+  const libSortNameBtn   = document.getElementById('libSortName');
+  const libSortBpmBtn    = document.getElementById('libSortBpm');
 
   // ── Sub-view navigation ──
   function showSlIndex() {
@@ -1125,6 +1129,15 @@ import './style.css';
     renderSetlists();
   });
 
+  // ── Library Song DnD ──
+  setupDnD(libSongList, '.preset-row', '.drag-handle', (srcIdx, at) => {
+    if (libSortMode !== 'manual') return;
+    const [item] = songLibrary.splice(srcIdx, 1);
+    songLibrary.splice(at, 0, item);
+    saveSongLib();
+    renderLibrary();
+  });
+
   // ── Form mode toggle ──
   function setFormMode(mode) {
     const isManual = mode === 'manual';
@@ -1143,8 +1156,7 @@ import './style.css';
       pfLibList.innerHTML = '<div class="setlist-empty">ライブラリに曲がありません</div>';
       return;
     }
-    const sorted = [...songLibrary].sort((a, b) => a.name.localeCompare(b.name));
-    pfLibList.innerHTML = sorted.map(s => `
+    pfLibList.innerHTML = getLibrarySongsForDisplay().map(s => `
       <div class="preset-row">
         <button class="preset-apply" data-id="${s.id}">
           <span class="preset-name">${escHtml(s.name)}</span>
@@ -1178,14 +1190,34 @@ import './style.css';
   // ── Song Library CRUD ──
   function saveSongLib() { localStorage.setItem('metro-song-lib', JSON.stringify(songLibrary)); }
 
+  function getLibrarySongsForDisplay() {
+    if (libSortMode === 'name') {
+      return [...songLibrary].sort((a, b) => a.name.localeCompare(b.name));
+    }
+    if (libSortMode === 'bpm') {
+      return [...songLibrary].sort((a, b) => a.bpm - b.bpm || a.name.localeCompare(b.name));
+    }
+    return songLibrary;
+  }
+
+  function setLibrarySortMode(mode) {
+    libSortMode = mode;
+    libSortManualBtn.classList.toggle('active', mode === 'manual');
+    libSortNameBtn.classList.toggle('active', mode === 'name');
+    libSortBpmBtn.classList.toggle('active', mode === 'bpm');
+    renderLibrary();
+    if (pfModeLib.classList.contains('active')) renderLibPicker();
+  }
+
   function renderLibrary() {
     if (songLibrary.length === 0) {
       libSongList.innerHTML = '<div class="setlist-empty">曲を追加してください</div>';
       return;
     }
-    const sorted = [...songLibrary].sort((a, b) => a.name.localeCompare(b.name));
-    libSongList.innerHTML = sorted.map(s => `
-      <div class="preset-row">
+    const showDragHandle = libSortMode === 'manual';
+    libSongList.innerHTML = getLibrarySongsForDisplay().map((s, idx) => `
+      <div class="preset-row" data-idx="${idx}">
+        ${showDragHandle ? '<span class="drag-handle">⠿</span>' : ''}
         <div class="preset-apply" style="cursor:default; pointer-events:none">
           <span class="preset-name">${escHtml(s.name)}</span>
           <span class="preset-bpm">${escHtml(s.bpm)} BPM</span>
@@ -1230,6 +1262,9 @@ import './style.css';
   }
 
   document.getElementById('btnAddLibSong').addEventListener('click', openAddLibForm);
+  libSortManualBtn.addEventListener('click', () => setLibrarySortMode('manual'));
+  libSortNameBtn.addEventListener('click',   () => setLibrarySortMode('name'));
+  libSortBpmBtn.addEventListener('click',    () => setLibrarySortMode('bpm'));
   document.getElementById('libSave').addEventListener('click', saveLibForm);
   document.getElementById('libCancel').addEventListener('click', closeLibForm);
   libNameInput.addEventListener('keydown', e => { if (e.key === 'Enter') saveLibForm(); });
