@@ -363,7 +363,7 @@ import './style.css';
 
   // ──── Ball Animation ────
   let ballCanvasViews = [];
-  const BALL_TOP_MARGIN = 10; // px: keep safe spacing from title area
+  const BALL_TOP_MARGIN = 10; // px: desired gap from title bottom to apex top
   const BALL_R     = 30;  // px: ball radius
 
   function refreshBallCanvases() {
@@ -383,7 +383,7 @@ import './style.css';
     });
   }
 
-  function drawBallFrame(ctx, w, h, phase, beatIdx) {
+  function drawBallFrame(ctx, w, h, phase, beatIdx, topMargin) {
     ctx.clearRect(0, 0, w, h);
 
     const groundY = h - 10;
@@ -417,8 +417,8 @@ import './style.css';
     const ry = BALL_R * (1 - 0.3 * squash);
 
     // Fit jump height to canvas so apex sits near the top instead of leaving large blank space.
-    const usableHeight = Math.max(60, groundY - (BALL_R * 2) - BALL_TOP_MARGIN);
-    const ballMaxH = Math.max(60, Math.min(170, usableHeight));
+    const usableHeight = Math.max(60, groundY - (BALL_R * 2) - topMargin);
+    const ballMaxH = Math.max(60, usableHeight);
     // Ball center: bottom of ellipse touches groundY when heightFrac=0
     const ballY = groundY - ry - heightFrac * ballMaxH;
 
@@ -485,7 +485,16 @@ import './style.css';
 
     ballCanvasViews.forEach(({ canvas, ctx }) => {
       if (canvas.width === 0 || canvas.height === 0) return;
-      drawBallFrame(ctx, canvas.width, canvas.height, phase, beatIdx);
+      let topMargin = BALL_TOP_MARGIN;
+      const pageEl = canvas.closest('.swipe-page');
+      const titleEl = pageEl ? pageEl.querySelector('.swipe-page-title') : null;
+      if (titleEl) {
+        const titleRect = titleEl.getBoundingClientRect();
+        const canvasRect = canvas.getBoundingClientRect();
+        // Make apex top sit 10px below the title bottom regardless of page/canvas spacing.
+        topMargin = Math.max(0, (titleRect.bottom + BALL_TOP_MARGIN) - canvasRect.top);
+      }
+      drawBallFrame(ctx, canvas.width, canvas.height, phase, beatIdx, topMargin);
     });
 
     requestAnimationFrame(drawBall);
