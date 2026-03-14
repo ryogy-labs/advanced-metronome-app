@@ -435,6 +435,11 @@ h1 span { color: var(--accent); }
 
 #spBall {
   overflow-y: auto;
+  gap: 2px; /* ~80% reduction from default 12px */
+}
+
+#spBall .swipe-page-title {
+  padding-bottom: 0;
 }
 
 /* ── Volume Section (Page 1) ── */
