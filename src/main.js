@@ -738,6 +738,10 @@ import './style.css';
   const libSortManualBtn = document.getElementById('libSortManual');
   const libSortNameBtn   = document.getElementById('libSortName');
   const libSortBpmBtn    = document.getElementById('libSortBpm');
+  const nowPlayingEls = [
+    document.getElementById('nowPlaying'),
+    document.getElementById('nowPlayingLib'),
+  ].filter(Boolean);
 
   // ── Sub-view navigation ──
   function showSlIndex() {
@@ -958,35 +962,51 @@ import './style.css';
   }
 
   function updateNowPlayingState() {
-    const el = document.getElementById('nowPlaying');
-    if (!el || el.style.display === 'none') return;
-    el.classList.toggle('paused', !running);
-    const icon = el.querySelector('.np-icon');
-    if (icon) icon.textContent = running ? '▶' : '■';
+    nowPlayingEls.forEach(el => {
+      if (el.style.display === 'none') return;
+      el.classList.toggle('paused', !running);
+      const icon = el.querySelector('.np-icon');
+      if (icon) icon.textContent = running ? '▶' : '■';
+    });
   }
 
   function updateNowPlaying() {
-    const el = document.getElementById('nowPlaying');
-    if (!el) return;
+    let currentName = '';
+    let currentBpm = null;
     if (activeSongId && activeSlId) {
       const sl = setlists.find(s => s.id === activeSlId);
       const p  = sl ? sl.songs.find(s => s.id === activeSongId) : null;
       if (p) {
-        document.getElementById('nowPlayingName').textContent = p.name || '(無題)';
-        document.getElementById('nowPlayingBpm').textContent  = p.bpm + ' BPM';
-        el.style.display = 'flex';
-        updateNowPlayingState();
-        return;
+        currentName = p.name || '(無題)';
+        currentBpm = p.bpm;
       }
     }
-    el.style.display = 'none';
+    if (!currentName && activeLibSongId) {
+      const s = songLibrary.find(song => song.id === activeLibSongId);
+      if (s) {
+        currentName = s.name || '(無題)';
+        currentBpm = s.bpm;
+      }
+    }
+    nowPlayingEls.forEach(el => {
+      const nameEl = el.querySelector('.np-name');
+      const bpmEl = el.querySelector('.np-bpm');
+      if (currentName && currentBpm !== null) {
+        if (nameEl) nameEl.textContent = currentName;
+        if (bpmEl) bpmEl.textContent = currentBpm + ' BPM';
+        el.style.display = 'flex';
+      } else {
+        el.style.display = 'none';
+      }
+    });
+    updateNowPlayingState();
   }
 
   // ── Now Playing: click to toggle metronome ──
-  document.getElementById('nowPlaying').addEventListener('click', () => {
-    if (!activeSongId) return;
+  nowPlayingEls.forEach(el => el.addEventListener('click', () => {
+    if (!activeSongId && !activeLibSongId) return;
     if (running) stopMetronome(); else startMetronome();
-  });
+  }));
 
   // ── Setlist event listeners ──
   document.getElementById('btnAddSetlist').addEventListener('click', openAddSlForm);
@@ -1281,7 +1301,7 @@ import './style.css';
     if (!confirm('この曲をライブラリから削除しますか？')) return;
     if (activeLibSongId === id) activeLibSongId = null;
     songLibrary = songLibrary.filter(s => s.id !== id);
-    saveSongLib(); renderLibrary();
+    saveSongLib(); renderLibrary(); updateNowPlaying();
   }
 
   document.getElementById('btnAddLibSong').addEventListener('click', openAddLibForm);
