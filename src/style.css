@@ -508,7 +508,10 @@ h1 span { color: var(--accent); }
 }
 
 .master-vol-row { margin-bottom: 4px; }
-.master-vol-name b { font-size: 0.9rem; }
+.master-vol-name b {
+  font-size: 0.9rem;
+  display: inline;
+}
 .master-vol-slider {
   background: linear-gradient(to right, var(--accent) var(--pct,100%), var(--border) var(--pct,100%)) !important;
 }
@@ -519,6 +522,11 @@ h1 span { color: var(--accent); }
   border: none;
   border-top: 1px solid var(--border);
   margin: 10px 0 12px;
+}
+
+#spVolume .vol-section {
+  padding-top: 12px;
+  padding-bottom: 12px;
 }
 
 /* ── Time Signature Picker (Page 2) ── */
