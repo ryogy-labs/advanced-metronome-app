@@ -363,7 +363,7 @@ import './style.css';
 
   // ──── Ball Animation ────
   let ballCanvasViews = [];
-  const BALL_TOP_MARGIN = 6; // px: keep a tiny headroom from canvas top
+  const BALL_TOP_MARGIN = 24; // px: keep safe spacing from title area
   const BALL_R     = 30;  // px: ball radius
 
   function refreshBallCanvases() {
@@ -417,7 +417,8 @@ import './style.css';
     const ry = BALL_R * (1 - 0.3 * squash);
 
     // Fit jump height to canvas so apex sits near the top instead of leaving large blank space.
-    const ballMaxH = Math.max(60, groundY - (BALL_R * 2) - BALL_TOP_MARGIN);
+    const usableHeight = Math.max(60, groundY - (BALL_R * 2) - BALL_TOP_MARGIN);
+    const ballMaxH = Math.max(60, Math.min(170, usableHeight * 0.8));
     // Ball center: bottom of ellipse touches groundY when heightFrac=0
     const ballY = groundY - ry - heightFrac * ballMaxH;
 
