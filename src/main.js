@@ -103,7 +103,7 @@ import './style.css';
     gain.connect(ctx.destination);
     osc.type = 'square';
     osc.frequency.setValueAtTime(freq, time);
-    gain.gain.setValueAtTime(vol * 0.4, time);
+    gain.gain.setValueAtTime(vol * 0.6, time);
     gain.gain.exponentialRampToValueAtTime(0.0001, time + dur);
     osc.start(time);
     osc.stop(time + dur + 0.01);
@@ -532,7 +532,7 @@ import './style.css';
 
     function addClick(samplePos, gain, freqHz) {
       if (gain <= 0) return;
-      const amp = Math.min(0.9, gain * masterVol * 0.42);
+      const amp = Math.min(0.9, gain * masterVol * 0.63);
       for (let i = 0; i < clickLen; i++) {
         const idx = samplePos + i;
         if (idx >= len) break;
