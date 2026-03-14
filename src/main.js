@@ -363,7 +363,7 @@ import './style.css';
 
   // ──── Ball Animation ────
   let ballCanvasViews = [];
-  const BALL_TOP_MARGIN = 10; // px: desired gap from title bottom to apex top
+  const BALL_TOP_MARGIN = 15; // px: desired gap from title bottom to apex top
   const BALL_R     = 30;  // px: ball radius
 
   function refreshBallCanvases() {
