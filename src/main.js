@@ -702,6 +702,7 @@ import './style.css';
   let editingSlId   = null;   // setlist being edited (index form)
   let editingSongId = null;   // song being edited (detail form)
   let songLibrary   = JSON.parse(localStorage.getItem('metro-song-lib') || '[]');
+  let activeLibSongId = null; // song currently selected from library tab
   let libSortMode   = 'manual'; // 'manual' | 'name' | 'bpm'
   let editingLibId  = null;
 
@@ -737,6 +738,10 @@ import './style.css';
   const libSortManualBtn = document.getElementById('libSortManual');
   const libSortNameBtn   = document.getElementById('libSortName');
   const libSortBpmBtn    = document.getElementById('libSortBpm');
+  const nowPlayingEls = [
+    document.getElementById('nowPlaying'),
+    document.getElementById('nowPlayingLib'),
+  ].filter(Boolean);
 
   // ── Sub-view navigation ──
   function showSlIndex() {
@@ -871,6 +876,7 @@ import './style.css';
       if (running) stopMetronome(); else startMetronome();
     } else {
       // New song: switch BPM and auto-start
+      activeLibSongId = null;
       activeSongId = id;
       activeSlId   = currentSlId;
       setBPM(p.bpm);
@@ -878,6 +884,24 @@ import './style.css';
       updateNowPlaying();
       startMetronome();
     }
+  }
+
+  function applyLibrarySong(id) {
+    const s = songLibrary.find(song => song.id === id);
+    if (!s) return;
+    if (activeLibSongId === id) {
+      // Same song tapped again: toggle play/stop
+      if (running) stopMetronome(); else startMetronome();
+      return;
+    }
+    // New library song: switch BPM and auto-start
+    activeLibSongId = id;
+    activeSongId = null;
+    activeSlId = null;
+    setBPM(s.bpm);
+    renderLibrary();
+    updateNowPlaying();
+    startMetronome();
   }
 
   function openAddSongForm() {
@@ -938,35 +962,51 @@ import './style.css';
   }
 
   function updateNowPlayingState() {
-    const el = document.getElementById('nowPlaying');
-    if (!el || el.style.display === 'none') return;
-    el.classList.toggle('paused', !running);
-    const icon = el.querySelector('.np-icon');
-    if (icon) icon.textContent = running ? '▶' : '■';
+    nowPlayingEls.forEach(el => {
+      if (el.style.display === 'none') return;
+      el.classList.toggle('paused', !running);
+      const icon = el.querySelector('.np-icon');
+      if (icon) icon.textContent = running ? '▶' : '■';
+    });
   }
 
   function updateNowPlaying() {
-    const el = document.getElementById('nowPlaying');
-    if (!el) return;
+    let currentName = '';
+    let currentBpm = null;
     if (activeSongId && activeSlId) {
       const sl = setlists.find(s => s.id === activeSlId);
       const p  = sl ? sl.songs.find(s => s.id === activeSongId) : null;
       if (p) {
-        document.getElementById('nowPlayingName').textContent = p.name || '(無題)';
-        document.getElementById('nowPlayingBpm').textContent  = p.bpm + ' BPM';
-        el.style.display = 'flex';
-        updateNowPlayingState();
-        return;
+        currentName = p.name || '(無題)';
+        currentBpm = p.bpm;
       }
     }
-    el.style.display = 'none';
+    if (!currentName && activeLibSongId) {
+      const s = songLibrary.find(song => song.id === activeLibSongId);
+      if (s) {
+        currentName = s.name || '(無題)';
+        currentBpm = s.bpm;
+      }
+    }
+    nowPlayingEls.forEach(el => {
+      const nameEl = el.querySelector('.np-name');
+      const bpmEl = el.querySelector('.np-bpm');
+      if (currentName && currentBpm !== null) {
+        if (nameEl) nameEl.textContent = currentName;
+        if (bpmEl) bpmEl.textContent = currentBpm + ' BPM';
+        el.style.display = 'flex';
+      } else {
+        el.style.display = 'none';
+      }
+    });
+    updateNowPlayingState();
   }
 
   // ── Now Playing: click to toggle metronome ──
-  document.getElementById('nowPlaying').addEventListener('click', () => {
-    if (!activeSongId) return;
+  nowPlayingEls.forEach(el => el.addEventListener('click', () => {
+    if (!activeSongId && !activeLibSongId) return;
     if (running) stopMetronome(); else startMetronome();
-  });
+  }));
 
   // ── Setlist event listeners ──
   document.getElementById('btnAddSetlist').addEventListener('click', openAddSlForm);
@@ -1216,16 +1256,18 @@ import './style.css';
     }
     const showDragHandle = libSortMode === 'manual';
     libSongList.innerHTML = getLibrarySongsForDisplay().map((s, idx) => `
-      <div class="preset-row" data-idx="${idx}">
+      <div class="preset-row${activeLibSongId === s.id ? ' active' : ''}" data-idx="${idx}">
         ${showDragHandle ? '<span class="drag-handle">⠿</span>' : ''}
-        <div class="preset-apply" style="cursor:default; pointer-events:none">
+        <button class="preset-apply" data-id="${s.id}">
           <span class="preset-name">${escHtml(s.name)}</span>
           <span class="preset-bpm">${escHtml(s.bpm)} BPM</span>
-        </div>
+        </button>
         <button class="preset-icon-btn" data-id="${s.id}" data-action="edit-lib" title="編集">✏</button>
         <button class="preset-icon-btn del" data-id="${s.id}" data-action="del-lib" title="削除">✕</button>
       </div>
     `).join('');
+    libSongList.querySelectorAll('.preset-apply').forEach(btn =>
+      btn.addEventListener('click', () => applyLibrarySong(btn.dataset.id)));
     libSongList.querySelectorAll('[data-action="edit-lib"]').forEach(btn =>
       btn.addEventListener('click', () => openEditLibForm(btn.dataset.id)));
     libSongList.querySelectorAll('[data-action="del-lib"]').forEach(btn =>
@@ -1257,8 +1299,9 @@ import './style.css';
   }
   function deleteLibSong(id) {
     if (!confirm('この曲をライブラリから削除しますか？')) return;
+    if (activeLibSongId === id) activeLibSongId = null;
     songLibrary = songLibrary.filter(s => s.id !== id);
-    saveSongLib(); renderLibrary();
+    saveSongLib(); renderLibrary(); updateNowPlaying();
   }
 
   document.getElementById('btnAddLibSong').addEventListener('click', openAddLibForm);
