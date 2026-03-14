@@ -10,6 +10,8 @@ import './style.css';
   let masterVol = 1.0;
   let volBeat1 = 1.0, volQuarter = 0.8, volEighth = 0.5, volSixteenth = 0.0;
   let running = false;
+  let isEditingBpm = false;
+  let bpmBeforeEdit = 120;
 
   // Tap tempo
   let tapTimes = [];
@@ -196,6 +198,52 @@ import './style.css';
   // ──── Event listeners ────
   bpmSlider.addEventListener('input', () => setBPM(Number(bpmSlider.value)));
 
+  function startBpmEdit() {
+    if (isEditingBpm) return;
+    isEditingBpm = true;
+    bpmBeforeEdit = bpm;
+    bpmDisplay.contentEditable = 'true';
+    bpmDisplay.classList.add('bpm-editing');
+    bpmDisplay.focus();
+    const range = document.createRange();
+    range.selectNodeContents(bpmDisplay);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+  }
+
+  function commitBpmEdit() {
+    if (!isEditingBpm) return;
+    const typed = Number(String(bpmDisplay.textContent || '').trim());
+    if (Number.isFinite(typed)) setBPM(typed);
+    else setBPM(bpmBeforeEdit);
+    isEditingBpm = false;
+    bpmDisplay.contentEditable = 'false';
+    bpmDisplay.classList.remove('bpm-editing');
+  }
+
+  function cancelBpmEdit() {
+    if (!isEditingBpm) return;
+    setBPM(bpmBeforeEdit);
+    isEditingBpm = false;
+    bpmDisplay.contentEditable = 'false';
+    bpmDisplay.classList.remove('bpm-editing');
+  }
+
+  bpmDisplay.addEventListener('click', startBpmEdit);
+  bpmDisplay.addEventListener('blur', commitBpmEdit);
+  bpmDisplay.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      commitBpmEdit();
+      return;
+    }
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      cancelBpmEdit();
+    }
+  });
+
   document.getElementById('bpmMinus10').addEventListener('click', () => setBPM(bpm - 10));
   document.getElementById('bpmMinus1').addEventListener('click',  () => setBPM(bpm - 1));
   document.getElementById('bpmPlus1').addEventListener('click',   () => setBPM(bpm + 1));
@@ -276,7 +324,7 @@ import './style.css';
   }
 
   document.addEventListener('keydown', e => {
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.isContentEditable) return;
     if (e.code === 'Space') { e.preventDefault(); running ? stopMetronome() : startMetronome(); }
     if (e.code === 'KeyT')  { tapTempo(); }
   });
