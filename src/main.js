@@ -363,7 +363,8 @@ import './style.css';
 
   // ──── Ball Animation ────
   let ballCanvasViews = [];
-  const BALL_MAX_H = 160; // px: max height above ground
+  const BALL_TOP_MARGIN = 15; // px: desired gap from title bottom to apex top
+  const BALL_RANGE_SCALE = 0.8; // shrink vertical travel by 20%
   const BALL_R     = 30;  // px: ball radius
 
   function refreshBallCanvases() {
@@ -383,10 +384,29 @@ import './style.css';
     });
   }
 
-  function drawBallFrame(ctx, w, h, phase, beatIdx) {
+  function syncVolumeSectionHeight() {
+    const tsCards = Array.from(document.querySelectorAll('.ts-picker-wrap'));
+    const targetH = tsCards.reduce((max, el) =>
+      Math.max(max, Math.round(el.getBoundingClientRect().height)), 0);
+    if (!targetH) return;
+    document.querySelectorAll('.vol-section').forEach(el => {
+      el.style.height = `${targetH}px`;
+      const rows = Array.from(el.querySelectorAll('.vol-row'));
+      if (rows.length === 0) return;
+      const rowsTotal = rows.reduce((sum, row) => sum + row.getBoundingClientRect().height, 0);
+      const cs = getComputedStyle(el);
+      const borderTop = parseFloat(cs.borderTopWidth) || 0;
+      const borderBottom = parseFloat(cs.borderBottomWidth) || 0;
+      const innerHeight = targetH - borderTop - borderBottom;
+      const slot = Math.max(0, (innerHeight - rowsTotal) / (rows.length + 1));
+      el.style.setProperty('--vol-vspace', `${slot}px`);
+    });
+  }
+
+  function drawBallFrame(ctx, w, h, phase, beatIdx, topMargin) {
     ctx.clearRect(0, 0, w, h);
 
-    const groundY = h - 10;
+    const groundYBase = h - 10;
     const isBeat1 = beatIdx === 0;
     const margin = BALL_R + 4;
     const cx = animMode === 'horizontal'
@@ -416,8 +436,12 @@ import './style.css';
     const rx = BALL_R * (1 + 0.5 * squash);
     const ry = BALL_R * (1 - 0.3 * squash);
 
+    // Fit jump height to canvas so apex sits near the top instead of leaving large blank space.
+    const fullRange = Math.max(60, groundYBase - (BALL_R * 2) - topMargin);
+    const ballMaxH = Math.max(60, fullRange * BALL_RANGE_SCALE);
+    const groundY = ballMaxH + (BALL_R * 2) + topMargin;
     // Ball center: bottom of ellipse touches groundY when heightFrac=0
-    const ballY = groundY - ry - heightFrac * BALL_MAX_H;
+    const ballY = groundY - ry - heightFrac * ballMaxH;
 
     // Shadow (grows darker/larger as ball approaches ground)
     const shadowAlpha = 0.08 + 0.22 * (1 - heightFrac);
@@ -455,8 +479,15 @@ import './style.css';
   // Call once immediately, then again after first paint when flex layout is complete
   refreshBallCanvases();
   resizeBallCanvases();
-  requestAnimationFrame(() => requestAnimationFrame(resizeBallCanvases));
-  window.addEventListener('resize', resizeBallCanvases);
+  syncVolumeSectionHeight();
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    resizeBallCanvases();
+    syncVolumeSectionHeight();
+  }));
+  window.addEventListener('resize', () => {
+    resizeBallCanvases();
+    syncVolumeSectionHeight();
+  });
 
   function drawBall() {
     // Beat phase: 0 = ground contact, 0.5 = apex, 1 = next ground contact
@@ -482,7 +513,16 @@ import './style.css';
 
     ballCanvasViews.forEach(({ canvas, ctx }) => {
       if (canvas.width === 0 || canvas.height === 0) return;
-      drawBallFrame(ctx, canvas.width, canvas.height, phase, beatIdx);
+      let topMargin = BALL_TOP_MARGIN;
+      const pageEl = canvas.closest('.swipe-page');
+      const titleEl = pageEl ? pageEl.querySelector('.swipe-page-title') : null;
+      if (titleEl) {
+        const titleRect = titleEl.getBoundingClientRect();
+        const canvasRect = canvas.getBoundingClientRect();
+        // Make apex top sit 10px below the title bottom regardless of page/canvas spacing.
+        topMargin = Math.max(0, (titleRect.bottom + BALL_TOP_MARGIN) - canvasRect.top);
+      }
+      drawBallFrame(ctx, canvas.width, canvas.height, phase, beatIdx, topMargin);
     });
 
     requestAnimationFrame(drawBall);
@@ -1181,6 +1221,7 @@ import './style.css';
   })();
   refreshBallCanvases();
   resizeBallCanvases();
+  syncVolumeSectionHeight();
 
   // Set initial position instantly (no animation)
   swipePagesEl.style.transition = 'none';
@@ -1357,6 +1398,12 @@ import './style.css';
       v.classList.toggle('active', v === targetView));
     [navMetronomeBtn, navSetlistBtn, navLibraryBtn].forEach(n =>
       n.classList.toggle('active', n === targetNav));
+    if (targetView === viewMetronomeEl) {
+      requestAnimationFrame(() => {
+        resizeBallCanvases();
+        syncVolumeSectionHeight();
+      });
+    }
   }
 
   navMetronomeBtn.addEventListener('click', () => setView(viewMetronomeEl, navMetronomeBtn));

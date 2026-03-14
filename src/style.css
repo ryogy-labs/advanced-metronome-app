@@ -435,6 +435,23 @@ h1 span { color: var(--accent); }
 
 #spBall {
   overflow-y: auto;
+  gap: 2px; /* ~80% reduction from default 12px */
+}
+
+#spBall,
+#spVolume,
+#spTimeSig {
+  padding-top: 6px; /* unify top title spacing across pages */
+}
+
+#spBall .swipe-page-title,
+#spVolume .swipe-page-title,
+#spTimeSig .swipe-page-title {
+  padding-bottom: 0;
+}
+
+#spBall .ball-controls {
+  margin-top: -28px; /* pull controls closer to floor area */
 }
 
 /* ── Volume Section (Page 1) ── */
@@ -442,10 +459,15 @@ h1 span { color: var(--accent); }
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 16px 18px;
+  --vol-vspace: 18px;
+  padding: var(--vol-vspace) 18px;
   width: 100%;
   max-width: 420px;
+  min-height: 0;
   box-shadow: 0 2px 12px rgba(100,80,200,0.06);
+  display: flex;
+  flex-direction: column;
+  gap: var(--vol-vspace);
 }
 .vol-section .card-label { margin-bottom: 14px; }
 
@@ -453,9 +475,21 @@ h1 span { color: var(--accent); }
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 12px;
+  margin: 0;
 }
-.vol-row:last-child { margin-bottom: 0; }
+
+/* Divider between master and per-sound sliders */
+#spVolume .vol-section .vol-row:nth-child(2) {
+  position: relative;
+}
+#spVolume .vol-section .vol-row:nth-child(2)::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(var(--vol-vspace) * -0.5);
+  border-top: 1px solid var(--border);
+}
 
 .vol-name {
   font-size: 0.8rem;
@@ -497,19 +531,15 @@ h1 span { color: var(--accent); }
   text-align: right;
 }
 
-.master-vol-row { margin-bottom: 4px; }
-.master-vol-name b { font-size: 0.9rem; }
+.master-vol-name b {
+  font-size: 0.9rem;
+  display: inline;
+}
 .master-vol-slider {
   background: linear-gradient(to right, var(--accent) var(--pct,100%), var(--border) var(--pct,100%)) !important;
 }
 .master-vol-slider::-webkit-slider-thumb { background: var(--accent) !important; }
 .master-vol-slider::-moz-range-thumb     { background: var(--accent) !important; }
-
-.vol-divider {
-  border: none;
-  border-top: 1px solid var(--border);
-  margin: 10px 0 12px;
-}
 
 /* ── Time Signature Picker (Page 2) ── */
 .ts-picker-wrap {
