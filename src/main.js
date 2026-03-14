@@ -418,7 +418,7 @@ import './style.css';
 
     // Fit jump height to canvas so apex sits near the top instead of leaving large blank space.
     const usableHeight = Math.max(60, groundY - (BALL_R * 2) - BALL_TOP_MARGIN);
-    const ballMaxH = Math.max(60, Math.min(170, usableHeight * 0.8));
+    const ballMaxH = Math.max(60, Math.min(170, usableHeight));
     // Ball center: bottom of ellipse touches groundY when heightFrac=0
     const ballY = groundY - ry - heightFrac * ballMaxH;
 
