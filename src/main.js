@@ -702,6 +702,7 @@ import './style.css';
   let editingSlId   = null;   // setlist being edited (index form)
   let editingSongId = null;   // song being edited (detail form)
   let songLibrary   = JSON.parse(localStorage.getItem('metro-song-lib') || '[]');
+  let activeLibSongId = null; // song currently selected from library tab
   let libSortMode   = 'manual'; // 'manual' | 'name' | 'bpm'
   let editingLibId  = null;
 
@@ -871,6 +872,7 @@ import './style.css';
       if (running) stopMetronome(); else startMetronome();
     } else {
       // New song: switch BPM and auto-start
+      activeLibSongId = null;
       activeSongId = id;
       activeSlId   = currentSlId;
       setBPM(p.bpm);
@@ -878,6 +880,24 @@ import './style.css';
       updateNowPlaying();
       startMetronome();
     }
+  }
+
+  function applyLibrarySong(id) {
+    const s = songLibrary.find(song => song.id === id);
+    if (!s) return;
+    if (activeLibSongId === id) {
+      // Same song tapped again: toggle play/stop
+      if (running) stopMetronome(); else startMetronome();
+      return;
+    }
+    // New library song: switch BPM and auto-start
+    activeLibSongId = id;
+    activeSongId = null;
+    activeSlId = null;
+    setBPM(s.bpm);
+    renderLibrary();
+    updateNowPlaying();
+    startMetronome();
   }
 
   function openAddSongForm() {
@@ -1216,16 +1236,18 @@ import './style.css';
     }
     const showDragHandle = libSortMode === 'manual';
     libSongList.innerHTML = getLibrarySongsForDisplay().map((s, idx) => `
-      <div class="preset-row" data-idx="${idx}">
+      <div class="preset-row${activeLibSongId === s.id ? ' active' : ''}" data-idx="${idx}">
         ${showDragHandle ? '<span class="drag-handle">⠿</span>' : ''}
-        <div class="preset-apply" style="cursor:default; pointer-events:none">
+        <button class="preset-apply" data-id="${s.id}">
           <span class="preset-name">${escHtml(s.name)}</span>
           <span class="preset-bpm">${escHtml(s.bpm)} BPM</span>
-        </div>
+        </button>
         <button class="preset-icon-btn" data-id="${s.id}" data-action="edit-lib" title="編集">✏</button>
         <button class="preset-icon-btn del" data-id="${s.id}" data-action="del-lib" title="削除">✕</button>
       </div>
     `).join('');
+    libSongList.querySelectorAll('.preset-apply').forEach(btn =>
+      btn.addEventListener('click', () => applyLibrarySong(btn.dataset.id)));
     libSongList.querySelectorAll('[data-action="edit-lib"]').forEach(btn =>
       btn.addEventListener('click', () => openEditLibForm(btn.dataset.id)));
     libSongList.querySelectorAll('[data-action="del-lib"]').forEach(btn =>
@@ -1257,6 +1279,7 @@ import './style.css';
   }
   function deleteLibSong(id) {
     if (!confirm('この曲をライブラリから削除しますか？')) return;
+    if (activeLibSongId === id) activeLibSongId = null;
     songLibrary = songLibrary.filter(s => s.id !== id);
     saveSongLib(); renderLibrary();
   }
