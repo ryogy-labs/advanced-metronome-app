@@ -192,7 +192,38 @@ import './style.css';
 
   function updateVolSlider(slider, numEl) {
     updateSliderFill(slider, 0, 100);
-    numEl.textContent = slider.value;
+    numEl.value = slider.value;
+  }
+
+  function parseVolumeInput(inputEl, fallback) {
+    const raw = String(inputEl.value || '').trim();
+    const typed = Number(raw);
+    if (!Number.isFinite(typed)) return fallback;
+    return Math.min(100, Math.max(0, Math.round(typed)));
+  }
+
+  function bindVolumeNumberInput(sliderEl, numEl, onApply) {
+    const commit = () => {
+      const next = parseVolumeInput(numEl, Number(sliderEl.value));
+      sliderEl.value = String(next);
+      updateVolSlider(sliderEl, numEl);
+      onApply(next / 100);
+      if (running) refreshBgLoopTrack();
+    };
+    numEl.addEventListener('change', commit);
+    numEl.addEventListener('blur', commit);
+    numEl.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        commit();
+        numEl.blur();
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        updateVolSlider(sliderEl, numEl);
+        numEl.blur();
+      }
+    });
   }
 
   // ──── Event listeners ────
@@ -305,6 +336,12 @@ import './style.css';
     updateVolSlider(volSixteenthEl, volSixteenthNum);
     if (running) refreshBgLoopTrack();
   });
+
+  bindVolumeNumberInput(volMasterEl, volMasterNum, v => { masterVol = v; });
+  bindVolumeNumberInput(volBeat1El, volBeat1Num, v => { volBeat1 = v; });
+  bindVolumeNumberInput(volQuarterEl, volQuarterNum, v => { volQuarter = v; });
+  bindVolumeNumberInput(volEighthEl, volEighthNum, v => { volEighth = v; });
+  bindVolumeNumberInput(volSixteenthEl, volSixteenthNum, v => { volSixteenth = v; });
 
   playBtn.addEventListener('click', () => {
     running ? stopMetronome() : startMetronome();
