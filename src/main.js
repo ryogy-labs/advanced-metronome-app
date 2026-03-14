@@ -363,7 +363,7 @@ import './style.css';
 
   // ──── Ball Animation ────
   let ballCanvasViews = [];
-  const BALL_MAX_H = 160; // px: max height above ground
+  const BALL_TOP_MARGIN = 6; // px: keep a tiny headroom from canvas top
   const BALL_R     = 30;  // px: ball radius
 
   function refreshBallCanvases() {
@@ -416,8 +416,10 @@ import './style.css';
     const rx = BALL_R * (1 + 0.5 * squash);
     const ry = BALL_R * (1 - 0.3 * squash);
 
+    // Fit jump height to canvas so apex sits near the top instead of leaving large blank space.
+    const ballMaxH = Math.max(60, groundY - (BALL_R * 2) - BALL_TOP_MARGIN);
     // Ball center: bottom of ellipse touches groundY when heightFrac=0
-    const ballY = groundY - ry - heightFrac * BALL_MAX_H;
+    const ballY = groundY - ry - heightFrac * ballMaxH;
 
     // Shadow (grows darker/larger as ball approaches ground)
     const shadowAlpha = 0.08 + 0.22 * (1 - heightFrac);
