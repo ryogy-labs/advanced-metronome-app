@@ -193,186 +193,20 @@ h1 span { color: var(--accent); }
   text-align: center;
   width: 100%;
   max-width: 420px;
-  --bpm-font-size: 3.2rem;
-  --bpm-row-h: 1.35rem;
 }
 
 .bpm-value {
-  font-size: var(--bpm-font-size);
+  font-size: 4rem;
   font-weight: 800;
   line-height: 1;
   color: var(--text);
+  cursor: text;
   user-select: none;
-  font-variant-numeric: tabular-nums;
 }
-
-#bpmScrollWrap {
-  overflow: hidden;
-  height: calc(var(--bpm-row-h) * 3);
-  position: relative;
-  cursor: ns-resize;
-  width: calc(6ch + 44px);
-  max-width: 100%;
-  margin: 0 auto 2px;
-  touch-action: none;
-  border-radius: 14px;
-  transition: border-radius 120ms ease;
-}
-#bpmScrollWrap::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 50%;
-  height: calc(var(--bpm-row-h) + 1.15rem);
-  transform: translateY(-50%);
-  border-top: 2px solid color-mix(in srgb, var(--accent) 55%, transparent);
-  border-bottom: 2px solid color-mix(in srgb, var(--accent) 55%, transparent);
-  background: color-mix(in srgb, var(--accent) 10%, transparent);
-  pointer-events: none;
-}
-
-#bpmScrollWrap.bpm-dragging::before {
-  display: none;
-}
-#bpmScrollWrap::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    to bottom,
-    color-mix(in srgb, var(--bg) 92%, transparent) 0%,
-    transparent 22%,
-    transparent 78%,
-    color-mix(in srgb, var(--bg) 92%, transparent) 100%
-  );
-  pointer-events: none;
-}
-
-#bpmScroller {
-  display: flex;
-  flex-direction: column;
-  transition: transform 120ms ease-out;
-  transform: translateY(calc(var(--bpm-row-h) * -1));
-}
-
-#bpmAbove2,
-#bpmAbove,
-#bpmDisplay,
-#bpmBelow,
-#bpmBelow2 {
-  text-align: center;
-  height: var(--bpm-row-h);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  position: relative;
-  z-index: 0;
-}
-
-#bpmAbove2::before,
-#bpmAbove::before,
-#bpmDisplay::before,
-#bpmBelow::before,
-#bpmBelow2::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  margin: auto;
-  width: var(--bpm-bg-w, 100%);
-  height: 100%;
+.bpm-value.bpm-editing {
+  outline: 2px solid var(--accent);
   border-radius: 8px;
-  background: transparent;
-  z-index: -1;
-}
-
-.bpm-side {
-  opacity: 0;
-  transition: opacity 120ms ease;
-  font-size: 1.23rem;
-  transform: translateY(0);
-  color: var(--text);
-}
-
-.bpm-far {
-  opacity: 0;
-  font-size: 0.96rem;
-  transform: translateY(0);
-  color: var(--text);
-}
-
-#bpmScrollWrap.bpm-dragging .bpm-side {
-  opacity: 1;
-}
-
-#bpmScrollWrap.bpm-dragging .bpm-far {
-  opacity: 1;
-}
-
-#bpmScrollWrap.bpm-dragging {
-  overflow: visible;
-  border-radius: 18px;
-  background: transparent;
-  box-shadow: 0 8px 24px color-mix(in srgb, var(--accent) 30%, transparent);
-}
-
-#bpmScrollWrap.bpm-dragging #bpmScroller > .bpm-value {
-  background: transparent !important;
-  opacity: 1 !important;
-  z-index: 6;
-  margin-left: 0 !important;
-  margin-right: 0 !important;
-  align-self: auto !important;
-  width: 100% !important;
-}
-
-#bpmScrollWrap.bpm-dragging::after {
-  display: none;
-}
-
-#bpmScrollWrap.bpm-dragging #bpmAbove {
-  transform: translateY(-0.9rem);
-}
-
-#bpmScrollWrap.bpm-dragging #bpmBelow {
-  transform: translateY(0.9rem);
-}
-
-#bpmScrollWrap.bpm-dragging #bpmAbove2 {
-  transform: translateY(-0.85rem);
-}
-
-#bpmScrollWrap.bpm-dragging #bpmBelow2 {
-  transform: translateY(0.85rem);
-}
-
-#bpmScrollWrap.bpm-dragging #bpmDisplay {
-  z-index: 7;
-  width: 100% !important;
-  --bpm-bg-w: 100%;
-}
-
-#bpmScrollWrap.bpm-dragging #bpmAbove,
-#bpmScrollWrap.bpm-dragging #bpmBelow {
-  color: color-mix(in srgb, var(--text) 72%, #fff) !important;
-  opacity: 1 !important;
-  --bpm-bg-w: 72%;
-}
-
-#bpmScrollWrap.bpm-dragging #bpmAbove2,
-#bpmScrollWrap.bpm-dragging #bpmBelow2 {
-  color: color-mix(in srgb, var(--text) 45%, #fff) !important;
-  opacity: 1 !important;
-  --bpm-bg-w: 52%;
-}
-
-#bpmScrollWrap.bpm-dragging #bpmAbove2::before,
-#bpmScrollWrap.bpm-dragging #bpmAbove::before,
-#bpmScrollWrap.bpm-dragging #bpmDisplay::before,
-#bpmScrollWrap.bpm-dragging #bpmBelow::before,
-#bpmScrollWrap.bpm-dragging #bpmBelow2::before {
-  background: #fff;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
 }
 .bpm-label {
   font-size: 0.72rem;

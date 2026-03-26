@@ -10,6 +10,8 @@ import './style.css';
   let masterVol = 1.0;
   let volBeat1 = 1.0, volQuarter = 0.8, volEighth = 0.5, volSixteenth = 0.0;
   let running = false;
+  let isEditingBpm = false;
+  let bpmBeforeEdit = 120;
 
   // Tap tempo
   let tapTimes = [];
@@ -32,12 +34,6 @@ import './style.css';
 
   // ──── DOM ────
   const bpmDisplay      = document.getElementById('bpmDisplay');
-  const bpmScrollWrap   = document.getElementById('bpmScrollWrap');
-  const bpmScroller     = document.getElementById('bpmScroller');
-  const bpmAbove2       = document.getElementById('bpmAbove2');
-  const bpmAbove        = document.getElementById('bpmAbove');
-  const bpmBelow        = document.getElementById('bpmBelow');
-  const bpmBelow2       = document.getElementById('bpmBelow2');
   const bpmSlider       = document.getElementById('bpmSlider');
   const beatRow         = document.getElementById('beatRow');
   const beatRowSetlist  = document.getElementById('beatRowSetlist');
@@ -208,10 +204,6 @@ import './style.css';
   function setBPM(val) {
     bpm = Math.min(300, Math.max(20, Math.round(val)));
     bpmDisplay.textContent = bpm;
-    bpmAbove2.textContent = Math.min(300, bpm + 2);
-    bpmAbove.textContent = Math.min(300, bpm + 1);
-    bpmBelow.textContent = Math.max(20, bpm - 1);
-    bpmBelow2.textContent = Math.max(20, bpm - 2);
     bpmSlider.value = bpm;
     updateSliderFill(bpmSlider, 20, 300);
     if (running) refreshBgLoopTrack();
@@ -366,57 +358,52 @@ import './style.css';
 
   // ──── Event listeners ────
   bpmSlider.addEventListener('input', () => setBPM(Number(bpmSlider.value)));
-  const BPM_PX_PER_STEP = 4;
-  let bpmDragActive = false;
-  let bpmDragStartY = 0;
-  let bpmDragStartValue = 120;
 
-  function updateBpmScrollerOffset(offsetY, withTransition = false) {
-    bpmScroller.style.transition = withTransition ? 'transform 120ms ease-out' : 'none';
-    bpmScroller.style.transform = `translateY(calc(var(--bpm-row-h) * -1 + ${offsetY}px))`;
+  function startBpmEdit() {
+    if (isEditingBpm) return;
+    isEditingBpm = true;
+    bpmBeforeEdit = bpm;
+    bpmDisplay.contentEditable = 'true';
+    bpmDisplay.classList.add('bpm-editing');
+    bpmDisplay.focus();
+    const range = document.createRange();
+    range.selectNodeContents(bpmDisplay);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
   }
 
-  function startBpmDrag(clientY) {
-    bpmDragActive = true;
-    bpmDragStartY = clientY;
-    bpmDragStartValue = bpm;
-    bpmScrollWrap.classList.add('bpm-dragging');
-    updateBpmScrollerOffset(0, false);
+  function commitBpmEdit() {
+    if (!isEditingBpm) return;
+    const typed = Number(String(bpmDisplay.textContent || '').trim());
+    if (Number.isFinite(typed)) setBPM(typed);
+    else setBPM(bpmBeforeEdit);
+    isEditingBpm = false;
+    bpmDisplay.contentEditable = 'false';
+    bpmDisplay.classList.remove('bpm-editing');
   }
 
-  function moveBpmDrag(clientY) {
-    if (!bpmDragActive) return;
-    const dy = clientY - bpmDragStartY;
-    const nextBpm = bpmDragStartValue - (dy / BPM_PX_PER_STEP);
-    updateBpmScrollerOffset(0, false);
-    setBPM(nextBpm);
+  function cancelBpmEdit() {
+    if (!isEditingBpm) return;
+    setBPM(bpmBeforeEdit);
+    isEditingBpm = false;
+    bpmDisplay.contentEditable = 'false';
+    bpmDisplay.classList.remove('bpm-editing');
   }
 
-  function endBpmDrag() {
-    if (!bpmDragActive) return;
-    bpmDragActive = false;
-    updateBpmScrollerOffset(0, true);
-    setTimeout(() => bpmScrollWrap.classList.remove('bpm-dragging'), 130);
-  }
-
-  bpmScrollWrap.addEventListener('touchstart', e => {
-    if (!e.touches[0]) return;
-    startBpmDrag(e.touches[0].clientY);
-  }, { passive: true });
-  bpmScrollWrap.addEventListener('touchmove', e => {
-    if (!bpmDragActive || !e.touches[0]) return;
-    e.preventDefault();
-    moveBpmDrag(e.touches[0].clientY);
-  }, { passive: false });
-  bpmScrollWrap.addEventListener('touchend', endBpmDrag);
-  bpmScrollWrap.addEventListener('touchcancel', endBpmDrag);
-
-  bpmScrollWrap.addEventListener('mousedown', e => {
-    e.preventDefault();
-    startBpmDrag(e.clientY);
+  bpmDisplay.addEventListener('click', startBpmEdit);
+  bpmDisplay.addEventListener('blur', commitBpmEdit);
+  bpmDisplay.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      commitBpmEdit();
+      return;
+    }
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      cancelBpmEdit();
+    }
   });
-  document.addEventListener('mousemove', e => moveBpmDrag(e.clientY));
-  document.addEventListener('mouseup', endBpmDrag);
 
   document.getElementById('bpmMinus10').addEventListener('click', () => setBPM(bpm - 10));
   document.getElementById('bpmMinus1').addEventListener('click',  () => setBPM(bpm - 1));
@@ -518,7 +505,7 @@ import './style.css';
   });
 
   // ──── Init sliders ────
-  setBPM(bpm);
+  updateSliderFill(bpmSlider, 20, 300);
   updateVolSlider(volMasterEl,    volMasterNum);
   updateVolSlider(volBeat1El,     volBeat1Num);
   updateVolSlider(volQuarterEl,   volQuarterNum);
