@@ -16,9 +16,11 @@ import './style.css';
   // Tap tempo
   let tapTimes = [];
   const TAP_RESET_MS = 2500;
+  let isMuted = false;
 
   // AudioContext & scheduling (always runs at 16th note resolution)
   let audioCtx = null;
+  let masterGainNode = null;
   let nextNoteTime = 0;
   let lookahead = 25.0;     // ms
   let scheduleAhead = 0.1;  // sec
@@ -37,6 +39,11 @@ import './style.css';
   const beatRowSetlist  = document.getElementById('beatRowSetlist');
   const beatRowLibrary  = document.getElementById('beatRowLibrary');
   const beatRowEls      = [beatRow, beatRowSetlist, beatRowLibrary].filter(Boolean);
+  const muteBtnEls      = [
+    document.getElementById('muteBtnMetro'),
+    document.getElementById('muteBtnSetlist'),
+    document.getElementById('muteBtnLibrary'),
+  ].filter(Boolean);
   const playBtn         = document.getElementById('playBtn');
   const tapBtn          = document.getElementById('tapBtn');
   // Time sig picker elements
@@ -90,7 +97,12 @@ import './style.css';
 
   // ──── Audio synthesis ────
   function getCtx() {
-    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      masterGainNode = audioCtx.createGain();
+      masterGainNode.gain.value = isMuted ? 0 : 1;
+      masterGainNode.connect(audioCtx.destination);
+    }
     return audioCtx;
   }
 
@@ -100,13 +112,25 @@ import './style.css';
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(masterGainNode);
     osc.type = 'square';
     osc.frequency.setValueAtTime(freq, time);
     gain.gain.setValueAtTime(vol * 0.6, time);
     gain.gain.exponentialRampToValueAtTime(0.0001, time + dur);
     osc.start(time);
     osc.stop(time + dur + 0.01);
+  }
+
+  function setMute(m) {
+    isMuted = m;
+    if (masterGainNode && audioCtx) {
+      masterGainNode.gain.setTargetAtTime(m ? 0 : 1, audioCtx.currentTime, 0.015);
+    }
+    if (_bgLoopEl) _bgLoopEl.muted = m;
+    muteBtnEls.forEach(btn => {
+      btn.classList.toggle('muted', m);
+      btn.textContent = m ? '🔇' : '🔊';
+    });
   }
 
   // ──── Scheduler (always 16th note resolution) ────
@@ -460,6 +484,7 @@ import './style.css';
   });
 
   tapBtn.addEventListener('click', tapTempo);
+  muteBtnEls.forEach(btn => btn.addEventListener('click', () => setMute(!isMuted)));
 
   function tapTempo() {
     const now = performance.now();
@@ -476,6 +501,7 @@ import './style.css';
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.isContentEditable) return;
     if (e.code === 'Space') { e.preventDefault(); running ? stopMetronome() : startMetronome(); }
     if (e.code === 'KeyT')  { tapTempo(); }
+    if (e.code === 'KeyM')  { setMute(!isMuted); }
   });
 
   // ──── Init sliders ────
@@ -757,6 +783,7 @@ import './style.css';
     _bgLoopEl = new Audio();
     _bgLoopEl.loop = true;
     _bgLoopEl.preload = 'auto';
+    _bgLoopEl.muted = isMuted;
     _bgLoopEl.playsInline = true;
     _bgLoopEl.setAttribute('playsinline', '');
     _bgLoopEl.setAttribute('webkit-playsinline', '');
