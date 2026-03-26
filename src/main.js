@@ -225,6 +225,13 @@ import './style.css';
     if (running) refreshBgLoopTrack();
   }
 
+  function applyPreset(song) {
+    if (!song) return;
+    setBPM(song.bpm);
+    setTimeSig(song.tsNum ?? 4, song.tsDen ?? 4);
+    applyBeatVolumes(song.beatVolumes ?? null);
+  }
+
   function buildTsPickerHTML(tsNumVal, tsDenVal, prefix) {
     const nums = [2, 3, 4, 5, 6, 7];
     const dens = [4, 8];
@@ -1434,6 +1441,32 @@ import './style.css';
   // ── Song Library CRUD ──
   function saveSongLib() { localStorage.setItem('metro-song-lib', JSON.stringify(songLibrary)); }
 
+  function propagateLibSongChange(libSong) {
+    let changed = false;
+    setlists.forEach(sl => {
+      sl.songs.forEach((song, idx) => {
+        if ((song.libSongId ?? null) !== libSong.id) return;
+        const nextSong = {
+          ...song,
+          name: libSong.name,
+          bpm: libSong.bpm,
+          tsNum: libSong.tsNum ?? 4,
+          tsDen: libSong.tsDen ?? 4,
+          beatVolumes: libSong.beatVolumes ?? null,
+        };
+        sl.songs[idx] = nextSong;
+        if (activeSongId === song.id) {
+          applyPreset(nextSong);
+          updateNowPlaying();
+        }
+        changed = true;
+      });
+    });
+    if (!changed) return;
+    saveSetlists();
+    if (slDetailEl.classList.contains('active')) renderSongs();
+  }
+
   function getLibrarySongsForDisplay() {
     if (libSortMode === 'name') {
       return [...songLibrary].sort((a, b) => a.name.localeCompare(b.name));
@@ -1510,6 +1543,7 @@ import './style.css';
     const bpmVal = Math.min(300, Math.max(20, parseInt(libBpmInput.value) || bpm));
     const tsNumVal = Number(document.getElementById('libTsNum')?.value) || 4;
     const tsDenVal = Number(document.getElementById('libTsDen')?.value) || 4;
+    let editedSong = null;
     if (!name) { libNameInput.focus(); return; }
     if (editingLibId) {
       const s = songLibrary.find(s => s.id === editingLibId);
@@ -1519,6 +1553,7 @@ import './style.css';
         s.tsNum = tsNumVal;
         s.tsDen = tsDenVal;
         s.beatVolumes = libFormBeatVolumes;
+        editedSong = s;
       }
     } else {
       songLibrary.push({
@@ -1530,6 +1565,7 @@ import './style.css';
         beatVolumes: libFormBeatVolumes,
       });
     }
+    if (editedSong) propagateLibSongChange(editedSong);
     saveSongLib(); closeLibForm(); renderLibrary();
   }
   function deleteLibSong(id) {
