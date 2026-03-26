@@ -745,6 +745,14 @@ h1 span { color: var(--accent); }
   white-space: nowrap;
 }
 
+.preset-ts {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text2);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
 .preset-icon-btn {
   width: 30px;
   height: 30px;
@@ -836,6 +844,71 @@ h1 span { color: var(--accent); }
 .pf-fields input:focus { border-color: var(--accent); }
 .pf-name { flex: 1; min-width: 0; }
 .pf-bpm  { width: 70px; }
+
+.form-ts-picker {
+  margin: 6px 0 10px;
+}
+.form-ts-picker .ts-picker-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.form-ts-picker .ts-picker-row > label {
+  font-size: 0.78rem;
+  color: var(--text2);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.form-ts-picker .ts-picker-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.form-ts-picker .ts-picker-nums,
+.form-ts-picker .ts-picker-dens {
+  display: flex;
+  gap: 4px;
+}
+.form-ts-picker .ts-btn {
+  min-width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text2);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.form-ts-picker .ts-btn.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+.form-ts-picker .ts-slash {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text2);
+  line-height: 1;
+}
+
+.capture-btn {
+  background: var(--surface2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 7px 10px;
+  font-size: 0.8rem;
+  width: 100%;
+  cursor: pointer;
+}
+.capture-preview {
+  margin-top: 6px;
+  margin-bottom: 10px;
+  font-size: 0.75rem;
+  color: var(--text2);
+}
 
 .pf-btns {
   display: flex;

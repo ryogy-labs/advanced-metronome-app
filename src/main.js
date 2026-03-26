@@ -195,6 +195,103 @@ import './style.css';
     numEl.value = slider.value;
   }
 
+  function currentBeatVolumes() {
+    return {
+      master: masterVol,
+      beat1: volBeat1,
+      quarter: volQuarter,
+      eighth: volEighth,
+      sixteenth: volSixteenth,
+    };
+  }
+
+  function applyBeatVolumes(bv) {
+    if (!bv) return;
+    masterVol    = bv.master    ?? 1.0;
+    volBeat1     = bv.beat1     ?? 1.0;
+    volQuarter   = bv.quarter   ?? 0.8;
+    volEighth    = bv.eighth    ?? 0.5;
+    volSixteenth = bv.sixteenth ?? 0.0;
+    volMasterEl.value    = Math.round(masterVol * 100);
+    volBeat1El.value     = Math.round(volBeat1 * 100);
+    volQuarterEl.value   = Math.round(volQuarter * 100);
+    volEighthEl.value    = Math.round(volEighth * 100);
+    volSixteenthEl.value = Math.round(volSixteenth * 100);
+    updateVolSlider(volMasterEl, volMasterNum);
+    updateVolSlider(volBeat1El, volBeat1Num);
+    updateVolSlider(volQuarterEl, volQuarterNum);
+    updateVolSlider(volEighthEl, volEighthNum);
+    updateVolSlider(volSixteenthEl, volSixteenthNum);
+    if (running) refreshBgLoopTrack();
+  }
+
+  function buildTsPickerHTML(tsNumVal, tsDenVal, prefix) {
+    const nums = [2, 3, 4, 5, 6, 7];
+    const dens = [4, 8];
+    return `
+      <div class="ts-picker-row">
+        <label>拍子</label>
+        <div class="ts-picker-group">
+          <div class="ts-picker-nums">
+            ${nums.map(n => `<button type="button" class="ts-btn${tsNumVal === n ? ' active' : ''}" data-target="${prefix}Num" data-val="${n}">${n}</button>`).join('')}
+          </div>
+          <span class="ts-slash">/</span>
+          <div class="ts-picker-dens">
+            ${dens.map(d => `<button type="button" class="ts-btn${tsDenVal === d ? ' active' : ''}" data-target="${prefix}Den" data-val="${d}">${d}</button>`).join('')}
+          </div>
+        </div>
+        <input type="hidden" id="${prefix}Num" value="${tsNumVal}">
+        <input type="hidden" id="${prefix}Den" value="${tsDenVal}">
+      </div>
+    `;
+  }
+
+  function mountTsPicker(container, tsNumVal, tsDenVal, prefix) {
+    if (!container) return;
+    container.innerHTML = buildTsPickerHTML(tsNumVal, tsDenVal, prefix);
+    container.onclick = e => {
+      const btn = e.target.closest('.ts-btn');
+      if (!btn || !container.contains(btn)) return;
+      const target = btn.dataset.target;
+      const val = Number(btn.dataset.val);
+      const inputEl = container.querySelector(`#${target}`);
+      if (!inputEl) return;
+      inputEl.value = String(val);
+      container.querySelectorAll(`.ts-btn[data-target="${target}"]`)
+        .forEach(b => b.classList.toggle('active', Number(b.dataset.val) === val));
+    };
+  }
+
+  function setTsPickerValues(prefix, nextNum, nextDen) {
+    const numEl = document.getElementById(`${prefix}Num`);
+    const denEl = document.getElementById(`${prefix}Den`);
+    if (!numEl || !denEl) return;
+    numEl.value = String(nextNum);
+    denEl.value = String(nextDen);
+    const container = numEl.closest('.form-ts-picker') || denEl.closest('.form-ts-picker');
+    if (!container) return;
+    container.querySelectorAll(`.ts-btn[data-target="${prefix}Num"]`)
+      .forEach(b => b.classList.toggle('active', Number(b.dataset.val) === nextNum));
+    container.querySelectorAll(`.ts-btn[data-target="${prefix}Den"]`)
+      .forEach(b => b.classList.toggle('active', Number(b.dataset.val) === nextDen));
+  }
+
+  function updateCapturePreview(prefix, bv) {
+    const el = document.getElementById(`${prefix}CapturePreview`);
+    if (!el) return;
+    if (!bv) {
+      el.style.display = 'none';
+      return;
+    }
+    el.style.display = 'block';
+    el.textContent =
+      `Master:${Math.round((bv.master ?? 1) * 100)} ` +
+      `1拍:${Math.round((bv.beat1 ?? 1) * 100)} ` +
+      `♩:${Math.round((bv.quarter ?? 0.8) * 100)} ` +
+      `♪:${Math.round((bv.eighth ?? 0.5) * 100)} ` +
+      `♬:${Math.round((bv.sixteenth ?? 0) * 100)}`;
+  }
+
   function parseVolumeInput(inputEl, fallback) {
     const raw = String(inputEl.value || '').trim();
     const typed = Number(raw);
@@ -284,13 +381,19 @@ import './style.css';
   const TS_NUMS = [2, 3, 4, 5, 6, 7];
   const TS_DENS = [4, 8];
 
-  function applyTimeSig() {
+  function setTimeSig(nextNum, nextDen) {
+    tsNum = TS_NUMS.includes(nextNum) ? nextNum : 4;
+    tsDen = TS_DENS.includes(nextDen) ? nextDen : 4;
     beatsPerMeasure = tsNum;
     tsNumValEl.textContent = tsNum;
     tsDenValEl.textContent = tsDen;
     buildBeatDots();
     if (running) refreshBgLoopTrack();
     if (running) { stopMetronome(); startMetronome(); }
+  }
+
+  function applyTimeSig() {
+    setTimeSig(tsNum, tsDen);
   }
 
   document.getElementById('tsNumUp').addEventListener('click', () => {
@@ -705,6 +808,8 @@ import './style.css';
   let activeLibSongId = null; // song currently selected from library tab
   let libSortMode   = 'manual'; // 'manual' | 'name' | 'bpm'
   let editingLibId  = null;
+  let libFormBeatVolumes = null;
+  let pfFormBeatVolumes = null;
 
   function saveSetlists() {
     localStorage.setItem('metro-setlists', JSON.stringify(setlists));
@@ -738,6 +843,10 @@ import './style.css';
   const libSortManualBtn = document.getElementById('libSortManual');
   const libSortNameBtn   = document.getElementById('libSortName');
   const libSortBpmBtn    = document.getElementById('libSortBpm');
+  const libTsPickerEl    = document.getElementById('libTsPicker');
+  const pfTsPickerEl     = document.getElementById('pfTsPicker');
+  const libCaptureBtn    = document.getElementById('libCaptureBtn');
+  const pfCaptureBtn     = document.getElementById('pfCaptureBtn');
   const nowPlayingEls = [
     document.getElementById('nowPlaying'),
     document.getElementById('nowPlayingLib'),
@@ -852,6 +961,7 @@ import './style.css';
           <span class="preset-num">${idx + 1}</span>
           <span class="preset-name">${escHtml(p.name) || '(無題)'}</span>
           <span class="preset-bpm">${escHtml(p.bpm)} BPM</span>
+          <span class="preset-ts">${escHtml(p.tsNum ?? 4)}/${escHtml(p.tsDen ?? 4)}</span>
         </button>
         <button class="preset-icon-btn" data-id="${p.id}" data-action="edit" title="編集">✏</button>
         <button class="preset-icon-btn del" data-id="${p.id}" data-action="del" title="削除">✕</button>
@@ -880,6 +990,8 @@ import './style.css';
       activeSongId = id;
       activeSlId   = currentSlId;
       setBPM(p.bpm);
+      setTimeSig(p.tsNum ?? 4, p.tsDen ?? 4);
+      applyBeatVolumes(p.beatVolumes ?? null);
       renderSongs();
       updateNowPlaying();
       startMetronome();
@@ -899,6 +1011,8 @@ import './style.css';
     activeSongId = null;
     activeSlId = null;
     setBPM(s.bpm);
+    setTimeSig(s.tsNum ?? 4, s.tsDen ?? 4);
+    applyBeatVolumes(s.beatVolumes ?? null);
     renderLibrary();
     updateNowPlaying();
     startMetronome();
@@ -906,9 +1020,12 @@ import './style.css';
 
   function openAddSongForm() {
     editingSongId = null;
+    pfFormBeatVolumes = null;
     setFormMode('manual');
     pfName.value = '';
     pfBpm.value  = bpm;
+    mountTsPicker(pfTsPickerEl, tsNum, tsDen, 'pfTs');
+    updateCapturePreview('pf', pfFormBeatVolumes);
     presetForm.style.display = 'block';
     pfName.focus();
   }
@@ -919,15 +1036,20 @@ import './style.css';
     const p = sl.songs.find(s => s.id === id);
     if (!p) return;
     editingSongId = id;
+    pfFormBeatVolumes = p.beatVolumes ?? null;
     setFormMode('manual');
     pfName.value = p.name;
     pfBpm.value  = p.bpm;
+    mountTsPicker(pfTsPickerEl, p.tsNum ?? 4, p.tsDen ?? 4, 'pfTs');
+    updateCapturePreview('pf', pfFormBeatVolumes);
     presetForm.style.display = 'block';
     pfName.focus();
   }
 
   function closeSongForm() {
     editingSongId = null;
+    pfFormBeatVolumes = null;
+    updateCapturePreview('pf', null);
     if (presetForm) presetForm.style.display = 'none';
   }
 
@@ -936,15 +1058,38 @@ import './style.css';
     if (!sl) return;
     const name   = pfName.value.trim();
     const bpmVal = Math.min(300, Math.max(20, parseInt(pfBpm.value) || bpm));
+    const tsNumVal = Number(document.getElementById('pfTsNum')?.value) || 4;
+    const tsDenVal = Number(document.getElementById('pfTsDen')?.value) || 4;
     if (!name) { pfName.focus(); return; }
     if (editingSongId) {
       const idx = sl.songs.findIndex(s => s.id === editingSongId);
       if (idx !== -1) {
-        sl.songs[idx] = { ...sl.songs[idx], name, bpm: bpmVal };
-        if (activeSongId === editingSongId) setBPM(bpmVal);
+        sl.songs[idx] = {
+          ...sl.songs[idx],
+          name,
+          bpm: bpmVal,
+          tsNum: tsNumVal,
+          tsDen: tsDenVal,
+          beatVolumes: pfFormBeatVolumes,
+          libSongId: null,
+        };
+        if (activeSongId === editingSongId) {
+          setBPM(bpmVal);
+          setTimeSig(tsNumVal, tsDenVal);
+          applyBeatVolumes(pfFormBeatVolumes ?? null);
+          updateNowPlaying();
+        }
       }
     } else {
-      sl.songs.push({ id: Date.now().toString(), name, bpm: bpmVal });
+      sl.songs.push({
+        id: Date.now().toString(),
+        name,
+        bpm: bpmVal,
+        tsNum: tsNumVal,
+        tsDen: tsDenVal,
+        beatVolumes: pfFormBeatVolumes,
+        libSongId: null,
+      });
     }
     saveSetlists();
     closeSongForm();
@@ -1020,6 +1165,11 @@ import './style.css';
   document.getElementById('pfCancel').addEventListener('click', closeSongForm);
   pfName.addEventListener('keydown', e => { if (e.key === 'Enter') saveSongForm(); });
   pfBpm.addEventListener('keydown',  e => { if (e.key === 'Enter') saveSongForm(); });
+  pfCaptureBtn.addEventListener('click', () => {
+    pfFormBeatVolumes = currentBeatVolumes();
+    setTsPickerValues('pfTs', tsNum, tsDen);
+    updateCapturePreview('pf', pfFormBeatVolumes);
+  });
 
   // ── Generic DnD factory ──
   function setupDnD(listEl, rowSel, handleSel, onReorder) {
@@ -1201,6 +1351,7 @@ import './style.css';
         <button class="preset-apply" data-id="${s.id}">
           <span class="preset-name">${escHtml(s.name)}</span>
           <span class="preset-bpm">${escHtml(s.bpm)} BPM</span>
+          <span class="preset-ts">${escHtml(s.tsNum ?? 4)}/${escHtml(s.tsDen ?? 4)}</span>
         </button>
       </div>
     `).join('');
@@ -1261,6 +1412,7 @@ import './style.css';
         <button class="preset-apply" data-id="${s.id}">
           <span class="preset-name">${escHtml(s.name)}</span>
           <span class="preset-bpm">${escHtml(s.bpm)} BPM</span>
+          <span class="preset-ts">${escHtml(s.tsNum ?? 4)}/${escHtml(s.tsDen ?? 4)}</span>
         </button>
         <button class="preset-icon-btn" data-id="${s.id}" data-action="edit-lib" title="編集">✏</button>
         <button class="preset-icon-btn del" data-id="${s.id}" data-action="del-lib" title="削除">✕</button>
@@ -1275,25 +1427,55 @@ import './style.css';
   }
 
   function openAddLibForm() {
-    editingLibId = null; libNameInput.value = ''; libBpmInput.value = bpm;
+    editingLibId = null;
+    libFormBeatVolumes = null;
+    libNameInput.value = '';
+    libBpmInput.value = bpm;
+    mountTsPicker(libTsPickerEl, 4, 4, 'libTs');
+    updateCapturePreview('lib', libFormBeatVolumes);
     libForm.style.display = 'block'; libNameInput.focus();
   }
   function openEditLibForm(id) {
     const s = songLibrary.find(s => s.id === id);
     if (!s) return;
-    editingLibId = id; libNameInput.value = s.name; libBpmInput.value = s.bpm;
+    editingLibId = id;
+    libFormBeatVolumes = s.beatVolumes ?? null;
+    libNameInput.value = s.name;
+    libBpmInput.value = s.bpm;
+    mountTsPicker(libTsPickerEl, s.tsNum ?? 4, s.tsDen ?? 4, 'libTs');
+    updateCapturePreview('lib', libFormBeatVolumes);
     libForm.style.display = 'block'; libNameInput.focus();
   }
-  function closeLibForm() { editingLibId = null; libForm.style.display = 'none'; }
+  function closeLibForm() {
+    editingLibId = null;
+    libFormBeatVolumes = null;
+    updateCapturePreview('lib', null);
+    libForm.style.display = 'none';
+  }
   function saveLibForm() {
     const name = libNameInput.value.trim();
     const bpmVal = Math.min(300, Math.max(20, parseInt(libBpmInput.value) || bpm));
+    const tsNumVal = Number(document.getElementById('libTsNum')?.value) || 4;
+    const tsDenVal = Number(document.getElementById('libTsDen')?.value) || 4;
     if (!name) { libNameInput.focus(); return; }
     if (editingLibId) {
       const s = songLibrary.find(s => s.id === editingLibId);
-      if (s) { s.name = name; s.bpm = bpmVal; }
+      if (s) {
+        s.name = name;
+        s.bpm = bpmVal;
+        s.tsNum = tsNumVal;
+        s.tsDen = tsDenVal;
+        s.beatVolumes = libFormBeatVolumes;
+      }
     } else {
-      songLibrary.push({ id: Date.now().toString(), name, bpm: bpmVal });
+      songLibrary.push({
+        id: Date.now().toString(),
+        name,
+        bpm: bpmVal,
+        tsNum: tsNumVal,
+        tsDen: tsDenVal,
+        beatVolumes: libFormBeatVolumes,
+      });
     }
     saveSongLib(); closeLibForm(); renderLibrary();
   }
@@ -1312,6 +1494,11 @@ import './style.css';
   document.getElementById('libCancel').addEventListener('click', closeLibForm);
   libNameInput.addEventListener('keydown', e => { if (e.key === 'Enter') saveLibForm(); });
   libBpmInput.addEventListener('keydown',  e => { if (e.key === 'Enter') saveLibForm(); });
+  libCaptureBtn.addEventListener('click', () => {
+    libFormBeatVolumes = currentBeatVolumes();
+    setTsPickerValues('libTs', tsNum, tsDen);
+    updateCapturePreview('lib', libFormBeatVolumes);
+  });
 
   // ── Init ──
   showSlIndex();
