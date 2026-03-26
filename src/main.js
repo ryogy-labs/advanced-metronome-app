@@ -1059,7 +1059,7 @@ import './style.css';
   function openAddSongForm() {
     editingSongId = null;
     pfFormBeatVolumes = null;
-    setFormMode('manual');
+    setFormMode('library');
     pfName.value = '';
     pfBpm.value  = bpm;
     mountTsPicker(pfTsPickerEl, tsNum, tsDen, 'pfTs');
