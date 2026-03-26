@@ -14,7 +14,10 @@
   <!-- A: Fixed top area -->
   <div class="metro-top">
     <h1>Metro<span>Beat</span></h1>
-    <div class="beat-row" id="beatRow"></div>
+    <div class="beat-header-row">
+      <div class="beat-row" id="beatRow"></div>
+      <button class="mute-btn" id="muteBtnMetro" type="button" aria-label="ミュート切替">🔊</button>
+    </div>
     <div class="bpm-block">
       <div class="bpm-label">BPM</div>
       <div class="bpm-value" id="bpmDisplay">120</div>
@@ -134,7 +137,10 @@
   <div class="view-top-section">
     <h1 class="view-title">Metro<span>Beat</span></h1>
     <!-- Beat indicator (mirrors metronome tab) -->
-    <div class="beat-row sl-beat-row" id="beatRowSetlist"></div>
+    <div class="beat-header-row">
+      <div class="beat-row sl-beat-row" id="beatRowSetlist"></div>
+      <button class="mute-btn" id="muteBtnSetlist" type="button" aria-label="ミュート切替">🔊</button>
+    </div>
   </div>
 
   <div class="view-body">
@@ -214,7 +220,10 @@
 <div class="view" id="viewLibrary">
   <div class="view-top-section">
     <h1 class="view-title">Metro<span>Beat</span></h1>
-    <div class="beat-row sl-beat-row" id="beatRowLibrary"></div>
+    <div class="beat-header-row">
+      <div class="beat-row sl-beat-row" id="beatRowLibrary"></div>
+      <button class="mute-btn" id="muteBtnLibrary" type="button" aria-label="ミュート切替">🔊</button>
+    </div>
   </div>
   <div class="view-body">
     <!-- Now Playing banner -->

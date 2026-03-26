@@ -119,11 +119,39 @@ h1 span { color: var(--accent); }
 }
 
 /* ── Beat Indicator ── */
+.beat-header-row {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
 .beat-row {
   display: flex;
   gap: 8px;
   justify-content: center;
   flex-wrap: wrap;
+  min-width: 0;
+}
+
+.mute-btn {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text);
+  font-size: 1.45rem;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.mute-btn.muted {
+  background: #f25c5c;
+  color: #fff;
+  border-color: #f25c5c;
 }
 
 .beat-dot {
