@@ -981,17 +981,33 @@ import './style.css';
     if (!sl) return;
     const p = sl.songs.find(s => s.id === id);
     if (!p) return;
+    const linkedLibSong = (p.libSongId ?? null)
+      ? songLibrary.find(song => song.id === (p.libSongId ?? null))
+      : null;
+    const songCfg = {
+      bpm: p.bpm,
+      tsNum: p.tsNum ?? linkedLibSong?.tsNum ?? 4,
+      tsDen: p.tsDen ?? linkedLibSong?.tsDen ?? 4,
+      beatVolumes: p.beatVolumes ?? linkedLibSong?.beatVolumes ?? null,
+    };
     if (activeSongId === id) {
-      // Same song tapped again: toggle play/stop
-      if (running) stopMetronome(); else startMetronome();
+      // Same song tapped again: stop, or (re)start with this song's saved config
+      if (running) {
+        stopMetronome();
+      } else {
+        setBPM(songCfg.bpm);
+        setTimeSig(songCfg.tsNum, songCfg.tsDen);
+        applyBeatVolumes(songCfg.beatVolumes);
+        startMetronome();
+      }
     } else {
       // New song: switch BPM and auto-start
       activeLibSongId = null;
       activeSongId = id;
       activeSlId   = currentSlId;
-      setBPM(p.bpm);
-      setTimeSig(p.tsNum ?? 4, p.tsDen ?? 4);
-      applyBeatVolumes(p.beatVolumes ?? null);
+      setBPM(songCfg.bpm);
+      setTimeSig(songCfg.tsNum, songCfg.tsDen);
+      applyBeatVolumes(songCfg.beatVolumes);
       renderSongs();
       updateNowPlaying();
       startMetronome();
@@ -1001,18 +1017,31 @@ import './style.css';
   function applyLibrarySong(id) {
     const s = songLibrary.find(song => song.id === id);
     if (!s) return;
+    const songCfg = {
+      bpm: s.bpm,
+      tsNum: s.tsNum ?? 4,
+      tsDen: s.tsDen ?? 4,
+      beatVolumes: s.beatVolumes ?? null,
+    };
     if (activeLibSongId === id) {
-      // Same song tapped again: toggle play/stop
-      if (running) stopMetronome(); else startMetronome();
+      // Same song tapped again: stop, or (re)start with this song's saved config
+      if (running) {
+        stopMetronome();
+      } else {
+        setBPM(songCfg.bpm);
+        setTimeSig(songCfg.tsNum, songCfg.tsDen);
+        applyBeatVolumes(songCfg.beatVolumes);
+        startMetronome();
+      }
       return;
     }
     // New library song: switch BPM and auto-start
     activeLibSongId = id;
     activeSongId = null;
     activeSlId = null;
-    setBPM(s.bpm);
-    setTimeSig(s.tsNum ?? 4, s.tsDen ?? 4);
-    applyBeatVolumes(s.beatVolumes ?? null);
+    setBPM(songCfg.bpm);
+    setTimeSig(songCfg.tsNum, songCfg.tsDen);
+    applyBeatVolumes(songCfg.beatVolumes);
     renderLibrary();
     updateNowPlaying();
     startMetronome();
@@ -1367,11 +1396,32 @@ import './style.css';
     if (editingSongId) {
       const idx = sl.songs.findIndex(s => s.id === editingSongId);
       if (idx !== -1) {
-        sl.songs[idx] = { ...sl.songs[idx], name: libSong.name, bpm: libSong.bpm };
-        if (activeSongId === editingSongId) setBPM(libSong.bpm);
+        sl.songs[idx] = {
+          ...sl.songs[idx],
+          name: libSong.name,
+          bpm: libSong.bpm,
+          tsNum: libSong.tsNum ?? 4,
+          tsDen: libSong.tsDen ?? 4,
+          beatVolumes: libSong.beatVolumes ?? null,
+          libSongId: libSong.id,
+        };
+        if (activeSongId === editingSongId) {
+          setBPM(libSong.bpm);
+          setTimeSig(libSong.tsNum ?? 4, libSong.tsDen ?? 4);
+          applyBeatVolumes(libSong.beatVolumes ?? null);
+          updateNowPlaying();
+        }
       }
     } else {
-      sl.songs.push({ id: Date.now().toString(), name: libSong.name, bpm: libSong.bpm });
+      sl.songs.push({
+        id: Date.now().toString(),
+        name: libSong.name,
+        bpm: libSong.bpm,
+        tsNum: libSong.tsNum ?? 4,
+        tsDen: libSong.tsDen ?? 4,
+        beatVolumes: libSong.beatVolumes ?? null,
+        libSongId: libSong.id,
+      });
     }
     saveSetlists();
     closeSongForm();
