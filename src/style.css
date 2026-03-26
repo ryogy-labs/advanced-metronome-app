@@ -122,10 +122,9 @@ h1 span { color: var(--accent); }
 .beat-header-row {
   width: 100%;
   max-width: 420px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
+  position: relative;
+  display: block;
+  min-height: 40px;
 }
 
 .beat-row {
@@ -133,17 +132,23 @@ h1 span { color: var(--accent); }
   gap: 8px;
   justify-content: center;
   flex-wrap: wrap;
-  min-width: 0;
+  width: 100%;
+  min-height: 40px;
+  align-items: center;
 }
 
 .mute-btn {
-  width: 46px;
-  height: 46px;
-  border-radius: 12px;
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
   border: 1px solid var(--border);
   background: var(--surface2);
   color: var(--text);
-  font-size: 1.45rem;
+  font-size: 1rem;
   line-height: 1;
   cursor: pointer;
   flex-shrink: 0;
