@@ -373,13 +373,14 @@ import './style.css';
 
   function updateBpmScrollerOffset(offsetY, withTransition = false) {
     bpmScroller.style.transition = withTransition ? 'transform 120ms ease-out' : 'none';
-    bpmScroller.style.transform = `translateY(calc(var(--bpm-row-h) * -2 + ${offsetY}px))`;
+    bpmScroller.style.transform = `translateY(calc(var(--bpm-row-h) * -1 + ${offsetY}px))`;
   }
 
   function startBpmDrag(clientY) {
     bpmDragActive = true;
     bpmDragStartY = clientY;
     bpmDragStartValue = bpm;
+    bpmScrollWrap.classList.add('bpm-dragging');
     updateBpmScrollerOffset(0, false);
   }
 
@@ -387,7 +388,7 @@ import './style.css';
     if (!bpmDragActive) return;
     const dy = clientY - bpmDragStartY;
     const nextBpm = bpmDragStartValue - (dy / BPM_PX_PER_STEP);
-    updateBpmScrollerOffset(dy, false);
+    updateBpmScrollerOffset(0, false);
     setBPM(nextBpm);
   }
 
@@ -395,6 +396,7 @@ import './style.css';
     if (!bpmDragActive) return;
     bpmDragActive = false;
     updateBpmScrollerOffset(0, true);
+    setTimeout(() => bpmScrollWrap.classList.remove('bpm-dragging'), 130);
   }
 
   bpmScrollWrap.addEventListener('touchstart', e => {
