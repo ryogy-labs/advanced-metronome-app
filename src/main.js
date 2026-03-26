@@ -34,8 +34,10 @@ import './style.css';
   const bpmDisplay      = document.getElementById('bpmDisplay');
   const bpmScrollWrap   = document.getElementById('bpmScrollWrap');
   const bpmScroller     = document.getElementById('bpmScroller');
+  const bpmAbove2       = document.getElementById('bpmAbove2');
   const bpmAbove        = document.getElementById('bpmAbove');
   const bpmBelow        = document.getElementById('bpmBelow');
+  const bpmBelow2       = document.getElementById('bpmBelow2');
   const bpmSlider       = document.getElementById('bpmSlider');
   const beatRow         = document.getElementById('beatRow');
   const beatRowSetlist  = document.getElementById('beatRowSetlist');
@@ -206,8 +208,10 @@ import './style.css';
   function setBPM(val) {
     bpm = Math.min(300, Math.max(20, Math.round(val)));
     bpmDisplay.textContent = bpm;
+    bpmAbove2.textContent = Math.min(300, bpm + 2);
     bpmAbove.textContent = Math.min(300, bpm + 1);
     bpmBelow.textContent = Math.max(20, bpm - 1);
+    bpmBelow2.textContent = Math.max(20, bpm - 2);
     bpmSlider.value = bpm;
     updateSliderFill(bpmSlider, 20, 300);
     if (running) refreshBgLoopTrack();
@@ -369,7 +373,7 @@ import './style.css';
 
   function updateBpmScrollerOffset(offsetY, withTransition = false) {
     bpmScroller.style.transition = withTransition ? 'transform 120ms ease-out' : 'none';
-    bpmScroller.style.transform = `translateY(calc(-1.2em + ${offsetY}px))`;
+    bpmScroller.style.transform = `translateY(calc(var(--bpm-row-h) * -2 + ${offsetY}px))`;
   }
 
   function startBpmDrag(clientY) {
