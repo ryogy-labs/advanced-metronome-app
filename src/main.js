@@ -276,7 +276,7 @@ import './style.css';
       .forEach(b => b.classList.toggle('active', Number(b.dataset.val) === nextDen));
   }
 
-  function updateCapturePreview(prefix, bv) {
+  function updateCapturePreview(prefix, bv, capturedBpm = null) {
     const el = document.getElementById(`${prefix}CapturePreview`);
     if (!el) return;
     if (!bv) {
@@ -284,7 +284,9 @@ import './style.css';
       return;
     }
     el.style.display = 'block';
+    const bpmText = Number.isFinite(capturedBpm) ? `BPM:${Math.round(capturedBpm)} ` : '';
     el.textContent =
+      bpmText +
       `Master:${Math.round((bv.master ?? 1) * 100)} ` +
       `1拍:${Math.round((bv.beat1 ?? 1) * 100)} ` +
       `♩:${Math.round((bv.quarter ?? 0.8) * 100)} ` +
@@ -1196,8 +1198,9 @@ import './style.css';
   pfBpm.addEventListener('keydown',  e => { if (e.key === 'Enter') saveSongForm(); });
   pfCaptureBtn.addEventListener('click', () => {
     pfFormBeatVolumes = currentBeatVolumes();
+    pfBpm.value = bpm;
     setTsPickerValues('pfTs', tsNum, tsDen);
-    updateCapturePreview('pf', pfFormBeatVolumes);
+    updateCapturePreview('pf', pfFormBeatVolumes, bpm);
   });
 
   // ── Generic DnD factory ──
@@ -1546,8 +1549,9 @@ import './style.css';
   libBpmInput.addEventListener('keydown',  e => { if (e.key === 'Enter') saveLibForm(); });
   libCaptureBtn.addEventListener('click', () => {
     libFormBeatVolumes = currentBeatVolumes();
+    libBpmInput.value = bpm;
     setTsPickerValues('libTs', tsNum, tsDen);
-    updateCapturePreview('lib', libFormBeatVolumes);
+    updateCapturePreview('lib', libFormBeatVolumes, bpm);
   });
 
   // ── Init ──
