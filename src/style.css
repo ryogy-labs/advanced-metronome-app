@@ -200,13 +200,34 @@ h1 span { color: var(--accent); }
   font-weight: 800;
   line-height: 1;
   color: var(--text);
-  cursor: text;
   user-select: none;
 }
-.bpm-value.bpm-editing {
-  outline: 2px solid var(--accent);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--accent) 10%, transparent);
+
+#bpmScrollWrap {
+  overflow: hidden;
+  height: 1.2em;
+  position: relative;
+  cursor: ns-resize;
+  margin: 0 auto 2px;
+  touch-action: none;
+}
+
+#bpmScroller {
+  display: flex;
+  flex-direction: column;
+  transition: transform 80ms ease-out;
+  transform: translateY(-1.2em);
+}
+
+#bpmAbove,
+#bpmDisplay,
+#bpmBelow {
+  text-align: center;
+  height: 1.2em;
+}
+
+.bpm-side {
+  opacity: 0.36;
 }
 .bpm-label {
   font-size: 0.72rem;
