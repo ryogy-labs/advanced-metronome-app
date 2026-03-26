@@ -511,16 +511,18 @@ h1 span { color: var(--accent); }
 }
 .vol-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 18px; height: 18px;
+  width: 22px; height: 22px;
   border-radius: 50%;
   background: var(--accent2);
+  box-shadow: 0 0 8px var(--accent2);
   cursor: pointer;
 }
 .vol-slider::-moz-range-thumb {
-  width: 18px; height: 18px;
+  width: 22px; height: 22px;
   border: none;
   border-radius: 50%;
   background: var(--accent2);
+  box-shadow: 0 0 8px var(--accent2);
   cursor: pointer;
 }
 
