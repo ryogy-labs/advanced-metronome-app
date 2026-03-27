@@ -769,7 +769,7 @@ import './style.css';
     if (_bgLoopUrl && _bgLoopSig === sig) return _bgLoopUrl;
     if (_bgLoopUrl) URL.revokeObjectURL(_bgLoopUrl);
 
-    const rate = 22050;
+    const rate = 44100;
     const beatDur = 60 / bpm;
     const beatSamples = Math.max(1, Math.round(rate * beatDur));
     const subSamples = Math.max(1, Math.floor(beatSamples / 4));
