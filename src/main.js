@@ -1,6 +1,12 @@
 import './style.css';
 
 (() => {
+  const isNativeApp = Boolean(
+    window.Capacitor &&
+    typeof window.Capacitor.isNativePlatform === 'function' &&
+    window.Capacitor.isNativePlatform()
+  );
+
   // ──── State ────
   let bpm = 120;
   let beatsPerMeasure = 4;
@@ -20,7 +26,7 @@ import './style.css';
   // ── Pro ステータス ──────────────────────────────
   // Production では RevenueCat/StoreKit の結果に差し替える（この1箇所だけ変更すれば良い）
   let isPro = (() => {
-    if (import.meta.env.DEV) {
+    if (!isNativeApp) {
       return localStorage.getItem('metro-dev-force-pro') === '1';
     }
     return false; // 本番はデフォルト free
@@ -1901,7 +1907,7 @@ import './style.css';
   navSetlistBtn.addEventListener('click',   () => setView(viewSetlistEl,   navSetlistBtn));
   navLibraryBtn.addEventListener('click',   () => { setView(viewLibraryEl, navLibraryBtn); renderLibrary(); });
 
-  if (import.meta.env.DEV) {
+  if (!isNativeApp) {
     const devBtn = document.createElement('button');
     devBtn.id = 'devProToggle';
     devBtn.style.cssText =
