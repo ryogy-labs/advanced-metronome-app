@@ -1174,10 +1174,6 @@ import './style.css';
     const tsNumVal = Number(document.getElementById('pfTsNum')?.value) || 4;
     const tsDenVal = Number(document.getElementById('pfTsDen')?.value) || 4;
     if (!name) { pfName.focus(); return; }
-    if (pfFormBeatVolumes !== null && !isPro) {
-      requirePro(() => saveSongForm());
-      return;
-    }
     if (editingSongId) {
       const idx = sl.songs.findIndex(s => s.id === editingSongId);
       if (idx !== -1) {
@@ -1297,10 +1293,12 @@ import './style.css';
   pfName.addEventListener('keydown', e => { if (e.key === 'Enter') saveSongForm(); });
   pfBpm.addEventListener('keydown',  e => { if (e.key === 'Enter') saveSongForm(); });
   pfCaptureBtn.addEventListener('click', () => {
-    pfFormBeatVolumes = currentBeatVolumes();
-    pfBpm.value = bpm;
-    setTsPickerValues('pfTs', tsNum, tsDen);
-    updateCapturePreview('pf', pfFormBeatVolumes, bpm);
+    requirePro(() => {
+      pfFormBeatVolumes = currentBeatVolumes();
+      pfBpm.value = bpm;
+      setTsPickerValues('pfTs', tsNum, tsDen);
+      updateCapturePreview('pf', pfFormBeatVolumes, bpm);
+    });
   });
 
   // ── Generic DnD factory ──
@@ -1638,10 +1636,6 @@ import './style.css';
     const tsDenVal = Number(document.getElementById('libTsDen')?.value) || 4;
     let editedSong = null;
     if (!name) { libNameInput.focus(); return; }
-    if (libFormBeatVolumes !== null && !isPro) {
-      requirePro(() => saveLibForm());
-      return;
-    }
     if (editingLibId) {
       const s = songLibrary.find(s => s.id === editingLibId);
       if (s) {
@@ -1687,10 +1681,12 @@ import './style.css';
   libNameInput.addEventListener('keydown', e => { if (e.key === 'Enter') saveLibForm(); });
   libBpmInput.addEventListener('keydown',  e => { if (e.key === 'Enter') saveLibForm(); });
   libCaptureBtn.addEventListener('click', () => {
-    libFormBeatVolumes = currentBeatVolumes();
-    libBpmInput.value = bpm;
-    setTsPickerValues('libTs', tsNum, tsDen);
-    updateCapturePreview('lib', libFormBeatVolumes, bpm);
+    requirePro(() => {
+      libFormBeatVolumes = currentBeatVolumes();
+      libBpmInput.value = bpm;
+      setTsPickerValues('libTs', tsNum, tsDen);
+      updateCapturePreview('lib', libFormBeatVolumes, bpm);
+    });
   });
 
   // ── Init ──
