@@ -17,6 +17,14 @@ import './style.css';
   let tapTimes = [];
   const TAP_RESET_MS = 2500;
   let isMuted = false;
+  // ── Pro ステータス ──────────────────────────────
+  // Production では RevenueCat/StoreKit の結果に差し替える（この1箇所だけ変更すれば良い）
+  let isPro = (() => {
+    if (import.meta.env.DEV) {
+      return localStorage.getItem('metro-dev-force-pro') === '1';
+    }
+    return false; // 本番はデフォルト free
+  })();
 
   // AudioContext & scheduling (always runs at 16th note resolution)
   let audioCtx = null;
@@ -63,6 +71,10 @@ import './style.css';
   const volQuarterNum   = document.getElementById('volQuarterNum');
   const volEighthNum    = document.getElementById('volEighthNum');
   const volSixteenthNum = document.getElementById('volSixteenthNum');
+  const proPaywallEl      = document.getElementById('proPaywall');
+  const paywallBuyBtn     = document.getElementById('paywallBuyBtn');
+  const paywallRestoreBtn = document.getElementById('paywallRestoreBtn');
+  const paywallCloseBtn   = document.getElementById('paywallCloseBtn');
 
   // ──── Beat dots ────
   function buildBeatDots() {
@@ -248,6 +260,42 @@ import './style.css';
     updateVolSlider(volSixteenthEl, volSixteenthNum);
     if (running) refreshBgLoopTrack();
   }
+
+  /**
+   * Pro 機能のゲート。isPro なら即実行、free なら paywall を表示。
+   * @param {() => void} onGranted - Pro 時に実行するコールバック
+   */
+  function requirePro(onGranted) {
+    if (isPro) { onGranted(); return; }
+    showProPaywall();
+  }
+
+  function showProPaywall() {
+    if (!proPaywallEl) return;
+    proPaywallEl.style.display = 'flex';
+  }
+
+  function hideProPaywall() {
+    if (!proPaywallEl) return;
+    proPaywallEl.style.display = 'none';
+  }
+
+  paywallCloseBtn?.addEventListener('click', hideProPaywall);
+  proPaywallEl?.addEventListener('click', e => {
+    if (e.target === proPaywallEl) hideProPaywall();
+  });
+
+  paywallBuyBtn?.addEventListener('click', () => {
+    // Production: RevenueCat の購入フローを呼び出す
+    console.log('[DEV] 購入フロー（未実装）');
+    hideProPaywall();
+  });
+
+  paywallRestoreBtn?.addEventListener('click', () => {
+    // Production: RevenueCat の restorePurchases を呼び出す
+    console.log('[DEV] 購入復元（未実装）');
+    hideProPaywall();
+  });
 
   function applyPreset(song) {
     if (!song) return;
@@ -1126,6 +1174,10 @@ import './style.css';
     const tsNumVal = Number(document.getElementById('pfTsNum')?.value) || 4;
     const tsDenVal = Number(document.getElementById('pfTsDen')?.value) || 4;
     if (!name) { pfName.focus(); return; }
+    if (pfFormBeatVolumes !== null && !isPro) {
+      requirePro(() => saveSongForm());
+      return;
+    }
     if (editingSongId) {
       const idx = sl.songs.findIndex(s => s.id === editingSongId);
       if (idx !== -1) {
@@ -1219,13 +1271,27 @@ import './style.css';
   }));
 
   // ── Setlist event listeners ──
-  document.getElementById('btnAddSetlist').addEventListener('click', openAddSlForm);
+  document.getElementById('btnAddSetlist').addEventListener('click', () => {
+    if (setlists.length >= 1 && !isPro) {
+      requirePro(() => openAddSlForm());
+    } else {
+      openAddSlForm();
+    }
+  });
   document.getElementById('slSave').addEventListener('click', saveSlForm);
   document.getElementById('slCancel').addEventListener('click', closeSlForm);
   slNameInput.addEventListener('keydown', e => { if (e.key === 'Enter') saveSlForm(); });
 
   document.getElementById('btnBack').addEventListener('click', showSlIndex);
-  document.getElementById('btnAddSong').addEventListener('click', openAddSongForm);
+  document.getElementById('btnAddSong').addEventListener('click', () => {
+    const sl = currentSetlist();
+    const currentSongs = sl ? sl.songs : [];
+    if (currentSongs.length >= 10 && !isPro) {
+      requirePro(() => openAddSongForm());
+    } else {
+      openAddSongForm();
+    }
+  });
   document.getElementById('pfSave').addEventListener('click', saveSongForm);
   document.getElementById('pfCancel').addEventListener('click', closeSongForm);
   pfName.addEventListener('keydown', e => { if (e.key === 'Enter') saveSongForm(); });
@@ -1572,6 +1638,10 @@ import './style.css';
     const tsDenVal = Number(document.getElementById('libTsDen')?.value) || 4;
     let editedSong = null;
     if (!name) { libNameInput.focus(); return; }
+    if (libFormBeatVolumes !== null && !isPro) {
+      requirePro(() => saveLibForm());
+      return;
+    }
     if (editingLibId) {
       const s = songLibrary.find(s => s.id === editingLibId);
       if (s) {
@@ -1602,7 +1672,13 @@ import './style.css';
     saveSongLib(); renderLibrary(); updateNowPlaying();
   }
 
-  document.getElementById('btnAddLibSong').addEventListener('click', openAddLibForm);
+  document.getElementById('btnAddLibSong').addEventListener('click', () => {
+    if (songLibrary.length >= 10 && !isPro) {
+      requirePro(() => openAddLibForm());
+    } else {
+      openAddLibForm();
+    }
+  });
   libSortManualBtn.addEventListener('click', () => setLibrarySortMode('manual'));
   libSortNameBtn.addEventListener('click',   () => setLibrarySortMode('name'));
   libSortBpmBtn.addEventListener('click',    () => setLibrarySortMode('bpm'));
@@ -1828,5 +1904,24 @@ import './style.css';
   navMetronomeBtn.addEventListener('click', () => setView(viewMetronomeEl, navMetronomeBtn));
   navSetlistBtn.addEventListener('click',   () => setView(viewSetlistEl,   navSetlistBtn));
   navLibraryBtn.addEventListener('click',   () => { setView(viewLibraryEl, navLibraryBtn); renderLibrary(); });
+
+  if (import.meta.env.DEV) {
+    const devBtn = document.createElement('button');
+    devBtn.id = 'devProToggle';
+    devBtn.style.cssText =
+      'position:fixed;bottom:12px;left:12px;z-index:10000;' +
+      'padding:4px 10px;font-size:11px;border-radius:6px;' +
+      'background:#333;color:#fff;border:1px solid #666;cursor:pointer;opacity:0.8;';
+    const update = () => { devBtn.textContent = isPro ? 'DEV: PRO ON' : 'DEV: PRO OFF'; };
+    update();
+    devBtn.addEventListener('click', () => {
+      isPro = !isPro;
+      localStorage.setItem('metro-dev-force-pro', isPro ? '1' : '0');
+      update();
+      renderLibrary();
+      renderSetlists();
+    });
+    document.body.appendChild(devBtn);
+  }
 
 })();
