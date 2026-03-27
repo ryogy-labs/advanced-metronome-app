@@ -62,7 +62,7 @@
 
       <!-- Page 1: Volume -->
       <div class="swipe-page" id="spVolume">
-        <div class="swipe-page-title">音量調整</div>
+        <div class="swipe-page-title">音量設定</div>
         <div class="vol-section">
           <div class="vol-row master-vol-row">
             <div class="vol-name master-vol-name"><b>全体</b></div>
@@ -196,7 +196,7 @@
               <input class="pf-bpm"  type="number" id="pfBpm"  placeholder="BPM" min="20" max="300">
             </div>
             <div id="pfTsPicker" class="form-ts-picker"></div>
-            <button type="button" id="pfCaptureBtn" class="capture-btn">現在の設定を取り込む</button>
+            <button type="button" id="pfCaptureBtn" class="capture-btn">現在のBPM・音量・拍子設定を取り込む</button>
             <div id="pfCapturePreview" class="capture-preview" style="display:none"></div>
             <div class="pf-btns">
               <button class="pf-save"   id="pfSave">保存</button>
@@ -253,7 +253,7 @@
           <input class="pf-bpm"  type="number" id="libBpm"  placeholder="BPM" min="20" max="300">
         </div>
         <div id="libTsPicker" class="form-ts-picker"></div>
-        <button type="button" id="libCaptureBtn" class="capture-btn">現在の設定を取り込む</button>
+        <button type="button" id="libCaptureBtn" class="capture-btn">現在のBPM・音量・拍子設定を取り込む</button>
         <div id="libCapturePreview" class="capture-preview" style="display:none"></div>
         <div class="pf-btns">
           <button class="pf-save"   id="libSave">保存</button>
@@ -293,6 +293,22 @@
     <span class="nav-label">ライブラリ</span>
   </button>
 </nav>
+
+<!-- Pro ペイウォール -->
+<div id="proPaywall" class="modal-overlay" style="display:none" aria-modal="true" role="dialog">
+  <div class="modal-card">
+    <h2 class="modal-title">Metro Beat Pro</h2>
+    <ul class="paywall-list">
+      <li>✓ セットリスト・ライブラリが無制限に</li>
+      <li>✓ 曲ごとの音量プリセット保存</li>
+      <li>✓ 曲ごとの拍子記録</li>
+      <li>✓ 今後追加される Pro 機能すべて</li>
+    </ul>
+    <button id="paywallBuyBtn" class="btn-primary">Pro にアップグレード（$7.99）</button>
+    <button id="paywallRestoreBtn" class="btn-ghost">購入を復元</button>
+    <button id="paywallCloseBtn" class="btn-close" aria-label="閉じる">✕</button>
+  </div>
+</div>
 
 <script type="module" src="/src/main.js"></script>
 </body>

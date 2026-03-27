@@ -1153,3 +1153,78 @@ h1 span { color: var(--accent); }
   opacity: 0.9;
   flex-shrink: 0;
 }
+
+/* ── ペイウォールモーダル ── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+}
+
+.modal-card {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 32px 24px;
+  width: min(360px, 90vw);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  position: relative;
+}
+
+.modal-title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  text-align: center;
+  margin: 0;
+  color: var(--text);
+}
+
+.paywall-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 0.95rem;
+  color: var(--text);
+}
+
+.btn-primary {
+  background: var(--accent, #7c6af7);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 14px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-ghost {
+  background: transparent;
+  border: none;
+  color: var(--text2);
+  font-size: 0.85rem;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.btn-close {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  color: var(--text2);
+}
