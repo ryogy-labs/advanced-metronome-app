@@ -35,6 +35,21 @@ import './style.css';
   let timerID = null;
   let subBeatCount = 0;     // 16th note position within measure
 
+  // iOS AudioContext unlock: 初回タップで resume を保証する
+  (function iosAudioUnlock() {
+    const unlock = () => {
+      if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume().catch(() => {});
+      }
+      document.removeEventListener('touchstart', unlock, true);
+      document.removeEventListener('touchend',   unlock, true);
+      document.removeEventListener('click',      unlock, true);
+    };
+    document.addEventListener('touchstart', unlock, { capture: true, passive: true });
+    document.addEventListener('touchend',   unlock, { capture: true, passive: true });
+    document.addEventListener('click',      unlock, { capture: true, passive: true });
+  })();
+
   // Ball animation
   let scheduledBeatTimes = []; // { time: audioCtxTime, beatIdx }
   let squashEnabled = true;

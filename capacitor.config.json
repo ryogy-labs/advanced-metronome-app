@@ -1,0 +1,11 @@
+{
+  "appId": "jp.metrobeat.app",
+  "appName": "Metro Beat",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  },
+  "ios": {
+    "contentInset": "always"
+  }
+}
