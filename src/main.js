@@ -153,7 +153,7 @@ import './style.css';
     if (masterGainNode && audioCtx) {
       masterGainNode.gain.setTargetAtTime(m ? 0 : 1, audioCtx.currentTime, 0.015);
     }
-    if (_bgLoopEl) _bgLoopEl.muted = m;
+    syncBgLoopMuted();
     muteBtnEls.forEach(btn => {
       btn.classList.toggle('muted', m);
       btn.textContent = m ? '🔇' : '🔊';
@@ -217,6 +217,7 @@ import './style.css';
     if (!running) return;
     running = false;
     clearTimeout(timerID);
+    timerID = null;
     bgAudioStop();
     scheduledBeatTimes = [];
     playBtn.textContent = '▶ START';
@@ -774,71 +775,103 @@ import './style.css';
   let _bgLoopEl = null;
   let _bgLoopUrl = null;
   let _bgLoopSig = '';
+  let _bgLoopPendingSig = '';
+  let _bgLoopBuildPromise = null;
   const BG_LOOP_MEASURES = 32;
 
-  function buildClickLoopWavUrl() {
+  async function buildClickLoopWav() {
     const sig = [
       bpm, beatsPerMeasure,
       masterVol, volBeat1, volQuarter, volEighth, volSixteenth,
     ].join('|');
     if (_bgLoopUrl && _bgLoopSig === sig) return _bgLoopUrl;
-    if (_bgLoopUrl) URL.revokeObjectURL(_bgLoopUrl);
+    if (_bgLoopBuildPromise && _bgLoopPendingSig === sig) return _bgLoopBuildPromise;
 
-    const rate = 44100;
-    const beatDur = 60 / bpm;
-    const beatSamples = Math.max(1, Math.round(rate * beatDur));
-    const subSamples = Math.max(1, Math.floor(beatSamples / 4));
-    const totalSamples = Math.max(1, beatSamples * beatsPerMeasure * BG_LOOP_MEASURES);
-    const len = totalSamples;
-    const ab = new ArrayBuffer(44 + len * 2);
-    const dv = new DataView(ab);
-    const ws = (o, s) => { for (let i = 0; i < s.length; i++) dv.setUint8(o + i, s.charCodeAt(i)); };
+    _bgLoopPendingSig = sig;
+    _bgLoopBuildPromise = (async () => {
+      const ctx = getCtx();
+      const rate = ctx.sampleRate;
+      const beatDur = 60 / bpm;
+      const sixteenthDur = beatDur / 4;
+      const loopDuration = beatDur * beatsPerMeasure * BG_LOOP_MEASURES;
+      const frameCount = Math.max(1, Math.ceil(rate * loopDuration));
+      const offlineCtx = new (window.OfflineAudioContext || window.webkitOfflineAudioContext)(1, frameCount, rate);
 
-    ws(0, 'RIFF'); dv.setUint32(4, 36 + len * 2, true);
-    ws(8, 'WAVE'); ws(12, 'fmt ');
-    dv.setUint32(16, 16, true);
-    dv.setUint16(20, 1, true);
-    dv.setUint16(22, 1, true);
-    dv.setUint32(24, rate, true);
-    dv.setUint32(28, rate * 2, true);
-    dv.setUint16(32, 2, true);
-    dv.setUint16(34, 16, true);
-    ws(36, 'data'); dv.setUint32(40, len * 2, true);
+      function renderClick(time, vol, freq, dur) {
+        if (vol <= 0) return;
+        const osc = offlineCtx.createOscillator();
+        const gain = offlineCtx.createGain();
+        osc.connect(gain);
+        gain.connect(offlineCtx.destination);
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(freq, time);
+        gain.gain.setValueAtTime(vol * 0.6, time);
+        gain.gain.exponentialRampToValueAtTime(0.0001, time + dur);
+        osc.start(time);
+        osc.stop(time + dur + 0.01);
+      }
 
-    const pcm = new Float32Array(len);
-    const clickLen = Math.max(24, Math.floor(rate * 0.028));
+      function scheduleOfflineNote(time, subBeat) {
+        const mod4 = subBeat % 4;
+        const beatIdx = Math.floor(subBeat / 4);
 
-    function addClick(samplePos, gain, freqHz) {
-      if (gain <= 0) return;
-      const amp = Math.min(0.9, gain * masterVol * 0.63);
-      for (let i = 0; i < clickLen; i++) {
-        const idx = samplePos + i;
-        if (idx >= len) break;
-        const t = i / rate;
-        const env = Math.exp(-i / (clickLen * 0.22));
-        pcm[idx] += Math.sin(2 * Math.PI * freqHz * t) * env * amp;
+        if (mod4 === 0) {
+          if (beatIdx === 0) {
+            renderClick(time, volBeat1 * masterVol, 1200, 0.030);
+          } else {
+            renderClick(time, volQuarter * masterVol, 900, 0.025);
+          }
+        } else if (mod4 === 2) {
+          renderClick(time, volEighth * masterVol, 700, 0.022);
+        } else {
+          renderClick(time, volSixteenth * masterVol, 550, 0.018);
+        }
+      }
+
+      for (let measure = 0; measure < BG_LOOP_MEASURES; measure++) {
+        const measureBaseTime = measure * beatDur * beatsPerMeasure;
+        for (let subBeat = 0; subBeat < beatsPerMeasure * 4; subBeat++) {
+          const time = measureBaseTime + (subBeat * sixteenthDur);
+          scheduleOfflineNote(time, subBeat);
+        }
+      }
+
+      const rendered = await offlineCtx.startRendering();
+      const pcm = rendered.getChannelData(0);
+      const ab = new ArrayBuffer(44 + pcm.length * 2);
+      const dv = new DataView(ab);
+      const ws = (o, s) => { for (let i = 0; i < s.length; i++) dv.setUint8(o + i, s.charCodeAt(i)); };
+
+      ws(0, 'RIFF'); dv.setUint32(4, 36 + pcm.length * 2, true);
+      ws(8, 'WAVE'); ws(12, 'fmt ');
+      dv.setUint32(16, 16, true);
+      dv.setUint16(20, 1, true);
+      dv.setUint16(22, 1, true);
+      dv.setUint32(24, rate, true);
+      dv.setUint32(28, rate * 2, true);
+      dv.setUint16(32, 2, true);
+      dv.setUint16(34, 16, true);
+      ws(36, 'data'); dv.setUint32(40, pcm.length * 2, true);
+
+      for (let i = 0; i < pcm.length; i++) {
+        const s = Math.max(-1, Math.min(1, pcm[i]));
+        dv.setInt16(44 + i * 2, s * 32767, true);
+      }
+
+      const nextUrl = URL.createObjectURL(new Blob([ab], { type: 'audio/wav' }));
+      if (_bgLoopUrl && _bgLoopSig !== sig) URL.revokeObjectURL(_bgLoopUrl);
+      _bgLoopUrl = nextUrl;
+      _bgLoopSig = sig;
+      return nextUrl;
+    })();
+
+    try {
+      return await _bgLoopBuildPromise;
+    } finally {
+      if (_bgLoopPendingSig === sig) {
+        _bgLoopBuildPromise = null;
       }
     }
-
-    for (let measure = 0; measure < BG_LOOP_MEASURES; measure++) {
-      const measureBase = measure * beatSamples * beatsPerMeasure;
-      for (let beat = 0; beat < beatsPerMeasure; beat++) {
-        const base = measureBase + beat * beatSamples;
-        addClick(base, beat === 0 ? volBeat1 : volQuarter, beat === 0 ? 1200 : 900);
-        addClick(base + subSamples * 2, volEighth, 700);
-        addClick(base + subSamples, volSixteenth, 550);
-        addClick(base + subSamples * 3, volSixteenth, 550);
-      }
-    }
-
-    for (let i = 0; i < len; i++) {
-      const s = Math.max(-1, Math.min(1, pcm[i]));
-      dv.setInt16(44 + i * 2, s * 32767, true);
-    }
-
-    _bgLoopSig = sig;
-    _bgLoopUrl = URL.createObjectURL(new Blob([ab], { type: 'audio/wav' }));
-    return _bgLoopUrl;
   }
 
   function initBgLoopEl() {
@@ -846,19 +879,23 @@ import './style.css';
     _bgLoopEl = new Audio();
     _bgLoopEl.loop = true;
     _bgLoopEl.preload = 'auto';
-    _bgLoopEl.muted = isMuted;
+    _bgLoopEl.muted = true;
     _bgLoopEl.playsInline = true;
     _bgLoopEl.setAttribute('playsinline', '');
     _bgLoopEl.setAttribute('webkit-playsinline', '');
     _bgLoopEl.addEventListener('pause', () => {
-      if (!running || !document.hidden) return;
+      if (!running) return;
       _bgLoopEl.play().catch(() => {});
     });
   }
 
-  function refreshBgLoopTrack() {
+  function syncBgLoopMuted() {
+    if (_bgLoopEl) _bgLoopEl.muted = !document.hidden ? true : isMuted;
+  }
+
+  async function refreshBgLoopTrack() {
     initBgLoopEl();
-    const nextSrc = buildClickLoopWavUrl();
+    const nextSrc = await buildClickLoopWav();
     if (_bgLoopEl.src !== nextSrc) {
       const wasPlaying = !_bgLoopEl.paused;
       _bgLoopEl.src = nextSrc;
@@ -868,15 +905,18 @@ import './style.css';
   }
 
   function bgAudioStart() {
-    refreshBgLoopTrack();
-    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
-    if (document.hidden) _bgLoopEl.play().catch(() => {});
+    void refreshBgLoopTrack().then(() => {
+      if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
+      syncBgLoopMuted();
+      _bgLoopEl.play().catch(() => {});
+    });
   }
 
   function bgAudioStop() {
     if (_bgLoopEl) {
       _bgLoopEl.pause();
       _bgLoopEl.currentTime = 0;
+      _bgLoopEl.muted = true;
     }
   }
 
@@ -885,9 +925,9 @@ import './style.css';
     if (document.hidden) {
       clearTimeout(timerID);
       timerID = null;
-      bgAudioStart();
+      syncBgLoopMuted();
     } else {
-      bgAudioStop();
+      syncBgLoopMuted();
       audioCtx.resume().catch(() => {});
       if (!timerID) {
         nextNoteTime = audioCtx.currentTime + 0.05;
