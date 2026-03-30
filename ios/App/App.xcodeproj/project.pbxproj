@@ -11,6 +11,9 @@
 		4D22ABE92AF431CB00220026 /* CapApp-SPM in Frameworks */ = {isa = PBXBuildFile; productRef = 4D22ABE82AF431CB00220026 /* CapApp-SPM */; };
 		50379B232058CBB4000EE86E /* capacitor.config.json in Resources */ = {isa = PBXBuildFile; fileRef = 50379B222058CBB4000EE86E /* capacitor.config.json */; };
 		504EC3081FED79650016851F /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 504EC3071FED79650016851F /* AppDelegate.swift */; };
+		8A1C4A082E0D000100000001 /* BridgeViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A1C4A072E0D000100000001 /* BridgeViewController.swift */; };
+		8A1C4A0B2E0D000100000001 /* MetronomeAudioPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A1C4A092E0D000100000001 /* MetronomeAudioPlugin.swift */; };
+		8A1C4A0C2E0D000100000001 /* MetronomeAudioPlugin.m in Sources */ = {isa = PBXBuildFile; fileRef = 8A1C4A0A2E0D000100000001 /* MetronomeAudioPlugin.m */; };
 		504EC30D1FED79650016851F /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 504EC30B1FED79650016851F /* Main.storyboard */; };
 		504EC30F1FED79650016851F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 504EC30E1FED79650016851F /* Assets.xcassets */; };
 		504EC3121FED79650016851F /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 504EC3101FED79650016851F /* LaunchScreen.storyboard */; };
@@ -22,6 +25,9 @@
 		50379B222058CBB4000EE86E /* capacitor.config.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = capacitor.config.json; sourceTree = "<group>"; };
 		504EC3041FED79650016851F /* App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = App.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		504EC3071FED79650016851F /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		8A1C4A072E0D000100000001 /* BridgeViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgeViewController.swift; sourceTree = "<group>"; };
+		8A1C4A092E0D000100000001 /* MetronomeAudioPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetronomeAudioPlugin.swift; sourceTree = "<group>"; };
+		8A1C4A0A2E0D000100000001 /* MetronomeAudioPlugin.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MetronomeAudioPlugin.m; sourceTree = "<group>"; };
 		504EC30C1FED79650016851F /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
 		504EC30E1FED79650016851F /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		504EC3111FED79650016851F /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
@@ -63,7 +69,10 @@
 			isa = PBXGroup;
 			children = (
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
+				8A1C4A072E0D000100000001 /* BridgeViewController.swift */,
 				504EC3071FED79650016851F /* AppDelegate.swift */,
+				8A1C4A092E0D000100000001 /* MetronomeAudioPlugin.swift */,
+				8A1C4A0A2E0D000100000001 /* MetronomeAudioPlugin.m */,
 				504EC30B1FED79650016851F /* Main.storyboard */,
 				504EC30E1FED79650016851F /* Assets.xcassets */,
 				504EC3101FED79650016851F /* LaunchScreen.storyboard */,
@@ -155,6 +164,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				8A1C4A0C2E0D000100000001 /* MetronomeAudioPlugin.m in Sources */,
+				8A1C4A0B2E0D000100000001 /* MetronomeAudioPlugin.swift in Sources */,
+				8A1C4A082E0D000100000001 /* BridgeViewController.swift in Sources */,
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

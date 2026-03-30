@@ -1,4 +1,8 @@
 import './style.css';
+import { registerPlugin } from '@capacitor/core';
+
+const NativeMetronomeAudio = registerPlugin('MetronomeAudio');
+const isNative = window.Capacitor?.isNativePlatform() ?? false;
 
 (() => {
   // ──── State ────
@@ -34,6 +38,8 @@ import './style.css';
   let scheduleAhead = 0.1;  // sec
   let timerID = null;
   let subBeatCount = 0;     // 16th note position within measure
+  let playbackRefreshSeq = 0;
+  let nativeLoopAnchorMs = 0;
 
   // iOS AudioContext unlock: 初回タップで resume を保証する
   (function iosAudioUnlock() {
@@ -105,21 +111,25 @@ import './style.css';
   }
   buildBeatDots();
 
+  function updateBeatIndicators(beatIdx, isActive) {
+    beatRowEls.forEach(rowEl => {
+      const dots = rowEl.querySelectorAll('.beat-dot');
+      dots.forEach((d, i) => {
+        d.classList.remove('active-1', 'active-n');
+        if (isActive && i === beatIdx) {
+          d.classList.add(beatIdx === 0 ? 'active-1' : 'active-n');
+        }
+      });
+    });
+  }
+
   function flashBeat(beatIdx, scheduledTime) {
     // Skip visual updates in background, or if the beat is stale (> 0.5s off)
     if (document.hidden) return;
     if (audioCtx && typeof scheduledTime === 'number' &&
         Math.abs(audioCtx.currentTime - scheduledTime) > 0.5) return;
-    beatRowEls.forEach(rowEl => {
-      const dots = rowEl.querySelectorAll('.beat-dot');
-      dots.forEach((d, i) => {
-        d.classList.remove('active-1', 'active-n');
-        if (i === beatIdx) {
-          d.classList.add(beatIdx === 0 ? 'active-1' : 'active-n');
-          setTimeout(() => d.classList.remove('active-1', 'active-n'), 100);
-        }
-      });
-    });
+    updateBeatIndicators(beatIdx, true);
+    setTimeout(() => updateBeatIndicators(beatIdx, false), 100);
   }
 
   // ──── Audio synthesis ────
@@ -133,7 +143,29 @@ import './style.css';
     return audioCtx;
   }
 
+  async function isContextClockAdvancing(ctx) {
+    const before = ctx.currentTime;
+    await new Promise(resolve => setTimeout(resolve, 60));
+    return ctx.currentTime > before + 0.001;
+  }
+
+  async function recreateSchedulerContext() {
+    if (audioCtx) {
+      try {
+        await audioCtx.close();
+      } catch {}
+    }
+    audioCtx = null;
+    masterGainNode = null;
+    const ctx = getCtx();
+    try {
+      await ctx.resume();
+    } catch {}
+    return ctx;
+  }
+
   function playClick(time, vol, freq, dur) {
+    if (isNative) return;
     if (vol <= 0) return;
     const ctx = getCtx();
     const osc = ctx.createOscillator();
@@ -152,6 +184,10 @@ import './style.css';
     isMuted = m;
     if (masterGainNode && audioCtx) {
       masterGainNode.gain.setTargetAtTime(m ? 0 : 1, audioCtx.currentTime, 0.015);
+    }
+    if (isNative && running) {
+      void (_nativeLoopPreparePromise ?? Promise.resolve())
+        .then(() => syncNativeLoopState());
     }
     syncBgLoopMuted();
     muteBtnEls.forEach(btn => {
@@ -198,19 +234,42 @@ import './style.css';
     timerID = setTimeout(scheduler, lookahead);
   }
 
-  function startMetronome() {
-    if (running) return;
+  function startSchedulerFromNow() {
     const ctx = getCtx();
-    if (ctx.state === 'suspended') ctx.resume();
-    running = true;
+    clearTimeout(timerID);
+    timerID = null;
     subBeatCount = 0;
-    nextNoteTime = ctx.currentTime + 0.05;
+    nextNoteTime = ctx.currentTime + (isNative ? 0.005 : 0.05);
     scheduledBeatTimes = [];
     scheduler();
-    bgAudioStart();
-    playBtn.textContent = '■ STOP';
-    playBtn.classList.add('running');
-    updateNowPlayingState();
+  }
+
+  async function ensureSchedulerContextRunning() {
+    let ctx = getCtx();
+    if (ctx.state === 'running' && await isContextClockAdvancing(ctx)) return true;
+    for (let attempt = 0; attempt < 6; attempt++) {
+      try {
+        await ctx.resume();
+      } catch {}
+      if (ctx.state === 'running' && await isContextClockAdvancing(ctx)) return true;
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+    if (!isNative) return false;
+    ctx = await recreateSchedulerContext();
+    return isContextClockAdvancing(ctx);
+  }
+
+  function startMetronome() {
+    if (running) return;
+    const boot = () => {
+      running = true;
+      startSchedulerFromNow();
+      bgAudioStart();
+      playBtn.textContent = '■ STOP';
+      playBtn.classList.add('running');
+      updateNowPlayingState();
+    };
+    void ensureSchedulerContextRunning().then(boot);
   }
 
   function stopMetronome() {
@@ -218,13 +277,12 @@ import './style.css';
     running = false;
     clearTimeout(timerID);
     timerID = null;
+    nativeLoopAnchorMs = 0;
     bgAudioStop();
     scheduledBeatTimes = [];
     playBtn.textContent = '▶ START';
     playBtn.classList.remove('running');
-    beatRowEls.forEach(rowEl => {
-      rowEl.querySelectorAll('.beat-dot').forEach(d => d.classList.remove('active-1', 'active-n'));
-    });
+    updateBeatIndicators(0, false);
     updateNowPlayingState();
   }
 
@@ -234,7 +292,9 @@ import './style.css';
     bpmDisplay.textContent = bpm;
     bpmSlider.value = bpm;
     updateSliderFill(bpmSlider, 20, 300);
-    if (running) refreshBgLoopTrack();
+    if (running) {
+      refreshRunningPlayback({ realignVisuals: true });
+    }
   }
 
   function updateSliderFill(slider, min, max) {
@@ -245,6 +305,31 @@ import './style.css';
   function updateVolSlider(slider, numEl) {
     updateSliderFill(slider, 0, 100);
     numEl.value = slider.value;
+  }
+
+  function refreshRunningPlayback({ realignVisuals = false } = {}) {
+    if (!running) return;
+    const refreshSeq = ++playbackRefreshSeq;
+    if (!isNative) {
+      if (realignVisuals) startSchedulerFromNow();
+      refreshBackgroundLoop();
+      return;
+    }
+    void refreshBackgroundLoop().then(() => {
+      if (!running || refreshSeq !== playbackRefreshSeq) return;
+      if (realignVisuals) {
+        nativeLoopAnchorMs = performance.now();
+        updateBeatIndicators(0, true);
+      }
+    });
+  }
+
+  function refreshRunningTimingAndLoop() {
+    refreshRunningPlayback({ realignVisuals: true });
+  }
+
+  function refreshRunningLoopOnly() {
+    refreshRunningPlayback({ realignVisuals: isNative });
   }
 
   function currentBeatVolumes() {
@@ -274,7 +359,7 @@ import './style.css';
     updateVolSlider(volQuarterEl, volQuarterNum);
     updateVolSlider(volEighthEl, volEighthNum);
     updateVolSlider(volSixteenthEl, volSixteenthNum);
-    if (running) refreshBgLoopTrack();
+    refreshRunningLoopOnly();
   }
 
   /**
@@ -402,7 +487,7 @@ import './style.css';
       sliderEl.value = String(next);
       updateVolSlider(sliderEl, numEl);
       onApply(next / 100);
-      if (running) refreshBgLoopTrack();
+      refreshRunningLoopOnly();
     };
     numEl.addEventListener('change', commit);
     numEl.addEventListener('blur', commit);
@@ -485,7 +570,7 @@ import './style.css';
     tsNumValEl.textContent = tsNum;
     tsDenValEl.textContent = tsDen;
     buildBeatDots();
-    if (running) refreshBgLoopTrack();
+    if (running) refreshBackgroundLoop();
     if (running) { stopMetronome(); startMetronome(); }
   }
 
@@ -513,28 +598,28 @@ import './style.css';
   volMasterEl.addEventListener('input', () => {
     masterVol = volMasterEl.value / 100;
     updateVolSlider(volMasterEl, volMasterNum);
-    if (running) refreshBgLoopTrack();
+    refreshRunningLoopOnly();
   });
 
   volBeat1El.addEventListener('input', () => {
     volBeat1 = volBeat1El.value / 100;
     updateVolSlider(volBeat1El, volBeat1Num);
-    if (running) refreshBgLoopTrack();
+    refreshRunningLoopOnly();
   });
   volQuarterEl.addEventListener('input', () => {
     volQuarter = volQuarterEl.value / 100;
     updateVolSlider(volQuarterEl, volQuarterNum);
-    if (running) refreshBgLoopTrack();
+    refreshRunningLoopOnly();
   });
   volEighthEl.addEventListener('input', () => {
     volEighth = volEighthEl.value / 100;
     updateVolSlider(volEighthEl, volEighthNum);
-    if (running) refreshBgLoopTrack();
+    refreshRunningLoopOnly();
   });
   volSixteenthEl.addEventListener('input', () => {
     volSixteenth = volSixteenthEl.value / 100;
     updateVolSlider(volSixteenthEl, volSixteenthNum);
-    if (running) refreshBgLoopTrack();
+    refreshRunningLoopOnly();
   });
 
   bindVolumeNumberInput(volMasterEl, volMasterNum, v => { masterVol = v; });
@@ -734,7 +819,17 @@ import './style.css';
     // so it stays in sync even when BPM changes mid-play.
     let phase   = 0;
     let beatIdx = 0;
-    if (running && audioCtx) {
+    let beatActive = false;
+    if (isNative && running && nativeLoopAnchorMs > 0) {
+      const beatDurMs = 60000 / bpm;
+      const loopDurMs = beatDurMs * beatsPerMeasure;
+      const elapsedMs = Math.max(0, performance.now() - nativeLoopAnchorMs);
+      const loopMs = elapsedMs % loopDurMs;
+      beatIdx = Math.floor(loopMs / beatDurMs) % beatsPerMeasure;
+      phase = (loopMs % beatDurMs) / beatDurMs;
+      beatActive = (loopMs % beatDurMs) < 100;
+      updateBeatIndicators(beatIdx, beatActive);
+    } else if (running && audioCtx) {
       const now = audioCtx.currentTime;
       let lastBeat = null;
       for (let i = scheduledBeatTimes.length - 1; i >= 0; i--) {
@@ -748,6 +843,8 @@ import './style.css';
         phase   = Math.min((now - lastBeat.time) / beatDur, 1);
         beatIdx = lastBeat.beatIdx;
       }
+    } else {
+      updateBeatIndicators(0, false);
     }
 
     ballCanvasViews.forEach(({ canvas, ctx }) => {
@@ -777,7 +874,10 @@ import './style.css';
   let _bgLoopSig = '';
   let _bgLoopPendingSig = '';
   let _bgLoopBuildPromise = null;
+  let _bgLoopReloading = false;
+  let _nativeLoopPreparePromise = null;
   const BG_LOOP_MEASURES = 32;
+  const NATIVE_BG_LOOP_MEASURES = 2;
 
   async function buildClickLoopWav() {
     const sig = [
@@ -789,11 +889,11 @@ import './style.css';
 
     _bgLoopPendingSig = sig;
     _bgLoopBuildPromise = (async () => {
-      const ctx = getCtx();
-      const rate = ctx.sampleRate;
+      const rate = audioCtx ? audioCtx.sampleRate : 44100;
       const beatDur = 60 / bpm;
       const sixteenthDur = beatDur / 4;
-      const loopDuration = beatDur * beatsPerMeasure * BG_LOOP_MEASURES;
+      const loopMeasures = isNative ? NATIVE_BG_LOOP_MEASURES : BG_LOOP_MEASURES;
+      const loopDuration = beatDur * beatsPerMeasure * loopMeasures;
       const frameCount = Math.max(1, Math.ceil(rate * loopDuration));
       const offlineCtx = new (window.OfflineAudioContext || window.webkitOfflineAudioContext)(1, frameCount, rate);
 
@@ -828,7 +928,7 @@ import './style.css';
         }
       }
 
-      for (let measure = 0; measure < BG_LOOP_MEASURES; measure++) {
+      for (let measure = 0; measure < loopMeasures; measure++) {
         const measureBaseTime = measure * beatDur * beatsPerMeasure;
         for (let subBeat = 0; subBeat < beatsPerMeasure * 4; subBeat++) {
           const time = measureBaseTime + (subBeat * sixteenthDur);
@@ -884,7 +984,7 @@ import './style.css';
     _bgLoopEl.setAttribute('playsinline', '');
     _bgLoopEl.setAttribute('webkit-playsinline', '');
     _bgLoopEl.addEventListener('pause', () => {
-      if (!running) return;
+      if (!running || _bgLoopReloading) return;
       _bgLoopEl.play().catch(() => {});
     });
   }
@@ -893,31 +993,107 @@ import './style.css';
     if (_bgLoopEl) _bgLoopEl.muted = !document.hidden ? true : isMuted;
   }
 
+  function arrayBufferToBase64(buf) {
+    const bytes = new Uint8Array(buf);
+    let b64 = '';
+    const chunk = 8192;
+    for (let i = 0; i < bytes.length; i += chunk) {
+      b64 += String.fromCharCode(...bytes.subarray(i, i + chunk));
+    }
+    return btoa(b64);
+  }
+
   async function refreshBgLoopTrack() {
     initBgLoopEl();
     const nextSrc = await buildClickLoopWav();
     if (_bgLoopEl.src !== nextSrc) {
       const wasPlaying = !_bgLoopEl.paused;
+      _bgLoopReloading = true;
       _bgLoopEl.src = nextSrc;
       _bgLoopEl.load();
+      _bgLoopReloading = false;
       if (wasPlaying) _bgLoopEl.play().catch(() => {});
     }
   }
 
-  function bgAudioStart() {
-    void refreshBgLoopTrack().then(() => {
-      if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
-      syncBgLoopMuted();
-      _bgLoopEl.play().catch(() => {});
+  async function prepareNativeLoop() {
+    const url = await buildClickLoopWav();
+    const resp = await fetch(url);
+    const buf = await resp.arrayBuffer();
+    const base64 = arrayBufferToBase64(buf);
+    await NativeMetronomeAudio.prepareLoop({ base64 }).catch(err => {
+      console.error('[MetronomeAudio] prepareLoop failed', err);
+      throw err;
     });
   }
 
+  function nativeLoopMutedValue() {
+    return isMuted;
+  }
+
+  function syncNativeLoopState() {
+    if (!running) return Promise.resolve();
+    return NativeMetronomeAudio.startLoop({ muted: nativeLoopMutedValue() }).catch(err => {
+      console.error('[MetronomeAudio] startLoop failed', err);
+    });
+  }
+
+  function refreshBackgroundLoop() {
+    if (isNative) {
+      _nativeLoopPreparePromise = prepareNativeLoop().then(() => syncNativeLoopState());
+      return _nativeLoopPreparePromise;
+    }
+    return refreshBgLoopTrack();
+  }
+
+  function bgAudioStart() {
+    if (isNative) {
+      _nativeLoopPreparePromise = prepareNativeLoop().then(() =>
+        NativeMetronomeAudio.startLoop({ muted: isMuted }).then(() => {
+          nativeLoopAnchorMs = performance.now();
+          updateBeatIndicators(0, true);
+        }).catch(err => {
+          console.error('[MetronomeAudio] startLoop failed', err);
+        }));
+    } else {
+      initBgLoopEl();
+      // ユーザージェスチャー内で即 play（iOS autoplay 制限を回避）
+      syncBgLoopMuted();
+      if (_bgLoopEl.src) {
+        _bgLoopEl.play().catch(() => {});
+      }
+      void refreshBgLoopTrack().then(() => {
+        if (!running) return;
+        syncBgLoopMuted();
+        _bgLoopEl.play().catch(() => {});
+      });
+    }
+  }
+
   function bgAudioStop() {
-    if (_bgLoopEl) {
+    if (isNative) {
+      NativeMetronomeAudio.stopLoop().catch(err => {
+        console.error('[MetronomeAudio] stopLoop failed', err);
+      });
+    } else if (_bgLoopEl) {
       _bgLoopEl.pause();
       _bgLoopEl.currentTime = 0;
       _bgLoopEl.muted = true;
     }
+  }
+
+  function resumeForegroundScheduler() {
+    if (!running || !audioCtx || document.hidden) return;
+    if (isNative) {
+      void syncNativeLoopState();
+    } else {
+      syncBgLoopMuted();
+    }
+    void ensureSchedulerContextRunning().then(isRunning => {
+      if (running && isRunning) {
+        startSchedulerFromNow();
+      }
+    });
   }
 
   document.addEventListener('visibilitychange', () => {
@@ -925,16 +1101,20 @@ import './style.css';
     if (document.hidden) {
       clearTimeout(timerID);
       timerID = null;
-      syncBgLoopMuted();
-    } else {
-      syncBgLoopMuted();
-      audioCtx.resume().catch(() => {});
-      if (!timerID) {
-        nextNoteTime = audioCtx.currentTime + 0.05;
-        scheduler();
+      if (isNative) {
+        audioCtx.suspend().catch(() => {});
+        void (_nativeLoopPreparePromise ?? Promise.resolve())
+          .then(() => syncNativeLoopState());
+      } else {
+        syncBgLoopMuted();
       }
+    } else {
+      resumeForegroundScheduler();
     }
   });
+
+  window.addEventListener('focus', resumeForegroundScheduler);
+  window.addEventListener('pageshow', resumeForegroundScheduler);
 
   // ──── Setlists ────
   let setlists      = JSON.parse(localStorage.getItem('metro-setlists') || '[]');
@@ -1974,5 +2154,9 @@ import './style.css';
     });
     document.body.appendChild(devBtn);
   }
+
+  // バックグラウンドループ WAV をアプリ起動時に事前ビルドしておく
+  // OfflineAudioContext は AudioContext 不要なのでユーザー操作前でも実行できる
+  void (isNative ? prepareNativeLoop() : refreshBgLoopTrack());
 
 })();
