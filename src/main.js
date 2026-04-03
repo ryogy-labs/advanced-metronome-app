@@ -67,6 +67,156 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   let squashEnabled = true;
   let animMode = 'vertical'; // 'vertical' | 'horizontal'
 
+  // ──── i18n ────────────────────────────────────────────────
+  const I18N = {
+    ja: {
+      'settings.title': '設定',
+      'settings.language': '言語',
+      'settings.wakelock': '常時画面オン',
+      'settings.ball': 'ボール設定',
+      'settings.ballDirection': '移動方向',
+      'settings.vertical': '縦',
+      'settings.horizontal': '横',
+      'settings.squash': 'スクワッシュ',
+      'common.on': 'ON',
+      'common.off': 'OFF',
+      'common.save': '保存',
+      'common.cancel': 'キャンセル',
+      'common.back': '← 戻る',
+      'common.add': '＋ 追加',
+      'metro.start': '▶ START',
+      'metro.stop': '⏹ STOP',
+      'metro.tap': 'TAP\nTEMPO',
+      'nowplaying.playing': '再生中',
+      'nav.metronome': 'メトロノーム',
+      'nav.setlist': 'セットリスト',
+      'nav.library': 'ライブラリ',
+      'page.ball': 'ボール',
+      'page.volume': '音量設定',
+      'page.timesig': '拍子',
+      'volume.master': '全体',
+      'volume.beat1': '頭拍',
+      'volume.quarter': '4分',
+      'volume.eighth': '8分',
+      'volume.sixteenth': '16分',
+      'setlist.addSetlist': '＋ 新規作成',
+      'setlist.namePlaceholder': 'セットリスト名 (例: ワンマンライブ)',
+      'setlist.songList': '♩ 曲リスト',
+      'setlist.fromLibrary': 'ライブラリから',
+      'setlist.manualInput': '直接入力',
+      'library.title': '♩ 曲ライブラリ',
+      'library.sort': 'ソート',
+      'library.sortManual': '手動',
+      'library.sortName': '曲名',
+      'library.sortBpm': 'BPM',
+      'library.songName': '曲名',
+      'capture.currentSettings': '現在のBPM・音量・拍子設定を取り込む',
+      'paywall.unlimited': '✓ セットリスト・ライブラリが無制限に',
+      'paywall.volumePreset': '✓ 曲ごとの音量プリセット保存',
+      'paywall.timeSignature': '✓ 曲ごとの拍子記録',
+      'paywall.future': '✓ 今後追加される Pro 機能すべて',
+      'paywall.upgrade': 'Pro にアップグレード（$7.99）',
+      'paywall.restore': '購入を復元',
+      'empty.noSetlists': 'セットリストを追加してください',
+      'empty.noSongs': '曲を追加してください',
+      'empty.noLibrarySongs': 'ライブラリに曲がありません',
+      'label.songsCount': '曲',
+      'action.edit': '編集',
+      'action.delete': '削除',
+      'confirm.deleteSetlist': 'このセットリストを削除しますか？',
+      'confirm.deleteSong': 'この曲を削除しますか？',
+      'confirm.deleteLibrarySong': 'この曲をライブラリから削除しますか？',
+      'untitled': '(無題)',
+    },
+    en: {
+      'settings.title': 'Settings',
+      'settings.language': 'Language',
+      'settings.wakelock': 'Keep Screen On',
+      'settings.ball': 'Ball Settings',
+      'settings.ballDirection': 'Ball Direction',
+      'settings.vertical': 'Vertical',
+      'settings.horizontal': 'Horizontal',
+      'settings.squash': 'Squash',
+      'common.on': 'ON',
+      'common.off': 'OFF',
+      'common.save': 'Save',
+      'common.cancel': 'Cancel',
+      'common.back': '← Back',
+      'common.add': '+ Add',
+      'metro.start': '▶ START',
+      'metro.stop': '⏹ STOP',
+      'metro.tap': 'TAP\nTEMPO',
+      'nowplaying.playing': 'Now Playing',
+      'nav.metronome': 'Metronome',
+      'nav.setlist': 'Setlist',
+      'nav.library': 'Library',
+      'page.ball': 'Ball',
+      'page.volume': 'Volume',
+      'page.timesig': 'Time Sig',
+      'volume.master': 'Master',
+      'volume.beat1': 'Beat 1',
+      'volume.quarter': 'Quarter',
+      'volume.eighth': 'Eighth',
+      'volume.sixteenth': 'Sixteenth',
+      'setlist.addSetlist': '+ New Setlist',
+      'setlist.namePlaceholder': 'Setlist name (e.g. One-Man Live)',
+      'setlist.songList': '♩ Songs',
+      'setlist.fromLibrary': 'From Library',
+      'setlist.manualInput': 'Manual',
+      'library.title': '♩ Song Library',
+      'library.sort': 'Sort',
+      'library.sortManual': 'Manual',
+      'library.sortName': 'Name',
+      'library.sortBpm': 'BPM',
+      'library.songName': 'Song name',
+      'capture.currentSettings': 'Capture current BPM/volume/time-signature',
+      'paywall.unlimited': '✓ Unlimited setlists and library songs',
+      'paywall.volumePreset': '✓ Save volume presets per song',
+      'paywall.timeSignature': '✓ Save time signatures per song',
+      'paywall.future': '✓ All future Pro features',
+      'paywall.upgrade': 'Upgrade to Pro ($7.99)',
+      'paywall.restore': 'Restore Purchase',
+      'empty.noSetlists': 'Add a setlist to get started',
+      'empty.noSongs': 'Add songs to get started',
+      'empty.noLibrarySongs': 'No songs in your library',
+      'label.songsCount': 'songs',
+      'action.edit': 'Edit',
+      'action.delete': 'Delete',
+      'confirm.deleteSetlist': 'Delete this setlist?',
+      'confirm.deleteSong': 'Delete this song?',
+      'confirm.deleteLibrarySong': 'Delete this song from the library?',
+      'untitled': '(Untitled)',
+    }
+  };
+
+  let currentLang = localStorage.getItem('metro-lang') || 'ja';
+
+  function t(key) {
+    return (I18N[currentLang] || I18N.ja)[key] ?? key;
+  }
+
+  // ──── Screen Wake Lock ────────────────────────────────────
+  let wakeLockEnabled = localStorage.getItem('metro-wakelock') !== '0';
+  let _wakeLockSentinel = null;
+
+  async function acquireWakeLock() {
+    if (!wakeLockEnabled) return;
+    if (!('wakeLock' in navigator)) return;
+    try {
+      _wakeLockSentinel = await navigator.wakeLock.request('screen');
+      _wakeLockSentinel.addEventListener('release', () => { _wakeLockSentinel = null; });
+    } catch (e) {
+      console.warn('[WakeLock] acquire failed:', e);
+    }
+  }
+
+  function releaseWakeLock() {
+    if (_wakeLockSentinel) {
+      _wakeLockSentinel.release().catch(() => {});
+      _wakeLockSentinel = null;
+    }
+  }
+
   // ──── DOM ────
   const bpmDisplay      = document.getElementById('bpmDisplay');
   const bpmSlider       = document.getElementById('bpmSlider');
@@ -102,6 +252,35 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   const paywallBuyBtn     = document.getElementById('paywallBuyBtn');
   const paywallRestoreBtn = document.getElementById('paywallRestoreBtn');
   const paywallCloseBtn   = document.getElementById('paywallCloseBtn');
+  const settingsOverlay   = document.getElementById('settingsOverlay');
+  const settingsBtns      = document.querySelectorAll('.settings-btn');
+  const settingsClose     = document.getElementById('settingsClose');
+  const langJaBtn         = document.getElementById('langJa');
+  const langEnBtn         = document.getElementById('langEn');
+  const wakelockOnBtn     = document.getElementById('wakelockOnBtn');
+  const wakelockOffBtn    = document.getElementById('wakelockOffBtn');
+
+  function applyI18n() {
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      const key = el.dataset.i18n;
+      const val = t(key);
+      if (el.tagName === 'BUTTON' || el.tagName === 'SPAN' || el.tagName === 'DIV') {
+        el.textContent = val;
+      }
+    });
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+      const key = el.dataset.i18nPlaceholder;
+      el.setAttribute('placeholder', t(key));
+    });
+    playBtn.textContent = running ? t('metro.stop') : t('metro.start');
+    tapBtn.innerHTML = t('metro.tap').replace('\n', '<br>');
+    const navMetronomeLabel = document.querySelector('[data-nav="metronome"] .nav-label');
+    const navSetlistLabel = document.querySelector('[data-nav="setlist"] .nav-label');
+    const navLibraryLabel = document.querySelector('[data-nav="library"] .nav-label');
+    if (navMetronomeLabel) navMetronomeLabel.textContent = t('nav.metronome');
+    if (navSetlistLabel) navSetlistLabel.textContent = t('nav.setlist');
+    if (navLibraryLabel) navLibraryLabel.textContent = t('nav.library');
+  }
 
   // ──── Beat dots ────
   function buildBeatDots() {
@@ -271,8 +450,9 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
       running = true;
       startSchedulerFromNow();
       bgAudioStart();
-      playBtn.textContent = '■ STOP';
+      playBtn.textContent = t('metro.stop');
       playBtn.classList.add('running');
+      void acquireWakeLock();
       updateNowPlayingState();
     };
     void ensureSchedulerContextRunning().then(boot);
@@ -286,8 +466,9 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     nativeLoopAnchorMs = 0;
     bgAudioStop();
     scheduledBeatTimes = [];
-    playBtn.textContent = '▶ START';
+    playBtn.textContent = t('metro.start');
     playBtn.classList.remove('running');
+    releaseWakeLock();
     updateBeatIndicators(0, false);
     updateNowPlayingState();
   }
@@ -416,7 +597,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     const dens = [4, 8];
     return `
       <div class="ts-picker-row">
-        <label>拍子</label>
+        <label>${t('page.timesig')}</label>
         <div class="ts-picker-group">
           <div class="ts-picker-nums">
             ${nums.map(n => `<button type="button" class="ts-btn${tsNumVal === n ? ' active' : ''}" data-target="${prefix}Num" data-val="${n}">${n}</button>`).join('')}
@@ -474,10 +655,10 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     el.textContent =
       bpmText +
       `Master:${Math.round((bv.master ?? 1) * 100)} ` +
-      `1拍:${Math.round((bv.beat1 ?? 1) * 100)} ` +
-      `♩:${Math.round((bv.quarter ?? 0.8) * 100)} ` +
-      `♪:${Math.round((bv.eighth ?? 0.5) * 100)} ` +
-      `♬:${Math.round((bv.sixteenth ?? 0) * 100)}`;
+      `${t('volume.beat1')}:${Math.round((bv.beat1 ?? 1) * 100)} ` +
+      `${t('volume.quarter')}:${Math.round((bv.quarter ?? 0.8) * 100)} ` +
+      `${t('volume.eighth')}:${Math.round((bv.eighth ?? 0.5) * 100)} ` +
+      `${t('volume.sixteenth')}:${Math.round((bv.sixteenth ?? 0) * 100)}`;
   }
 
   function parseVolumeInput(inputEl, fallback) {
@@ -690,6 +871,46 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   }
   squashOnBtn.addEventListener('click',  () => setSquash(true));
   squashOffBtn.addEventListener('click', () => setSquash(false));
+
+  // ──── Settings Modal ─────────────────────────────────────
+  function openSettings() {
+    settingsOverlay.hidden = false;
+    langJaBtn.classList.toggle('active', currentLang === 'ja');
+    langEnBtn.classList.toggle('active', currentLang === 'en');
+    wakelockOnBtn.classList.toggle('active', wakeLockEnabled);
+    wakelockOffBtn.classList.toggle('active', !wakeLockEnabled);
+  }
+
+  function closeSettings() {
+    settingsOverlay.hidden = true;
+  }
+
+  function setLang(lang) {
+    currentLang = lang;
+    localStorage.setItem('metro-lang', lang);
+    langJaBtn.classList.toggle('active', lang === 'ja');
+    langEnBtn.classList.toggle('active', lang === 'en');
+    applyI18n();
+  }
+
+  function setWakeLock(enabled) {
+    wakeLockEnabled = enabled;
+    localStorage.setItem('metro-wakelock', enabled ? '1' : '0');
+    wakelockOnBtn.classList.toggle('active', enabled);
+    wakelockOffBtn.classList.toggle('active', !enabled);
+    if (!enabled) releaseWakeLock();
+    else if (running) void acquireWakeLock();
+  }
+
+  settingsBtns.forEach(btn => btn.addEventListener('click', openSettings));
+  settingsClose.addEventListener('click', closeSettings);
+  settingsOverlay.addEventListener('click', e => {
+    if (e.target === settingsOverlay) closeSettings();
+  });
+  langJaBtn.addEventListener('click', () => setLang('ja'));
+  langEnBtn.addEventListener('click', () => setLang('en'));
+  wakelockOnBtn.addEventListener('click', () => setWakeLock(true));
+  wakelockOffBtn.addEventListener('click', () => setWakeLock(false));
 
   // ──── Ball Animation ────
   let ballCanvasViews = [];
@@ -1119,6 +1340,12 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     }
   });
 
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && running && wakeLockEnabled) {
+      void acquireWakeLock();
+    }
+  });
+
   window.addEventListener('focus', resumeForegroundScheduler);
   window.addEventListener('pageshow', resumeForegroundScheduler);
 
@@ -1200,7 +1427,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   // ── Setlist index ──
   function renderSetlists() {
     if (setlists.length === 0) {
-      slIndexList.innerHTML = '<div class="setlist-empty">セットリストを追加してください</div>';
+      slIndexList.innerHTML = `<div class="setlist-empty">${t('empty.noSetlists')}</div>`;
       return;
     }
     slIndexList.innerHTML = setlists.map((sl, idx) => `
@@ -1208,10 +1435,10 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
         <span class="drag-handle">⠿</span>
         <button class="sl-row-btn" data-id="${sl.id}">
           <span class="sl-row-title">${escHtml(sl.name)}</span>
-          <span class="sl-row-count">${sl.songs.length}曲</span>
+          <span class="sl-row-count">${sl.songs.length} ${t('label.songsCount')}</span>
         </button>
-        <button class="preset-icon-btn" data-id="${sl.id}" data-action="edit-sl" title="編集">✏</button>
-        <button class="preset-icon-btn del" data-id="${sl.id}" data-action="del-sl" title="削除">✕</button>
+        <button class="preset-icon-btn" data-id="${sl.id}" data-action="edit-sl" title="${t('action.edit')}">✏</button>
+        <button class="preset-icon-btn del" data-id="${sl.id}" data-action="del-sl" title="${t('action.delete')}">✕</button>
       </div>
     `).join('');
 
@@ -1262,7 +1489,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   }
 
   function deleteSetlist(id) {
-    if (!confirm('このセットリストを削除しますか？')) return;
+    if (!confirm(t('confirm.deleteSetlist'))) return;
     setlists = setlists.filter(s => s.id !== id);
     if (activeSlId === id) { activeSongId = null; activeSlId = null; updateNowPlaying(); }
     saveSetlists();
@@ -1276,7 +1503,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     const sl = currentSetlist();
     if (!sl) return;
     if (sl.songs.length === 0) {
-      songList.innerHTML = '<div class="setlist-empty">曲を追加してください</div>';
+      songList.innerHTML = `<div class="setlist-empty">${t('empty.noSongs')}</div>`;
       return;
     }
     songList.innerHTML = sl.songs.map((p, idx) => `
@@ -1284,12 +1511,12 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
         <span class="drag-handle">⠿</span>
         <button class="preset-apply" data-id="${p.id}">
           <span class="preset-num">${idx + 1}</span>
-          <span class="preset-name">${escHtml(p.name) || '(無題)'}</span>
+          <span class="preset-name">${escHtml(p.name) || t('untitled')}</span>
           <span class="preset-bpm">${escHtml(p.bpm)} BPM</span>
           <span class="preset-ts">${escHtml(p.tsNum ?? 4)}/${escHtml(p.tsDen ?? 4)}</span>
         </button>
-        <button class="preset-icon-btn" data-id="${p.id}" data-action="edit" title="編集">✏</button>
-        <button class="preset-icon-btn del" data-id="${p.id}" data-action="del" title="削除">✕</button>
+        <button class="preset-icon-btn" data-id="${p.id}" data-action="edit" title="${t('action.edit')}">✏</button>
+        <button class="preset-icon-btn del" data-id="${p.id}" data-action="del" title="${t('action.delete')}">✕</button>
       </div>
     `).join('');
 
@@ -1453,7 +1680,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   function deleteSong(id) {
     const sl = currentSetlist();
     if (!sl) return;
-    if (!confirm('この曲を削除しますか？')) return;
+    if (!confirm(t('confirm.deleteSong'))) return;
     sl.songs = sl.songs.filter(s => s.id !== id);
     if (activeSongId === id) { activeSongId = null; updateNowPlaying(); }
     saveSetlists();
@@ -1476,14 +1703,14 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
       const sl = setlists.find(s => s.id === activeSlId);
       const p  = sl ? sl.songs.find(s => s.id === activeSongId) : null;
       if (p) {
-        currentName = p.name || '(無題)';
+        currentName = p.name || t('untitled');
         currentBpm = p.bpm;
       }
     }
     if (!currentName && activeLibSongId) {
       const s = songLibrary.find(song => song.id === activeLibSongId);
       if (s) {
-        currentName = s.name || '(無題)';
+        currentName = s.name || t('untitled');
         currentBpm = s.bpm;
       }
     }
@@ -1714,7 +1941,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
 
   function renderLibPicker() {
     if (songLibrary.length === 0) {
-      pfLibList.innerHTML = '<div class="setlist-empty">ライブラリに曲がありません</div>';
+      pfLibList.innerHTML = `<div class="setlist-empty">${t('empty.noLibrarySongs')}</div>`;
       return;
     }
     pfLibList.innerHTML = getLibrarySongsForDisplay().map(s => `
@@ -1820,7 +2047,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
 
   function renderLibrary() {
     if (songLibrary.length === 0) {
-      libSongList.innerHTML = '<div class="setlist-empty">曲を追加してください</div>';
+      libSongList.innerHTML = `<div class="setlist-empty">${t('empty.noSongs')}</div>`;
       return;
     }
     const showDragHandle = libSortMode === 'manual';
@@ -1832,8 +2059,8 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
           <span class="preset-bpm">${escHtml(s.bpm)} BPM</span>
           <span class="preset-ts">${escHtml(s.tsNum ?? 4)}/${escHtml(s.tsDen ?? 4)}</span>
         </button>
-        <button class="preset-icon-btn" data-id="${s.id}" data-action="edit-lib" title="編集">✏</button>
-        <button class="preset-icon-btn del" data-id="${s.id}" data-action="del-lib" title="削除">✕</button>
+        <button class="preset-icon-btn" data-id="${s.id}" data-action="edit-lib" title="${t('action.edit')}">✏</button>
+        <button class="preset-icon-btn del" data-id="${s.id}" data-action="del-lib" title="${t('action.delete')}">✕</button>
       </div>
     `).join('');
     libSongList.querySelectorAll('.preset-apply').forEach(btn =>
@@ -1875,8 +2102,8 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     const bpmVal = Math.min(300, Math.max(20, parseInt(libBpmInput.value) || bpm));
     const tsNumVal = Number(document.getElementById('libTsNum')?.value) || 4;
     const tsDenVal = Number(document.getElementById('libTsDen')?.value) || 4;
-    let editedSong = null;
     if (!name) { libNameInput.focus(); return; }
+    let editedSong = null;
     if (editingLibId) {
       const s = songLibrary.find(s => s.id === editingLibId);
       if (s) {
@@ -1898,10 +2125,12 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
       });
     }
     if (editedSong) propagateLibSongChange(editedSong);
-    saveSongLib(); closeLibForm(); renderLibrary();
+    saveSongLib();
+    closeLibForm();
+    renderLibrary();
   }
   function deleteLibSong(id) {
-    if (!confirm('この曲をライブラリから削除しますか？')) return;
+    if (!confirm(t('confirm.deleteLibrarySong'))) return;
     if (activeLibSongId === id) activeLibSongId = null;
     songLibrary = songLibrary.filter(s => s.id !== id);
     saveSongLib(); renderLibrary(); updateNowPlaying();
@@ -2160,6 +2389,8 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     });
     document.body.appendChild(devBtn);
   }
+
+  applyI18n();
 
   // バックグラウンドループ WAV をアプリ起動時に事前ビルドしておく
   // OfflineAudioContext は AudioContext 不要なのでユーザー操作前でも実行できる

@@ -16,6 +16,7 @@
   <div class="metro-top">
     <h1>Metro<span>Beat</span></h1>
     <div class="beat-header-row">
+      <button class="settings-btn" id="settingsBtnMetro" type="button" aria-label="設定">⚙️</button>
       <div class="beat-row" id="beatRow"></div>
       <button class="mute-btn" id="muteBtnMetro" type="button" aria-label="ミュート切替">🔊</button>
     </div>
@@ -39,54 +40,36 @@
 
       <!-- Page 0: Ball Animation -->
       <div class="swipe-page" id="spBall">
-        <div class="swipe-page-title">ボール</div>
+        <div class="swipe-page-title" data-i18n="page.ball">ボール</div>
         <canvas id="ballCanvas" class="ball-canvas"></canvas>
-        <div class="ball-controls">
-          <div class="toggle-row ball-toggle-row">
-            <div class="ball-toggle-group">
-              <span class="toggle-label">移動方向</span>
-              <div class="toggle-pair">
-                <button class="tgl-btn active" id="modeVertical">縦</button>
-                <button class="tgl-btn" id="modeHorizontal">横</button>
-              </div>
-            </div>
-            <div class="ball-toggle-group">
-              <span class="toggle-label">スクワッシュ</span>
-              <div class="toggle-pair">
-                <button class="tgl-btn active" id="squashOnBtn">ON</button>
-                <button class="tgl-btn" id="squashOffBtn">OFF</button>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
 
       <!-- Page 1: Volume -->
       <div class="swipe-page" id="spVolume">
-        <div class="swipe-page-title">音量設定</div>
+        <div class="swipe-page-title" data-i18n="page.volume">音量設定</div>
         <div class="vol-section">
           <div class="vol-row master-vol-row">
-            <div class="vol-name master-vol-name"><b>全体</b></div>
+            <div class="vol-name master-vol-name" data-i18n="volume.master"><b>全体</b></div>
             <input type="range" class="vol-slider master-vol-slider" id="volMaster" min="0" max="100" value="100">
             <input type="number" class="vol-num-input" id="volMasterNum" min="0" max="100" step="1" value="100" inputmode="numeric">
           </div>
           <div class="vol-row">
-            <div class="vol-name"><b>頭拍</b></div>
+            <div class="vol-name" data-i18n="volume.beat1"><b>頭拍</b></div>
             <input type="range" class="vol-slider" id="volBeat1" min="0" max="100" value="100">
             <input type="number" class="vol-num-input" id="volBeat1Num" min="0" max="100" step="1" value="100" inputmode="numeric">
           </div>
           <div class="vol-row">
-            <div class="vol-name"><b>4分</b></div>
+            <div class="vol-name" data-i18n="volume.quarter"><b>4分</b></div>
             <input type="range" class="vol-slider" id="volQuarter" min="0" max="100" value="80">
             <input type="number" class="vol-num-input" id="volQuarterNum" min="0" max="100" step="1" value="80" inputmode="numeric">
           </div>
           <div class="vol-row">
-            <div class="vol-name"><b>8分</b></div>
+            <div class="vol-name" data-i18n="volume.eighth"><b>8分</b></div>
             <input type="range" class="vol-slider" id="volEighth" min="0" max="100" value="50">
             <input type="number" class="vol-num-input" id="volEighthNum" min="0" max="100" step="1" value="50" inputmode="numeric">
           </div>
           <div class="vol-row">
-            <div class="vol-name"><b>16分</b></div>
+            <div class="vol-name" data-i18n="volume.sixteenth"><b>16分</b></div>
             <input type="range" class="vol-slider" id="volSixteenth" min="0" max="100" value="0">
             <input type="number" class="vol-num-input" id="volSixteenthNum" min="0" max="100" step="1" value="0" inputmode="numeric">
           </div>
@@ -95,7 +78,7 @@
 
       <!-- Page 2: Time Signature -->
       <div class="swipe-page" id="spTimeSig">
-        <div class="swipe-page-title">拍子</div>
+        <div class="swipe-page-title" data-i18n="page.timesig">拍子</div>
         <div class="ts-picker-wrap">
           <div class="ts-picker-row">
             <div class="ts-picker-col">
@@ -139,6 +122,7 @@
     <h1 class="view-title">Metro<span>Beat</span></h1>
     <!-- Beat indicator (mirrors metronome tab) -->
     <div class="beat-header-row">
+      <button class="settings-btn" id="settingsBtnSetlist" type="button" aria-label="設定">⚙️</button>
       <div class="beat-row sl-beat-row" id="beatRowSetlist"></div>
       <button class="mute-btn" id="muteBtnSetlist" type="button" aria-label="ミュート切替">🔊</button>
     </div>
@@ -157,16 +141,16 @@
       <section class="setlist-section setlist-full">
         <div class="setlist-header">
           <span class="card-label">♩ SETLISTS</span>
-          <button class="btn-sl-add" id="btnAddSetlist">＋ 新規作成</button>
+          <button class="btn-sl-add" id="btnAddSetlist" data-i18n="setlist.addSetlist">＋ 新規作成</button>
         </div>
         <div class="setlist-list" id="slIndexList"></div>
         <div class="preset-form" id="slForm" style="display:none">
           <div class="pf-fields">
-            <input class="pf-name" type="text" id="slName" placeholder="セットリスト名 (例: ワンマンライブ)">
+            <input class="pf-name" type="text" id="slName" placeholder="セットリスト名 (例: ワンマンライブ)" data-i18n-placeholder="setlist.namePlaceholder">
           </div>
           <div class="pf-btns">
-            <button class="pf-save"   id="slSave">保存</button>
-            <button class="pf-cancel" id="slCancel">キャンセル</button>
+            <button class="pf-save"   id="slSave" data-i18n="common.save">保存</button>
+            <button class="pf-cancel" id="slCancel" data-i18n="common.cancel">キャンセル</button>
           </div>
         </div>
       </section>
@@ -175,39 +159,39 @@
     <!-- Sub-view B: Song List -->
     <div class="sl-subview" id="slDetail">
       <div class="sl-detail-header">
-        <button class="btn-sl-back" id="btnBack">← 戻る</button>
+        <button class="btn-sl-back" id="btnBack" data-i18n="common.back">← 戻る</button>
         <span class="sl-detail-title" id="slDetailTitle">—</span>
       </div>
       <section class="setlist-section setlist-full">
         <div class="setlist-header">
-          <span class="card-label">♩ 曲リスト</span>
-          <button class="btn-sl-add" id="btnAddSong">＋ 追加</button>
+          <span class="card-label" data-i18n="setlist.songList">♩ 曲リスト</span>
+          <button class="btn-sl-add" id="btnAddSong" data-i18n="common.add">＋ 追加</button>
         </div>
         <div class="setlist-list" id="songList"></div>
         <div class="preset-form" id="presetForm" style="display:none">
           <div class="pf-mode-row">
             <div class="toggle-pair">
-              <button class="tgl-btn active" id="pfModeLib">ライブラリから</button>
-              <button class="tgl-btn" id="pfModeManual">直接入力</button>
+              <button class="tgl-btn active" id="pfModeLib" data-i18n="setlist.fromLibrary">ライブラリから</button>
+              <button class="tgl-btn" id="pfModeManual" data-i18n="setlist.manualInput">直接入力</button>
             </div>
           </div>
           <div id="pfManual">
             <div class="pf-fields">
-              <input class="pf-name" type="text" id="pfName" placeholder="曲名">
+              <input class="pf-name" type="text" id="pfName" placeholder="曲名" data-i18n-placeholder="library.songName">
               <input class="pf-bpm"  type="number" id="pfBpm"  placeholder="BPM" min="20" max="300">
             </div>
             <div id="pfTsPicker" class="form-ts-picker"></div>
-            <button type="button" id="pfCaptureBtn" class="capture-btn">現在のBPM・音量・拍子設定を取り込む</button>
+            <button type="button" id="pfCaptureBtn" class="capture-btn" data-i18n="capture.currentSettings">現在のBPM・音量・拍子設定を取り込む</button>
             <div id="pfCapturePreview" class="capture-preview" style="display:none"></div>
             <div class="pf-btns">
-              <button class="pf-save"   id="pfSave">保存</button>
-              <button class="pf-cancel" id="pfCancel">キャンセル</button>
+              <button class="pf-save"   id="pfSave" data-i18n="common.save">保存</button>
+              <button class="pf-cancel" id="pfCancel" data-i18n="common.cancel">キャンセル</button>
             </div>
           </div>
           <div id="pfLibPicker" style="display:none">
             <div class="setlist-list pf-lib-list" id="pfLibList"></div>
             <div class="pf-btns" style="margin-top:8px">
-              <button class="pf-cancel" id="pfLibPickerCancel">キャンセル</button>
+              <button class="pf-cancel" id="pfLibPickerCancel" data-i18n="common.cancel">キャンセル</button>
             </div>
           </div>
         </div>
@@ -222,6 +206,7 @@
   <div class="view-top-section">
     <h1 class="view-title">Metro<span>Beat</span></h1>
     <div class="beat-header-row">
+      <button class="settings-btn" id="settingsBtnLibrary" type="button" aria-label="設定">⚙️</button>
       <div class="beat-row sl-beat-row" id="beatRowLibrary"></div>
       <button class="mute-btn" id="muteBtnLibrary" type="button" aria-label="ミュート切替">🔊</button>
     </div>
@@ -236,29 +221,29 @@
 
     <section class="setlist-section setlist-full">
       <div class="setlist-header">
-        <span class="card-label">♩ 曲ライブラリ</span>
-        <button class="btn-sl-add" id="btnAddLibSong">＋ 追加</button>
+        <span class="card-label" data-i18n="library.title">♩ 曲ライブラリ</span>
+        <button class="btn-sl-add" id="btnAddLibSong" data-i18n="common.add">＋ 追加</button>
       </div>
       <div class="lib-sort-row">
-        <span class="toggle-label">ソート</span>
+        <span class="toggle-label" data-i18n="library.sort">ソート</span>
         <div class="toggle-pair">
-          <button class="tgl-btn active" id="libSortManual">手動</button>
-          <button class="tgl-btn" id="libSortName">曲名</button>
-          <button class="tgl-btn" id="libSortBpm">BPM</button>
+          <button class="tgl-btn active" id="libSortManual" data-i18n="library.sortManual">手動</button>
+          <button class="tgl-btn" id="libSortName" data-i18n="library.sortName">曲名</button>
+          <button class="tgl-btn" id="libSortBpm" data-i18n="library.sortBpm">BPM</button>
         </div>
       </div>
       <div class="setlist-list" id="libSongList"></div>
       <div class="preset-form" id="libForm" style="display:none">
         <div class="pf-fields">
-          <input class="pf-name" type="text"   id="libName" placeholder="曲名">
+          <input class="pf-name" type="text"   id="libName" placeholder="曲名" data-i18n-placeholder="library.songName">
           <input class="pf-bpm"  type="number" id="libBpm"  placeholder="BPM" min="20" max="300">
         </div>
         <div id="libTsPicker" class="form-ts-picker"></div>
-        <button type="button" id="libCaptureBtn" class="capture-btn">現在のBPM・音量・拍子設定を取り込む</button>
+        <button type="button" id="libCaptureBtn" class="capture-btn" data-i18n="capture.currentSettings">現在のBPM・音量・拍子設定を取り込む</button>
         <div id="libCapturePreview" class="capture-preview" style="display:none"></div>
         <div class="pf-btns">
-          <button class="pf-save"   id="libSave">保存</button>
-          <button class="pf-cancel" id="libCancel">キャンセル</button>
+          <button class="pf-save"   id="libSave" data-i18n="common.save">保存</button>
+          <button class="pf-cancel" id="libCancel" data-i18n="common.cancel">キャンセル</button>
         </div>
       </div>
     </section>
@@ -267,7 +252,7 @@
 
 <!-- ── Bottom Nav ── -->
 <nav class="bottom-nav">
-  <button class="nav-btn active" id="navMetronome">
+  <button class="nav-btn active" id="navMetronome" data-nav="metronome">
     <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <polygon points="12 3 20 21 4 21"/>
       <line x1="12" y1="14" x2="12" y2="21"/>
@@ -275,7 +260,7 @@
     </svg>
     <span class="nav-label">メトロノーム</span>
   </button>
-  <button class="nav-btn" id="navSetlist">
+  <button class="nav-btn" id="navSetlist" data-nav="setlist">
     <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
       <line x1="9" y1="6"  x2="20" y2="6"/>
       <line x1="9" y1="12" x2="20" y2="12"/>
@@ -286,7 +271,7 @@
     </svg>
     <span class="nav-label">セットリスト</span>
   </button>
-  <button class="nav-btn" id="navLibrary">
+  <button class="nav-btn" id="navLibrary" data-nav="library">
     <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
       <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
       <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
@@ -300,14 +285,58 @@
   <div class="modal-card">
     <h2 class="modal-title">Metro Beat Pro</h2>
     <ul class="paywall-list">
-      <li>✓ セットリスト・ライブラリが無制限に</li>
-      <li>✓ 曲ごとの音量プリセット保存</li>
-      <li>✓ 曲ごとの拍子記録</li>
-      <li>✓ 今後追加される Pro 機能すべて</li>
+      <li data-i18n="paywall.unlimited">✓ セットリスト・ライブラリが無制限に</li>
+      <li data-i18n="paywall.volumePreset">✓ 曲ごとの音量プリセット保存</li>
+      <li data-i18n="paywall.timeSignature">✓ 曲ごとの拍子記録</li>
+      <li data-i18n="paywall.future">✓ 今後追加される Pro 機能すべて</li>
     </ul>
-    <button id="paywallBuyBtn" class="btn-primary">Pro にアップグレード（$7.99）</button>
-    <button id="paywallRestoreBtn" class="btn-ghost">購入を復元</button>
+    <button id="paywallBuyBtn" class="btn-primary" data-i18n="paywall.upgrade">Pro にアップグレード（$7.99）</button>
+    <button id="paywallRestoreBtn" class="btn-ghost" data-i18n="paywall.restore">購入を復元</button>
     <button id="paywallCloseBtn" class="btn-close" aria-label="閉じる">✕</button>
+  </div>
+</div>
+
+<!-- ── Settings Modal ── -->
+<div class="settings-overlay" id="settingsOverlay" hidden>
+  <div class="settings-modal" id="settingsModal" role="dialog" aria-modal="true" aria-label="設定">
+    <div class="settings-header">
+      <span class="settings-title" data-i18n="settings.title">設定</span>
+      <button class="settings-close" id="settingsClose" aria-label="閉じる">✕</button>
+    </div>
+    <div class="settings-body">
+      <div class="settings-row">
+        <span class="settings-label" data-i18n="settings.language">言語</span>
+        <div class="toggle-pair">
+          <button class="tgl-btn active" id="langJa" type="button">日本語</button>
+          <button class="tgl-btn" id="langEn" type="button">English</button>
+        </div>
+      </div>
+
+      <div class="settings-row">
+        <span class="settings-label" data-i18n="settings.wakelock">常時画面オン</span>
+        <div class="toggle-pair">
+          <button class="tgl-btn active" id="wakelockOnBtn" type="button" data-i18n="common.on">ON</button>
+          <button class="tgl-btn" id="wakelockOffBtn" type="button" data-i18n="common.off">OFF</button>
+        </div>
+      </div>
+
+      <div class="settings-section-title" data-i18n="settings.ball">ボール設定</div>
+      <div class="settings-row">
+        <span class="settings-label" data-i18n="settings.ballDirection">移動方向</span>
+        <div class="toggle-pair">
+          <button class="tgl-btn active" id="modeVertical" type="button" data-i18n="settings.vertical">縦</button>
+          <button class="tgl-btn" id="modeHorizontal" type="button" data-i18n="settings.horizontal">横</button>
+        </div>
+      </div>
+
+      <div class="settings-row">
+        <span class="settings-label" data-i18n="settings.squash">スクワッシュ</span>
+        <div class="toggle-pair">
+          <button class="tgl-btn active" id="squashOnBtn" type="button" data-i18n="common.on">ON</button>
+          <button class="tgl-btn" id="squashOffBtn" type="button" data-i18n="common.off">OFF</button>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
