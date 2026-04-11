@@ -14,6 +14,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   // ──── State ────
   let bpm = 120;
   let beatsPerMeasure = 4;
+  let beatStates = ['accent', 'normal', 'normal', 'normal'];
   // Time signature picker state
   let tsNum = 4;          // numerator  : 2-7
   let tsDen = 4;          // denominator: 4 or 8
@@ -95,7 +96,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
       'page.volume': '音量設定',
       'page.timesig': '拍子',
       'volume.master': '全体',
-      'volume.beat1': '頭拍',
+      'volume.beat1': '強拍',
       'volume.quarter': '4分',
       'volume.eighth': '8分',
       'volume.sixteenth': '16分',
@@ -154,7 +155,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
       'page.volume': 'Volume',
       'page.timesig': 'Time Sig',
       'volume.master': 'Master',
-      'volume.beat1': 'Beat 1',
+      'volume.beat1': 'Accent',
       'volume.quarter': 'Quarter',
       'volume.eighth': 'Eighth',
       'volume.sixteenth': 'Sixteenth',
@@ -188,6 +189,19 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
       'untitled': '(Untitled)',
     }
   };
+
+  function buildDefaultBeatStates(count) {
+    return Array.from({ length: count }, (_, idx) => (idx === 0 ? 'accent' : 'normal'));
+  }
+
+  function normalizeBeatStates(states, count = beatsPerMeasure) {
+    const fallback = buildDefaultBeatStates(count);
+    if (!Array.isArray(states)) return fallback;
+    return fallback.map((state, idx) => {
+      const next = states[idx];
+      return next === 'accent' || next === 'normal' || next === 'mute' ? next : state;
+    });
+  }
 
   let currentLang = localStorage.getItem('metro-lang') || 'ja';
 
@@ -283,13 +297,67 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   }
 
   // ──── Beat dots ────
+  function getBeatIndicatorState(beatIdx) {
+    return beatStates[beatIdx] ?? 'normal';
+  }
+
+  function getNextBeatState(state) {
+    if (state === 'accent') return 'normal';
+    if (state === 'normal') return 'mute';
+    return 'accent';
+  }
+
+  function syncBeatStatesForMeasure() {
+    beatStates = buildDefaultBeatStates(beatsPerMeasure);
+  }
+
+  function getQuarterBeatSound(beatIdx) {
+    const state = getBeatIndicatorState(beatIdx);
+    if (state === 'mute') return null;
+    if (state === 'accent') {
+      return { volume: volBeat1 * masterVol, freq: 1200, dur: 0.030 };
+    }
+    return { volume: volQuarter * masterVol, freq: 900, dur: 0.025 };
+  }
+
+  function getCurrentBeatIndicatorIndex() {
+    if (!running) return null;
+    if (isNative && nativeLoopAnchorMs > 0) {
+      const beatDurMs = 60000 / bpm;
+      const loopDurMs = beatDurMs * beatsPerMeasure;
+      const elapsedMs = Math.max(0, performance.now() - nativeLoopAnchorMs);
+      return Math.floor((elapsedMs % loopDurMs) / beatDurMs) % beatsPerMeasure;
+    }
+    if (audioCtx) {
+      const now = audioCtx.currentTime;
+      for (let i = scheduledBeatTimes.length - 1; i >= 0; i--) {
+        if (scheduledBeatTimes[i].time <= now) {
+          return scheduledBeatTimes[i].beatIdx;
+        }
+      }
+    }
+    return null;
+  }
+
+  function cycleBeatState(beatIdx) {
+    beatStates[beatIdx] = getNextBeatState(getBeatIndicatorState(beatIdx));
+    buildBeatDots();
+    updateBeatIndicators(getCurrentBeatIndicatorIndex());
+    if (running) refreshRunningLoopOnly();
+  }
+
   function buildBeatDots() {
     beatRowEls.forEach(rowEl => {
       rowEl.innerHTML = '';
       for (let i = 0; i < beatsPerMeasure; i++) {
-        const d = document.createElement('div');
+        const d = document.createElement('button');
         d.className = 'beat-dot';
+        d.type = 'button';
+        d.dataset.state = getBeatIndicatorState(i);
+        d.dataset.beatIdx = String(i);
+        d.setAttribute('aria-label', `Beat ${i + 1}`);
         d.textContent = i + 1;
+        d.addEventListener('click', () => cycleBeatState(i));
         rowEl.appendChild(d);
       }
     });
@@ -300,13 +368,22 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     beatRowEls.forEach(rowEl => {
       const dots = rowEl.querySelectorAll('.beat-dot');
       dots.forEach((d, i) => {
-        d.classList.remove('active-1', 'active-n');
+        const state = d.dataset.state || getBeatIndicatorState(i);
+        d.classList.remove('active-1', 'active-n', 'active-muted', 'idle-accent', 'idle-normal', 'idle-muted');
+        if (state === 'accent') d.classList.add('idle-accent');
+        else if (state === 'mute') d.classList.add('idle-muted');
+        else d.classList.add('idle-normal');
         if (beatIdx !== null && i === beatIdx) {
-          d.classList.add(beatIdx === 0 ? 'active-1' : 'active-n');
+          d.classList.remove('idle-accent', 'idle-normal', 'idle-muted');
+          if (state === 'accent') d.classList.add('active-1');
+          else if (state === 'mute') d.classList.add('active-muted');
+          else d.classList.add('active-n');
         }
       });
     });
   }
+
+  updateBeatIndicators();
 
   function flashBeat(beatIdx, scheduledTime) {
     // Skip visual updates in background, or if the beat is stale (> 0.5s off)
@@ -393,10 +470,9 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
       // Quarter note position — also triggers visual flash
       const delay = (time - getCtx().currentTime) * 1000;
       setTimeout(() => flashBeat(beatIdx, time), Math.max(0, delay));
-      if (beatIdx === 0) {
-        playClick(time, volBeat1   * masterVol, 1200, 0.030);
-      } else {
-        playClick(time, volQuarter * masterVol,  900, 0.025);
+      const beatSound = getQuarterBeatSound(beatIdx);
+      if (beatSound) {
+        playClick(time, beatSound.volume, beatSound.freq, beatSound.dur);
       }
     } else if (mod4 === 2) {
       // Eighth note position
@@ -529,6 +605,10 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     };
   }
 
+  function currentBeatStates() {
+    return [...beatStates];
+  }
+
   function applyBeatVolumes(bv) {
     if (!bv) return;
     masterVol    = bv.master    ?? 1.0;
@@ -547,6 +627,13 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     updateVolSlider(volEighthEl, volEighthNum);
     updateVolSlider(volSixteenthEl, volSixteenthNum);
     refreshRunningLoopOnly();
+  }
+
+  function applyBeatStates(states, { refreshLoop = true } = {}) {
+    beatStates = normalizeBeatStates(states, beatsPerMeasure);
+    buildBeatDots();
+    updateBeatIndicators(getCurrentBeatIndicatorIndex());
+    if (refreshLoop) refreshRunningLoopOnly();
   }
 
   /**
@@ -589,6 +676,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     if (!song) return;
     setBPM(song.bpm);
     setTimeSig(song.tsNum ?? 4, song.tsDen ?? 4);
+    applyBeatStates(song.beatStates ?? null, { refreshLoop: false });
     applyBeatVolumes(song.beatVolumes ?? null);
   }
 
@@ -756,9 +844,11 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     tsNum = TS_NUMS.includes(nextNum) ? nextNum : 4;
     tsDen = TS_DENS.includes(nextDen) ? nextDen : 4;
     beatsPerMeasure = tsNum;
+    syncBeatStatesForMeasure();
     tsNumValEl.textContent = tsNum;
     tsDenValEl.textContent = tsDen;
     buildBeatDots();
+    updateBeatIndicators(running ? 0 : null);
     if (running) refreshBackgroundLoop();
     if (running) { stopMetronome(); startMetronome(); }
   }
@@ -1109,6 +1199,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   async function buildClickLoopWav() {
     const sig = [
       bpm, beatsPerMeasure,
+      beatStates.join(','),
       masterVol, volBeat1, volQuarter, volEighth, volSixteenth,
     ].join('|');
     if (_bgLoopUrl && _bgLoopSig === sig) return _bgLoopUrl;
@@ -1143,10 +1234,9 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
         const beatIdx = Math.floor(subBeat / 4);
 
         if (mod4 === 0) {
-          if (beatIdx === 0) {
-            renderClick(time, volBeat1 * masterVol, 1200, 0.030);
-          } else {
-            renderClick(time, volQuarter * masterVol, 900, 0.025);
+          const beatSound = getQuarterBeatSound(beatIdx);
+          if (beatSound) {
+            renderClick(time, beatSound.volume, beatSound.freq, beatSound.dur);
           }
         } else if (mod4 === 2) {
           renderClick(time, volEighth * masterVol, 700, 0.022);
@@ -1361,7 +1451,9 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   let libSortMode   = 'manual'; // 'manual' | 'name' | 'bpm'
   let editingLibId  = null;
   let libFormBeatVolumes = null;
+  let libFormBeatStates = null;
   let pfFormBeatVolumes = null;
+  let pfFormBeatStates = null;
 
   function saveSetlists() {
     localStorage.setItem('metro-setlists', JSON.stringify(setlists));
@@ -1540,6 +1632,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
       bpm: p.bpm,
       tsNum: p.tsNum ?? linkedLibSong?.tsNum ?? 4,
       tsDen: p.tsDen ?? linkedLibSong?.tsDen ?? 4,
+      beatStates: p.beatStates ?? linkedLibSong?.beatStates ?? null,
       beatVolumes: p.beatVolumes ?? linkedLibSong?.beatVolumes ?? null,
     };
     if (activeSongId === id) {
@@ -1549,6 +1642,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
       } else {
         setBPM(songCfg.bpm);
         setTimeSig(songCfg.tsNum, songCfg.tsDen);
+        applyBeatStates(songCfg.beatStates ?? null, { refreshLoop: false });
         applyBeatVolumes(songCfg.beatVolumes);
         startMetronome();
       }
@@ -1559,6 +1653,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
       activeSlId   = currentSlId;
       setBPM(songCfg.bpm);
       setTimeSig(songCfg.tsNum, songCfg.tsDen);
+      applyBeatStates(songCfg.beatStates ?? null, { refreshLoop: false });
       applyBeatVolumes(songCfg.beatVolumes);
       renderSongs();
       updateNowPlaying();
@@ -1573,6 +1668,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
       bpm: s.bpm,
       tsNum: s.tsNum ?? 4,
       tsDen: s.tsDen ?? 4,
+      beatStates: s.beatStates ?? null,
       beatVolumes: s.beatVolumes ?? null,
     };
     if (activeLibSongId === id) {
@@ -1582,6 +1678,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
       } else {
         setBPM(songCfg.bpm);
         setTimeSig(songCfg.tsNum, songCfg.tsDen);
+        applyBeatStates(songCfg.beatStates ?? null, { refreshLoop: false });
         applyBeatVolumes(songCfg.beatVolumes);
         startMetronome();
       }
@@ -1593,6 +1690,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     activeSlId = null;
     setBPM(songCfg.bpm);
     setTimeSig(songCfg.tsNum, songCfg.tsDen);
+    applyBeatStates(songCfg.beatStates ?? null, { refreshLoop: false });
     applyBeatVolumes(songCfg.beatVolumes);
     renderLibrary();
     updateNowPlaying();
@@ -1602,6 +1700,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   function openAddSongForm() {
     editingSongId = null;
     pfFormBeatVolumes = null;
+    pfFormBeatStates = null;
     setFormMode('library');
     pfName.value = '';
     pfBpm.value  = bpm;
@@ -1618,6 +1717,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     if (!p) return;
     editingSongId = id;
     pfFormBeatVolumes = p.beatVolumes ?? null;
+    pfFormBeatStates = p.beatStates ?? null;
     setFormMode('manual');
     pfName.value = p.name;
     pfBpm.value  = p.bpm;
@@ -1630,6 +1730,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   function closeSongForm() {
     editingSongId = null;
     pfFormBeatVolumes = null;
+    pfFormBeatStates = null;
     updateCapturePreview('pf', null);
     if (presetForm) presetForm.style.display = 'none';
   }
@@ -1651,12 +1752,14 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
           bpm: bpmVal,
           tsNum: tsNumVal,
           tsDen: tsDenVal,
+          beatStates: pfFormBeatStates,
           beatVolumes: pfFormBeatVolumes,
           libSongId: null,
         };
         if (activeSongId === editingSongId) {
           setBPM(bpmVal);
           setTimeSig(tsNumVal, tsDenVal);
+          applyBeatStates(pfFormBeatStates ?? null, { refreshLoop: false });
           applyBeatVolumes(pfFormBeatVolumes ?? null);
           updateNowPlaying();
         }
@@ -1668,6 +1771,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
         bpm: bpmVal,
         tsNum: tsNumVal,
         tsDen: tsDenVal,
+        beatStates: pfFormBeatStates,
         beatVolumes: pfFormBeatVolumes,
         libSongId: null,
       });
@@ -1763,6 +1867,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   pfCaptureBtn.addEventListener('click', () => {
     requirePro(() => {
       pfFormBeatVolumes = currentBeatVolumes();
+      pfFormBeatStates = currentBeatStates();
       pfBpm.value = bpm;
       setTsPickerValues('pfTs', tsNum, tsDen);
       updateCapturePreview('pf', pfFormBeatVolumes, bpm);
@@ -1971,12 +2076,14 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
           bpm: libSong.bpm,
           tsNum: libSong.tsNum ?? 4,
           tsDen: libSong.tsDen ?? 4,
+          beatStates: libSong.beatStates ?? null,
           beatVolumes: libSong.beatVolumes ?? null,
           libSongId: libSong.id,
         };
         if (activeSongId === editingSongId) {
           setBPM(libSong.bpm);
           setTimeSig(libSong.tsNum ?? 4, libSong.tsDen ?? 4);
+          applyBeatStates(libSong.beatStates ?? null, { refreshLoop: false });
           applyBeatVolumes(libSong.beatVolumes ?? null);
           updateNowPlaying();
         }
@@ -1988,6 +2095,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
         bpm: libSong.bpm,
         tsNum: libSong.tsNum ?? 4,
         tsDen: libSong.tsDen ?? 4,
+        beatStates: libSong.beatStates ?? null,
         beatVolumes: libSong.beatVolumes ?? null,
         libSongId: libSong.id,
       });
@@ -2011,6 +2119,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
           bpm: libSong.bpm,
           tsNum: libSong.tsNum ?? 4,
           tsDen: libSong.tsDen ?? 4,
+          beatStates: libSong.beatStates ?? null,
           beatVolumes: libSong.beatVolumes ?? null,
         };
         sl.songs[idx] = nextSong;
@@ -2074,6 +2183,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   function openAddLibForm() {
     editingLibId = null;
     libFormBeatVolumes = null;
+    libFormBeatStates = null;
     libNameInput.value = '';
     libBpmInput.value = bpm;
     mountTsPicker(libTsPickerEl, 4, 4, 'libTs');
@@ -2085,6 +2195,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     if (!s) return;
     editingLibId = id;
     libFormBeatVolumes = s.beatVolumes ?? null;
+    libFormBeatStates = s.beatStates ?? null;
     libNameInput.value = s.name;
     libBpmInput.value = s.bpm;
     mountTsPicker(libTsPickerEl, s.tsNum ?? 4, s.tsDen ?? 4, 'libTs');
@@ -2094,6 +2205,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   function closeLibForm() {
     editingLibId = null;
     libFormBeatVolumes = null;
+    libFormBeatStates = null;
     updateCapturePreview('lib', null);
     libForm.style.display = 'none';
   }
@@ -2112,6 +2224,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
         s.tsNum = tsNumVal;
         s.tsDen = tsDenVal;
         s.beatVolumes = libFormBeatVolumes;
+        s.beatStates = libFormBeatStates;
         editedSong = s;
       }
     } else {
@@ -2122,6 +2235,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
         tsNum: tsNumVal,
         tsDen: tsDenVal,
         beatVolumes: libFormBeatVolumes,
+        beatStates: libFormBeatStates,
       });
     }
     if (editedSong) propagateLibSongChange(editedSong);
@@ -2153,6 +2267,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   libCaptureBtn.addEventListener('click', () => {
     requirePro(() => {
       libFormBeatVolumes = currentBeatVolumes();
+      libFormBeatStates = currentBeatStates();
       libBpmInput.value = bpm;
       setTsPickerValues('libTs', tsNum, tsDen);
       updateCapturePreview('lib', libFormBeatVolumes, bpm);
