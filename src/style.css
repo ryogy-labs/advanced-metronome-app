@@ -185,7 +185,6 @@ h1 span { color: var(--accent); }
   border-radius: 50%;
   background: var(--surface2);
   border: 2px solid var(--border);
-  transition: background 0.05s, transform 0.05s, box-shadow 0.05s;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -267,13 +266,15 @@ h1 span { color: var(--accent); }
   display: flex;
   gap: 6px;
   justify-content: center;
+  flex-wrap: wrap;
 }
 .bpm-btns button {
   background: var(--surface2);
   border: 1px solid var(--border);
   color: var(--text);
   border-radius: 8px;
-  padding: 5px 16px;
+  padding: 5px 12px;
+  min-width: 52px;
   font-size: 1rem;
   cursor: pointer;
   transition: background 0.15s;
@@ -396,7 +397,7 @@ h1 span { color: var(--accent); }
 /* ── Ball Animation ── */
 .ball-canvas {
   flex: 0 0 auto;
-  height: clamp(220px, 42vh, 320px);
+  height: clamp(220px, 42vh, 600px);
   min-height: 220px;
   width: 100%;
   max-width: 420px;
