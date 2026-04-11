@@ -296,12 +296,12 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   }
   buildBeatDots();
 
-  function updateBeatIndicators(beatIdx, isActive) {
+  function updateBeatIndicators(beatIdx = null) {
     beatRowEls.forEach(rowEl => {
       const dots = rowEl.querySelectorAll('.beat-dot');
       dots.forEach((d, i) => {
         d.classList.remove('active-1', 'active-n');
-        if (isActive && i === beatIdx) {
+        if (beatIdx !== null && i === beatIdx) {
           d.classList.add(beatIdx === 0 ? 'active-1' : 'active-n');
         }
       });
@@ -313,8 +313,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     if (document.hidden) return;
     if (audioCtx && typeof scheduledTime === 'number' &&
         Math.abs(audioCtx.currentTime - scheduledTime) > 0.5) return;
-    updateBeatIndicators(beatIdx, true);
-    setTimeout(() => updateBeatIndicators(beatIdx, false), 100);
+    updateBeatIndicators(beatIdx);
   }
 
   // ──── Audio synthesis ────
@@ -426,6 +425,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     subBeatCount = 0;
     nextNoteTime = ctx.currentTime + (isNative ? 0.005 : 0.05);
     scheduledBeatTimes = [];
+    updateBeatIndicators(0);
     scheduler();
   }
 
@@ -469,7 +469,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     playBtn.textContent = t('metro.start');
     playBtn.classList.remove('running');
     releaseWakeLock();
-    updateBeatIndicators(0, false);
+    updateBeatIndicators();
     updateNowPlayingState();
   }
 
@@ -506,7 +506,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
       if (!running || refreshSeq !== playbackRefreshSeq) return;
       if (realignVisuals) {
         nativeLoopAnchorMs = performance.now();
-        updateBeatIndicators(0, true);
+        updateBeatIndicators(0);
       }
     });
   }
@@ -742,8 +742,10 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   });
 
   document.getElementById('bpmMinus10').addEventListener('click', () => setBPM(bpm - 10));
+  document.getElementById('bpmMinus5').addEventListener('click',  () => setBPM(bpm - 5));
   document.getElementById('bpmMinus1').addEventListener('click',  () => setBPM(bpm - 1));
   document.getElementById('bpmPlus1').addEventListener('click',   () => setBPM(bpm + 1));
+  document.getElementById('bpmPlus5').addEventListener('click',   () => setBPM(bpm + 5));
   document.getElementById('bpmPlus10').addEventListener('click',  () => setBPM(bpm + 10));
 
   // ──── Time Signature Picker ────
@@ -1046,7 +1048,6 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     // so it stays in sync even when BPM changes mid-play.
     let phase   = 0;
     let beatIdx = 0;
-    let beatActive = false;
     if (isNative && running && nativeLoopAnchorMs > 0) {
       const beatDurMs = 60000 / bpm;
       const loopDurMs = beatDurMs * beatsPerMeasure;
@@ -1054,8 +1055,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
       const loopMs = elapsedMs % loopDurMs;
       beatIdx = Math.floor(loopMs / beatDurMs) % beatsPerMeasure;
       phase = (loopMs % beatDurMs) / beatDurMs;
-      beatActive = (loopMs % beatDurMs) < 100;
-      updateBeatIndicators(beatIdx, beatActive);
+      updateBeatIndicators(beatIdx);
     } else if (running && audioCtx) {
       const now = audioCtx.currentTime;
       let lastBeat = null;
@@ -1071,7 +1071,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
         beatIdx = lastBeat.beatIdx;
       }
     } else {
-      updateBeatIndicators(0, false);
+      updateBeatIndicators();
     }
 
     ballCanvasViews.forEach(({ canvas, ctx }) => {
@@ -1278,7 +1278,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
       _nativeLoopPreparePromise = prepareNativeLoop().then(() =>
         NativeMetronomeAudio.startLoop({ muted: isMuted }).then(() => {
           nativeLoopAnchorMs = performance.now();
-          updateBeatIndicators(0, true);
+          updateBeatIndicators(0);
         }).catch(err => {
           console.error('[MetronomeAudio] startLoop failed', err);
         }));
