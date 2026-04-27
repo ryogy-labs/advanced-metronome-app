@@ -4,7 +4,6 @@ import {
   BPM_MIN, BPM_MAX, BPM_DEFAULT,
   TAP_RESET_MS,
   TS_NUMS, TS_DENS,
-  BALL_TOP_MARGIN, BALL_RANGE_SCALE, BALL_R,
   SWIPE_TOTAL_PAGES, SWIPE_SLOT_STEP, SWIPE_THRESHOLD_PX,
   FREE_SETLIST_LIMIT, FREE_SONGS_PER_SETLIST, FREE_LIBRARY_LIMIT,
   CLICK_ACCENT, CLICK_QUARTER,
@@ -18,6 +17,7 @@ import { createBgLoopBuilder, arrayBufferToBase64 } from './audio/bg-loop.js';
 import { createScheduler } from './audio/scheduler.js';
 import { setupDnD } from './ui/dnd.js';
 import { renderSongRows } from './ui/song-row.js';
+import { createBallAnimator } from './ui/ball.js';
 
 const NativeMetronomeAudio = registerPlugin('MetronomeAudio');
 const isNative = window.Capacitor?.isNativePlatform() ?? false;
@@ -894,24 +894,19 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   wakelockOffBtn.addEventListener('click', () => setWakeLock(false));
 
   // ──── Ball Animation ────
-  let ballCanvasViews = [];
-
-  function refreshBallCanvases() {
-    ballCanvasViews = Array.from(document.querySelectorAll('.ball-canvas'))
-      .map(canvas => ({ canvas, ctx: canvas.getContext('2d') }))
-      .filter(v => !!v.ctx);
-  }
-
-  function resizeBallCanvases() {
-    ballCanvasViews.forEach(({ canvas }) => {
-      const w = canvas.offsetWidth;
-      const h = canvas.offsetHeight;
-      if (w > 0 && h > 0) {
-        canvas.width  = w;
-        canvas.height = h;
-      }
-    });
-  }
+  const _ballAnimator = createBallAnimator({
+    canvasSelector: '.ball-canvas',
+    getState: () => ({ running, bpm, beatsPerMeasure, animMode, squashEnabled }),
+    getAudioCtx: () => audioCtx,
+    getScheduledBeatTimes: () => _scheduler.getScheduledBeatTimes(),
+    isNative: () => isNative,
+    getNativeLoopAnchorMs: () => nativeLoopAnchorMs,
+    getBeatIndicatorState,
+    onNativeBeat: (idx) => updateBeatIndicators(idx),
+    onIdle: () => updateBeatIndicators(),
+  });
+  const refreshBallCanvases = () => _ballAnimator.refresh();
+  const resizeBallCanvases = () => _ballAnimator.resize();
 
   function syncVolumeSectionHeight() {
     const tsCards = Array.from(document.querySelectorAll('.ts-picker-wrap'));
@@ -932,96 +927,6 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     });
   }
 
-  function getBallColorForBeatState(state) {
-    if (state === 'accent') return '#fc5c7d';
-    if (state === 'mute') return '#a8a8b8';
-    return '#7c5cfc';
-  }
-
-  function hexToRgb(hex) {
-    const clean = hex.replace('#', '');
-    const value = Number.parseInt(clean, 16);
-    return {
-      r: (value >> 16) & 255,
-      g: (value >> 8) & 255,
-      b: value & 255,
-    };
-  }
-
-  function drawBallFrame(ctx, w, h, phase, beatIdx, topMargin) {
-    ctx.clearRect(0, 0, w, h);
-
-    const groundYBase = h - 10;
-    const beatState = getBeatIndicatorState(beatIdx);
-    const ballColor = running ? getBallColorForBeatState(beatState) : getBallColorForBeatState('normal');
-    const ballRgb = hexToRgb(ballColor);
-    const margin = BALL_R + 4;
-    const cx = animMode === 'horizontal'
-      ? margin + ((beatIdx + phase) / beatsPerMeasure) * (w - 2 * margin)
-      : w / 2;
-
-    // Asymmetric free-fall height fraction (0 at ground, 1 at apex)
-    // Rising (0→alpha): easeOutQuad — fast launch, decelerates to zero at apex
-    // Falling (alpha→1): easeInCubic — starts near-zero at apex, accelerates to ground
-    const alpha = 0.35;
-    let heightFrac;
-    if (phase <= alpha) {
-      const t = phase / alpha;
-      heightFrac = t * (2 - t);           // easeOutQuad: 0→1
-    } else {
-      const t = (phase - alpha) / (1 - alpha);
-      heightFrac = 1 - t * t * t;         // easeInCubic: 1→0
-    }
-
-    // isGrounding: true only in the first half of each beat (just after landing).
-    // Prevents false impact detection at phase≈1 end-of-beat where heightFrac
-    // also approaches 0 but lastBeat still points to the previous beat.
-    const isGrounding = phase < 0.5;
-
-    // Squash when close to ground (only while running, enabled, and in landing half)
-    const squash = (running && squashEnabled && isGrounding) ? Math.max(0, 1 - heightFrac * 8) : 0;
-    const rx = BALL_R * (1 + 0.5 * squash);
-    const ry = BALL_R * (1 - 0.3 * squash);
-
-    // Fit jump height to canvas so apex sits near the top instead of leaving large blank space.
-    const fullRange = Math.max(60, groundYBase - (BALL_R * 2) - topMargin);
-    const ballMaxH = Math.max(60, fullRange * BALL_RANGE_SCALE);
-    const groundY = ballMaxH + (BALL_R * 2) + topMargin;
-    // Ball center: bottom of ellipse touches groundY when heightFrac=0
-    const ballY = groundY - ry - heightFrac * ballMaxH;
-
-    // Shadow (grows darker/larger as ball approaches ground)
-    const shadowAlpha = 0.08 + 0.22 * (1 - heightFrac);
-    const shadowRx    = BALL_R * (0.5 + 0.9 * (1 - heightFrac));
-    ctx.save();
-    ctx.fillStyle = `rgba(${ballRgb.r}, ${ballRgb.g}, ${ballRgb.b}, ${shadowAlpha})`;
-    ctx.beginPath();
-    ctx.ellipse(cx, groundY, shadowRx, 4, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-
-    // Ground line
-    ctx.save();
-    ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--border').trim();
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(0, groundY);
-    ctx.lineTo(w, groundY);
-    ctx.stroke();
-    ctx.restore();
-
-    // Ball color follows the same beat state used by the audible quarter click.
-    const isImpact  = phase < 0.15 && running;
-    ctx.save();
-    ctx.shadowColor = ballColor;
-    ctx.shadowBlur  = isImpact && beatState === 'accent' ? 24 : 14;
-    ctx.fillStyle   = ballColor;
-    ctx.beginPath();
-    ctx.ellipse(cx, ballY, rx, ry, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-  }
-
   // Call once immediately, then again after first paint when flex layout is complete
   refreshBallCanvases();
   resizeBallCanvases();
@@ -1035,57 +940,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     syncVolumeSectionHeight();
   });
 
-  function drawBall() {
-    // Beat phase: 0 = ground contact, 0.5 = apex, 1 = next ground contact
-    // Computed from the most recent scheduled beat that has already passed,
-    // so it stays in sync even when BPM changes mid-play.
-    let phase   = 0;
-    let beatIdx = 0;
-    if (isNative && running && nativeLoopAnchorMs > 0) {
-      const beatDurMs = 60000 / bpm;
-      const loopDurMs = beatDurMs * beatsPerMeasure;
-      const elapsedMs = Math.max(0, performance.now() - nativeLoopAnchorMs);
-      const loopMs = elapsedMs % loopDurMs;
-      beatIdx = Math.floor(loopMs / beatDurMs) % beatsPerMeasure;
-      phase = (loopMs % beatDurMs) / beatDurMs;
-      updateBeatIndicators(beatIdx);
-    } else if (running && audioCtx) {
-      const now = audioCtx.currentTime;
-      const times = _scheduler.getScheduledBeatTimes();
-      let lastBeat = null;
-      for (let i = times.length - 1; i >= 0; i--) {
-        if (times[i].time <= now) {
-          lastBeat = times[i];
-          break;
-        }
-      }
-      if (lastBeat) {
-        const beatDur = 60 / bpm;
-        phase   = Math.min((now - lastBeat.time) / beatDur, 1);
-        beatIdx = lastBeat.beatIdx;
-      }
-    } else {
-      updateBeatIndicators();
-    }
-
-    ballCanvasViews.forEach(({ canvas, ctx }) => {
-      if (canvas.width === 0 || canvas.height === 0) return;
-      let topMargin = BALL_TOP_MARGIN;
-      const pageEl = canvas.closest('.swipe-page');
-      const titleEl = pageEl ? pageEl.querySelector('.swipe-page-title') : null;
-      if (titleEl) {
-        const titleRect = titleEl.getBoundingClientRect();
-        const canvasRect = canvas.getBoundingClientRect();
-        // Make apex top sit 10px below the title bottom regardless of page/canvas spacing.
-        topMargin = Math.max(0, (titleRect.bottom + BALL_TOP_MARGIN) - canvasRect.top);
-      }
-      drawBallFrame(ctx, canvas.width, canvas.height, phase, beatIdx, topMargin);
-    });
-
-    requestAnimationFrame(drawBall);
-  }
-
-  drawBall();
+  _ballAnimator.start();
 
   // ──── iOS Background Playback ────
   // Foreground: WebAudio scheduler only.
