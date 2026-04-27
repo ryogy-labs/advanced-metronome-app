@@ -1,5 +1,23 @@
 import './style.css';
 import { registerPlugin } from '@capacitor/core';
+import {
+  BPM_MIN, BPM_MAX, BPM_DEFAULT,
+  TAP_RESET_MS,
+  SCHEDULER_LOOKAHEAD_MS, SCHEDULER_AHEAD_SEC,
+  TS_NUMS, TS_DENS,
+  BALL_TOP_MARGIN, BALL_RANGE_SCALE, BALL_R,
+  SWIPE_TOTAL_PAGES, SWIPE_SLOT_STEP, SWIPE_THRESHOLD_PX,
+  FREE_SETLIST_LIMIT, FREE_SONGS_PER_SETLIST, FREE_LIBRARY_LIMIT,
+  CLICK_ACCENT, CLICK_QUARTER, CLICK_EIGHTH, CLICK_SIXTEENTH,
+  LS_KEYS,
+} from './config.js';
+import { createI18n, readInitialLang } from './i18n.js';
+import { safeParseJSON, writeJSON } from './utils/storage.js';
+import { escHtml } from './utils/dom.js';
+import { nextId } from './utils/id.js';
+import { renderClick } from './audio/synth.js';
+import { createBgLoopBuilder, arrayBufferToBase64 } from './audio/bg-loop.js';
+import { setupDnD } from './ui/dnd.js';
 
 const NativeMetronomeAudio = registerPlugin('MetronomeAudio');
 const isNative = window.Capacitor?.isNativePlatform() ?? false;
@@ -12,27 +30,26 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   );
 
   // ──── State ────
-  let bpm = 120;
+  let bpm = BPM_DEFAULT;
   let beatsPerMeasure = 4;
   let beatStates = ['accent', 'normal', 'normal', 'normal'];
   // Time signature picker state
-  let tsNum = 4;          // numerator  : 2-7
+  let tsNum = 4;          // numerator  : 2-12
   let tsDen = 4;          // denominator: 4 or 8
   let masterVol = 1.0;
   let volBeat1 = 1.0, volQuarter = 0.8, volEighth = 0.5, volSixteenth = 0.0;
   let running = false;
   let isEditingBpm = false;
-  let bpmBeforeEdit = 120;
+  let bpmBeforeEdit = BPM_DEFAULT;
 
   // Tap tempo
   let tapTimes = [];
-  const TAP_RESET_MS = 2500;
   let isMuted = false;
   // ── Pro ステータス ──────────────────────────────
   // Production では RevenueCat/StoreKit の結果に差し替える（この1箇所だけ変更すれば良い）
   let isPro = (() => {
     if (!isNativeApp) {
-      return localStorage.getItem('metro-dev-force-pro') === '1';
+      try { return localStorage.getItem(LS_KEYS.devForcePro) === '1'; } catch { return false; }
     }
     return false; // 本番はデフォルト free
   })();
@@ -41,8 +58,8 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   let audioCtx = null;
   let masterGainNode = null;
   let nextNoteTime = 0;
-  let lookahead = 25.0;     // ms
-  let scheduleAhead = 0.1;  // sec
+  const lookahead = SCHEDULER_LOOKAHEAD_MS;
+  const scheduleAhead = SCHEDULER_AHEAD_SEC;
   let timerID = null;
   let subBeatCount = 0;     // 16th note position within measure
   let playbackRefreshSeq = 0;
@@ -68,127 +85,6 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   let squashEnabled = true;
   let animMode = 'vertical'; // 'vertical' | 'horizontal'
 
-  // ──── i18n ────────────────────────────────────────────────
-  const I18N = {
-    ja: {
-      'settings.title': '設定',
-      'settings.language': '言語',
-      'settings.wakelock': '常時画面オン',
-      'settings.ball': 'ボール設定',
-      'settings.ballDirection': '移動方向',
-      'settings.vertical': '縦',
-      'settings.horizontal': '横',
-      'settings.squash': 'スクワッシュ',
-      'common.on': 'ON',
-      'common.off': 'OFF',
-      'common.save': '保存',
-      'common.cancel': 'キャンセル',
-      'common.back': '← 戻る',
-      'common.add': '＋ 追加',
-      'metro.start': '▶ START',
-      'metro.stop': '⏹ STOP',
-      'metro.tap': 'TAP\nTEMPO',
-      'nowplaying.playing': '再生中',
-      'nav.metronome': 'メトロノーム',
-      'nav.setlist': 'セットリスト',
-      'nav.library': 'ライブラリ',
-      'page.ball': 'ボール',
-      'page.volume': '音量設定',
-      'page.timesig': '拍子',
-      'volume.master': '全体',
-      'volume.beat1': '強拍',
-      'volume.quarter': '4分',
-      'volume.eighth': '8分',
-      'volume.sixteenth': '16分',
-      'setlist.addSetlist': '＋ 新規作成',
-      'setlist.namePlaceholder': 'セットリスト名 (例: ワンマンライブ)',
-      'setlist.songList': '♩ 曲リスト',
-      'setlist.fromLibrary': 'ライブラリから',
-      'setlist.manualInput': '直接入力',
-      'library.title': '♩ 曲ライブラリ',
-      'library.sort': 'ソート',
-      'library.sortManual': '手動',
-      'library.sortName': '曲名',
-      'library.sortBpm': 'BPM',
-      'library.songName': '曲名',
-      'capture.currentSettings': '現在のBPM・音量・拍子設定を取り込む',
-      'paywall.unlimited': '✓ セットリスト・ライブラリが無制限に',
-      'paywall.volumePreset': '✓ 曲ごとの音量プリセット保存',
-      'paywall.timeSignature': '✓ 曲ごとの拍子記録',
-      'paywall.future': '✓ 今後追加される Pro 機能すべて',
-      'paywall.upgrade': 'Pro にアップグレード（$7.99）',
-      'paywall.restore': '購入を復元',
-      'empty.noSetlists': 'セットリストを追加してください',
-      'empty.noSongs': '曲を追加してください',
-      'empty.noLibrarySongs': 'ライブラリに曲がありません',
-      'label.songsCount': '曲',
-      'action.edit': '編集',
-      'action.delete': '削除',
-      'confirm.deleteSetlist': 'このセットリストを削除しますか？',
-      'confirm.deleteSong': 'この曲を削除しますか？',
-      'confirm.deleteLibrarySong': 'この曲をライブラリから削除しますか？',
-      'untitled': '(無題)',
-    },
-    en: {
-      'settings.title': 'Settings',
-      'settings.language': 'Language',
-      'settings.wakelock': 'Keep Screen On',
-      'settings.ball': 'Ball Settings',
-      'settings.ballDirection': 'Ball Direction',
-      'settings.vertical': 'Vertical',
-      'settings.horizontal': 'Horizontal',
-      'settings.squash': 'Squash',
-      'common.on': 'ON',
-      'common.off': 'OFF',
-      'common.save': 'Save',
-      'common.cancel': 'Cancel',
-      'common.back': '← Back',
-      'common.add': '+ Add',
-      'metro.start': '▶ START',
-      'metro.stop': '⏹ STOP',
-      'metro.tap': 'TAP\nTEMPO',
-      'nowplaying.playing': 'Now Playing',
-      'nav.metronome': 'Metronome',
-      'nav.setlist': 'Setlist',
-      'nav.library': 'Library',
-      'page.ball': 'Ball',
-      'page.volume': 'Volume',
-      'page.timesig': 'Time Sig',
-      'volume.master': 'Master',
-      'volume.beat1': 'Accent',
-      'volume.quarter': 'Quarter',
-      'volume.eighth': 'Eighth',
-      'volume.sixteenth': 'Sixteenth',
-      'setlist.addSetlist': '+ New Setlist',
-      'setlist.namePlaceholder': 'Setlist name (e.g. One-Man Live)',
-      'setlist.songList': '♩ Songs',
-      'setlist.fromLibrary': 'From Library',
-      'setlist.manualInput': 'Manual',
-      'library.title': '♩ Song Library',
-      'library.sort': 'Sort',
-      'library.sortManual': 'Manual',
-      'library.sortName': 'Name',
-      'library.sortBpm': 'BPM',
-      'library.songName': 'Song name',
-      'capture.currentSettings': 'Capture current BPM/volume/time-signature',
-      'paywall.unlimited': '✓ Unlimited setlists and library songs',
-      'paywall.volumePreset': '✓ Save volume presets per song',
-      'paywall.timeSignature': '✓ Save time signatures per song',
-      'paywall.future': '✓ All future Pro features',
-      'paywall.upgrade': 'Upgrade to Pro ($7.99)',
-      'paywall.restore': 'Restore Purchase',
-      'empty.noSetlists': 'Add a setlist to get started',
-      'empty.noSongs': 'Add songs to get started',
-      'empty.noLibrarySongs': 'No songs in your library',
-      'label.songsCount': 'songs',
-      'action.edit': 'Edit',
-      'action.delete': 'Delete',
-      'confirm.deleteSetlist': 'Delete this setlist?',
-      'confirm.deleteSong': 'Delete this song?',
-      'confirm.deleteLibrarySong': 'Delete this song from the library?',
-      'untitled': '(Untitled)',
-    }
-  };
 
   function buildDefaultBeatStates(count) {
     return Array.from({ length: count }, (_, idx) => {
@@ -206,14 +102,14 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     });
   }
 
-  let currentLang = localStorage.getItem('metro-lang') || 'ja';
-
-  function t(key) {
-    return (I18N[currentLang] || I18N.ja)[key] ?? key;
-  }
+  // ──── i18n (translations live in ./i18n.js) ────────────────
+  const i18n = createI18n(readInitialLang());
+  const t = (key) => i18n.t(key);
 
   // ──── Screen Wake Lock ────────────────────────────────────
-  let wakeLockEnabled = localStorage.getItem('metro-wakelock') !== '0';
+  let wakeLockEnabled = (() => {
+    try { return localStorage.getItem(LS_KEYS.wakelock) !== '0'; } catch { return true; }
+  })();
   let _wakeLockSentinel = null;
 
   async function acquireWakeLock() {
@@ -336,9 +232,9 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     const state = getBeatIndicatorState(beatIdx);
     if (state === 'mute') return null;
     if (state === 'accent') {
-      return { volume: volBeat1 * masterVol, freq: 1200, dur: 0.030 };
+      return { volume: volBeat1 * masterVol, freq: CLICK_ACCENT.freq, dur: CLICK_ACCENT.dur };
     }
-    return { volume: volQuarter * masterVol, freq: 900, dur: 0.025 };
+    return { volume: volQuarter * masterVol, freq: CLICK_QUARTER.freq, dur: CLICK_QUARTER.dur };
   }
 
   function getCurrentBeatIndicatorIndex() {
@@ -451,16 +347,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     if (isNative) return;
     if (vol <= 0) return;
     const ctx = getCtx();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(masterGainNode);
-    osc.type = 'square';
-    osc.frequency.setValueAtTime(freq, time);
-    gain.gain.setValueAtTime(vol * 0.6, time);
-    gain.gain.exponentialRampToValueAtTime(0.0001, time + dur);
-    osc.start(time);
-    osc.stop(time + dur + 0.01);
+    renderClick(ctx, masterGainNode, time, vol, freq, dur);
   }
 
   function setMute(m) {
@@ -499,10 +386,10 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
       }
     } else if (subdivisions === 2 || beatOffset === 2) {
       // First subdivision: eighth notes in x/4, sixteenth notes in x/8.
-      playClick(time, volEighth    * masterVol, 700, 0.022);
+      playClick(time, volEighth * masterVol, CLICK_EIGHTH.freq, CLICK_EIGHTH.dur);
     } else {
       // Second subdivision: sixteenth notes in x/4. x/8 has no room below 16th resolution.
-      playClick(time, volSixteenth * masterVol, 550, 0.018);
+      playClick(time, volSixteenth * masterVol, CLICK_SIXTEENTH.freq, CLICK_SIXTEENTH.dur);
     }
   }
 
@@ -574,10 +461,10 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
 
   // ──── BPM helpers ────
   function setBPM(val) {
-    bpm = Math.min(300, Math.max(20, Math.round(val)));
+    bpm = Math.min(BPM_MAX, Math.max(BPM_MIN, Math.round(val)));
     bpmDisplay.textContent = bpm;
     bpmSlider.value = bpm;
-    updateSliderFill(bpmSlider, 20, 300);
+    updateSliderFill(bpmSlider, BPM_MIN, BPM_MAX);
     if (running) {
       refreshRunningPlayback({ realignVisuals: true });
     }
@@ -595,11 +482,11 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
 
   function getSubdivisionVolumeLabels(den = tsDen) {
     if (den === 8) {
-      return currentLang === 'ja'
+      return i18n.lang === 'ja'
         ? { quarter: '8分', eighth: '16分', sixteenth: '32分' }
         : { quarter: 'Eighth', eighth: 'Sixteenth', sixteenth: '32nd' };
     }
-    return currentLang === 'ja'
+    return i18n.lang === 'ja'
       ? { quarter: '4分', eighth: '8分', sixteenth: '16分' }
       : { quarter: 'Quarter', eighth: 'Eighth', sixteenth: 'Sixteenth' };
   }
@@ -892,9 +779,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   document.getElementById('bpmPlus5').addEventListener('click',   () => setBPM(bpm + 5));
   document.getElementById('bpmPlus10').addEventListener('click',  () => setBPM(bpm + 10));
 
-  // ──── Time Signature Picker ────
-  const TS_NUMS = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-  const TS_DENS = [4, 8];
+  // ──── Time Signature Picker (TS_NUMS/TS_DENS in ./config.js) ────
 
   function setTimeSig(nextNum, nextDen) {
     tsNum = TS_NUMS.includes(nextNum) ? nextNum : 4;
@@ -990,7 +875,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   });
 
   // ──── Init sliders ────
-  updateSliderFill(bpmSlider, 20, 300);
+  updateSliderFill(bpmSlider, BPM_MIN, BPM_MAX);
   updateVolSlider(volMasterEl,    volMasterNum);
   updateVolSlider(volBeat1El,     volBeat1Num);
   updateVolSlider(volQuarterEl,   volQuarterNum);
@@ -1025,8 +910,8 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   // ──── Settings Modal ─────────────────────────────────────
   function openSettings() {
     settingsOverlay.hidden = false;
-    langJaBtn.classList.toggle('active', currentLang === 'ja');
-    langEnBtn.classList.toggle('active', currentLang === 'en');
+    langJaBtn.classList.toggle('active', i18n.lang === 'ja');
+    langEnBtn.classList.toggle('active', i18n.lang === 'en');
     wakelockOnBtn.classList.toggle('active', wakeLockEnabled);
     wakelockOffBtn.classList.toggle('active', !wakeLockEnabled);
   }
@@ -1036,8 +921,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   }
 
   function setLang(lang) {
-    currentLang = lang;
-    localStorage.setItem('metro-lang', lang);
+    i18n.setLang(lang);
     langJaBtn.classList.toggle('active', lang === 'ja');
     langEnBtn.classList.toggle('active', lang === 'en');
     applyI18n();
@@ -1045,7 +929,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
 
   function setWakeLock(enabled) {
     wakeLockEnabled = enabled;
-    localStorage.setItem('metro-wakelock', enabled ? '1' : '0');
+    try { localStorage.setItem(LS_KEYS.wakelock, enabled ? '1' : '0'); } catch {}
     wakelockOnBtn.classList.toggle('active', enabled);
     wakelockOffBtn.classList.toggle('active', !enabled);
     if (!enabled) releaseWakeLock();
@@ -1064,9 +948,6 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
 
   // ──── Ball Animation ────
   let ballCanvasViews = [];
-  const BALL_TOP_MARGIN = 15; // px: desired gap from title bottom to apex top
-  const BALL_RANGE_SCALE = 0.8; // shrink vertical travel by 20%
-  const BALL_R     = 30;  // px: ball radius
 
   function refreshBallCanvases() {
     ballCanvasViews = Array.from(document.querySelectorAll('.ball-canvas'))
@@ -1262,110 +1143,20 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   // Foreground: WebAudio scheduler only.
   // Background: HTMLAudio click loop (Safari keeps this alive more reliably).
   let _bgLoopEl = null;
-  let _bgLoopUrl = null;
-  let _bgLoopSig = '';
-  let _bgLoopPendingSig = '';
-  let _bgLoopBuildPromise = null;
   let _bgLoopReloading = false;
   let _bgLoopRefreshTimer = null;
   let _nativeLoopPreparePromise = null;
-  const BG_LOOP_MEASURES = 32;
-  const NATIVE_BG_LOOP_MEASURES = 2;
 
-  async function buildClickLoopWav() {
-    const sig = [
-      bpm, beatsPerMeasure, tsDen,
-      beatStates.join(','),
+  const _bgLoopBuilder = createBgLoopBuilder({
+    getCtx: () => audioCtx,
+    isNative: () => isNative,
+  });
+
+  function buildClickLoopWav() {
+    return _bgLoopBuilder.build({
+      bpm, beatsPerMeasure, tsDen, beatStates,
       masterVol, volBeat1, volQuarter, volEighth, volSixteenth,
-    ].join('|');
-    if (_bgLoopUrl && _bgLoopSig === sig) return _bgLoopUrl;
-    if (_bgLoopBuildPromise && _bgLoopPendingSig === sig) return _bgLoopBuildPromise;
-
-    _bgLoopPendingSig = sig;
-    _bgLoopBuildPromise = (async () => {
-      const rate = audioCtx ? audioCtx.sampleRate : 44100;
-      const beatDur = getBeatIntervalSeconds();
-      const subdivisions = getSubdivisionsPerBeat();
-      const subdivisionDur = beatDur / subdivisions;
-      const loopMeasures = isNative ? NATIVE_BG_LOOP_MEASURES : BG_LOOP_MEASURES;
-      const loopDuration = beatDur * beatsPerMeasure * loopMeasures;
-      const frameCount = Math.max(1, Math.ceil(rate * loopDuration));
-      const offlineCtx = new (window.OfflineAudioContext || window.webkitOfflineAudioContext)(1, frameCount, rate);
-
-      function renderClick(time, vol, freq, dur) {
-        if (vol <= 0) return;
-        const osc = offlineCtx.createOscillator();
-        const gain = offlineCtx.createGain();
-        osc.connect(gain);
-        gain.connect(offlineCtx.destination);
-        osc.type = 'square';
-        osc.frequency.setValueAtTime(freq, time);
-        gain.gain.setValueAtTime(vol * 0.6, time);
-        gain.gain.exponentialRampToValueAtTime(0.0001, time + dur);
-        osc.start(time);
-        osc.stop(time + dur + 0.01);
-      }
-
-      function scheduleOfflineNote(time, subBeat) {
-        const beatOffset = subBeat % subdivisions;
-        const beatIdx = Math.floor(subBeat / subdivisions);
-
-        if (beatOffset === 0) {
-          const beatSound = getQuarterBeatSound(beatIdx);
-          if (beatSound) {
-            renderClick(time, beatSound.volume, beatSound.freq, beatSound.dur);
-          }
-        } else if (subdivisions === 2 || beatOffset === 2) {
-          renderClick(time, volEighth * masterVol, 700, 0.022);
-        } else {
-          renderClick(time, volSixteenth * masterVol, 550, 0.018);
-        }
-      }
-
-      for (let measure = 0; measure < loopMeasures; measure++) {
-        const measureBaseTime = measure * beatDur * beatsPerMeasure;
-        for (let subBeat = 0; subBeat < getMeasureSubdivisionCount(); subBeat++) {
-          const time = measureBaseTime + (subBeat * subdivisionDur);
-          scheduleOfflineNote(time, subBeat);
-        }
-      }
-
-      const rendered = await offlineCtx.startRendering();
-      const pcm = rendered.getChannelData(0);
-      const ab = new ArrayBuffer(44 + pcm.length * 2);
-      const dv = new DataView(ab);
-      const ws = (o, s) => { for (let i = 0; i < s.length; i++) dv.setUint8(o + i, s.charCodeAt(i)); };
-
-      ws(0, 'RIFF'); dv.setUint32(4, 36 + pcm.length * 2, true);
-      ws(8, 'WAVE'); ws(12, 'fmt ');
-      dv.setUint32(16, 16, true);
-      dv.setUint16(20, 1, true);
-      dv.setUint16(22, 1, true);
-      dv.setUint32(24, rate, true);
-      dv.setUint32(28, rate * 2, true);
-      dv.setUint16(32, 2, true);
-      dv.setUint16(34, 16, true);
-      ws(36, 'data'); dv.setUint32(40, pcm.length * 2, true);
-
-      for (let i = 0; i < pcm.length; i++) {
-        const s = Math.max(-1, Math.min(1, pcm[i]));
-        dv.setInt16(44 + i * 2, s * 32767, true);
-      }
-
-      const nextUrl = URL.createObjectURL(new Blob([ab], { type: 'audio/wav' }));
-      if (_bgLoopUrl && _bgLoopSig !== sig) URL.revokeObjectURL(_bgLoopUrl);
-      _bgLoopUrl = nextUrl;
-      _bgLoopSig = sig;
-      return nextUrl;
-    })();
-
-    try {
-      return await _bgLoopBuildPromise;
-    } finally {
-      if (_bgLoopPendingSig === sig) {
-        _bgLoopBuildPromise = null;
-      }
-    }
+    }, getQuarterBeatSound);
   }
 
   function initBgLoopEl() {
@@ -1385,16 +1176,6 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
 
   function syncBgLoopMuted() {
     if (_bgLoopEl) _bgLoopEl.muted = !document.hidden ? true : isMuted;
-  }
-
-  function arrayBufferToBase64(buf) {
-    const bytes = new Uint8Array(buf);
-    let b64 = '';
-    const chunk = 8192;
-    for (let i = 0; i < bytes.length; i += chunk) {
-      b64 += String.fromCharCode(...bytes.subarray(i, i + chunk));
-    }
-    return btoa(b64);
   }
 
   async function refreshBgLoopTrack() {
@@ -1568,13 +1349,13 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   window.addEventListener('pageshow', resumeForegroundScheduler);
 
   // ──── Setlists ────
-  let setlists      = JSON.parse(localStorage.getItem('metro-setlists') || '[]');
+  let setlists      = safeParseJSON(LS_KEYS.setlists, []);
   let currentSlId   = null;   // setlist shown in detail view
   let activeSongId  = null;   // song currently applied to metronome
   let activeSlId    = null;   // setlist that owns the active song
   let editingSlId   = null;   // setlist being edited (index form)
   let editingSongId = null;   // song being edited (detail form)
-  let songLibrary   = JSON.parse(localStorage.getItem('metro-song-lib') || '[]');
+  let songLibrary   = safeParseJSON(LS_KEYS.songLib, []);
   let activeLibSongId = null; // song currently selected from library tab
   let libSortMode   = 'manual'; // 'manual' | 'name' | 'bpm'
   let editingLibId  = null;
@@ -1584,13 +1365,10 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   let pfFormBeatStates = null;
 
   function saveSetlists() {
-    localStorage.setItem('metro-setlists', JSON.stringify(setlists));
+    writeJSON(LS_KEYS.setlists, setlists);
   }
 
-  function escHtml(s) {
-    return String(s).replace(/[&<>"']/g, c =>
-      ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
-  }
+  // (escHtml moved to ./utils/dom.js)
 
   // ── DOM refs ──
   const slIndexEl     = document.getElementById('slIndex');
@@ -1701,7 +1479,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
         if (currentSlId === editingSlId) slDetailTitle.textContent = name;
       }
     } else {
-      setlists.push({ id: Date.now().toString(), name, songs: [] });
+      setlists.push({ id: nextId(), name, songs: [] });
     }
     saveSetlists();
     closeSlForm();
@@ -1867,7 +1645,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     const sl = currentSetlist();
     if (!sl) return;
     const name   = pfName.value.trim();
-    const bpmVal = Math.min(300, Math.max(20, parseInt(pfBpm.value) || bpm));
+    const bpmVal = Math.min(BPM_MAX, Math.max(BPM_MIN, parseInt(pfBpm.value) || bpm));
     const tsNumVal = Number(document.getElementById('pfTsNum')?.value) || 4;
     const tsDenVal = Number(document.getElementById('pfTsDen')?.value) || 4;
     if (!name) { pfName.focus(); return; }
@@ -1894,7 +1672,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
       }
     } else {
       sl.songs.push({
-        id: Date.now().toString(),
+        id: nextId(),
         name,
         bpm: bpmVal,
         tsNum: tsNumVal,
@@ -1968,7 +1746,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
 
   // ── Setlist event listeners ──
   document.getElementById('btnAddSetlist').addEventListener('click', () => {
-    if (setlists.length >= 1 && !isPro) {
+    if (setlists.length >= FREE_SETLIST_LIMIT && !isPro) {
       requirePro(() => openAddSlForm());
     } else {
       openAddSlForm();
@@ -1982,7 +1760,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   document.getElementById('btnAddSong').addEventListener('click', () => {
     const sl = currentSetlist();
     const currentSongs = sl ? sl.songs : [];
-    if (currentSongs.length >= 10 && !isPro) {
+    if (currentSongs.length >= FREE_SONGS_PER_SETLIST && !isPro) {
       requirePro(() => openAddSongForm());
     } else {
       openAddSongForm();
@@ -2002,135 +1780,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     });
   });
 
-  // ── Generic DnD factory ──
-  function setupDnD(listEl, rowSel, handleSel, onReorder) {
-    let src      = null;
-    let gapIdx   = -1;
-    let insertAt = null;
-    let ghost    = null;
-
-    function shift(i) {
-      const { srcIdx, srcHeight } = src;
-      if (i === srcIdx) return 0;
-      if (gapIdx > srcIdx + 1 && i > srcIdx && i < gapIdx) return -srcHeight;
-      if (gapIdx <= srcIdx  && i >= gapIdx && i < srcIdx)  return  srcHeight;
-      return 0;
-    }
-
-    function start(clientX, clientY, handle) {
-      const row = handle.closest('[data-idx]');
-      if (!row) return;
-      const srcIdx = parseInt(row.dataset.idx);
-      const rect   = row.getBoundingClientRect();
-
-      row.classList.add('dnd-source');
-
-      const g = row.cloneNode(true);
-      g.classList.add('dnd-ghost');
-      g.classList.remove('dnd-source');
-      Object.assign(g.style, {
-        position: 'fixed', width: rect.width + 'px',
-        left: rect.left + 'px', top: rect.top + 'px',
-        margin: '0', zIndex: '1000',
-      });
-      document.body.appendChild(g);
-
-      const rows     = Array.from(listEl.querySelectorAll(rowSel));
-      const rowRects = rows.map(r => r.getBoundingClientRect());
-      src = {
-        srcIdx, srcEl: row,
-        offsetX: clientX - rect.left, offsetY: clientY - rect.top,
-        rowTops:    rowRects.map(r => r.top),
-        rowBottoms: rowRects.map(r => r.bottom),
-        srcHeight:  rect.height,
-      };
-      ghost    = g;
-      gapIdx   = srcIdx;
-      insertAt = srcIdx;
-
-      listEl.classList.add('dnd-active');
-      document.addEventListener('touchmove', onTouchMove, { passive: false });
-    }
-
-    function move(clientX, clientY) {
-      if (!src) return;
-
-      Object.assign(ghost.style, {
-        left: (clientX - src.offsetX) + 'px',
-        top:  (clientY - src.offsetY) + 'px',
-      });
-
-      const { rowTops, rowBottoms, srcIdx } = src;
-      const n = rowTops.length;
-      const midYs = rowTops.map((t, i) => (t + rowBottoms[i]) / 2);
-
-      let newGapIdx;
-      if      (clientY < midYs[0])      newGapIdx = 0;
-      else if (clientY >= midYs[n - 1]) newGapIdx = n;
-      else {
-        newGapIdx = n;
-        for (let i = 0; i < n - 1; i++) {
-          if (clientY >= midYs[i] && clientY < midYs[i + 1]) { newGapIdx = i + 1; break; }
-        }
-      }
-
-      if (newGapIdx !== gapIdx) {
-        gapIdx = newGapIdx;
-        Array.from(listEl.querySelectorAll(rowSel)).forEach((row, i) => {
-          if (i === srcIdx) return;
-          const ty = shift(i);
-          row.style.transform = ty !== 0 ? `translateY(${ty}px)` : '';
-        });
-      }
-
-      insertAt = gapIdx >= n
-        ? n - 1
-        : gapIdx <= srcIdx ? gapIdx : gapIdx - 1;
-    }
-
-    function end() {
-      if (!src) return;
-
-      const { srcIdx, srcEl } = src;
-      const finalInsertAt = insertAt;
-
-      listEl.classList.remove('dnd-active');
-      Array.from(listEl.querySelectorAll(rowSel)).forEach(r => { r.style.transform = ''; });
-
-      ghost.remove();
-      srcEl.classList.remove('dnd-source');
-      ghost    = null;
-      src      = null;
-      insertAt = null;
-      gapIdx   = -1;
-      document.removeEventListener('touchmove', onTouchMove);
-
-      if (finalInsertAt !== null && finalInsertAt !== srcIdx) {
-        onReorder(srcIdx, finalInsertAt);
-      }
-    }
-
-    function onTouchMove(e) {
-      e.preventDefault();
-      move(e.touches[0].clientX, e.touches[0].clientY);
-    }
-
-    listEl.addEventListener('mousedown', e => {
-      const handle = e.target.closest(handleSel);
-      if (!handle) return;
-      e.preventDefault();
-      start(e.clientX, e.clientY, handle);
-    });
-    document.addEventListener('mousemove', e => { if (src) move(e.clientX, e.clientY); });
-    document.addEventListener('mouseup',   () => { if (src) end(); });
-
-    listEl.addEventListener('touchstart', e => {
-      const handle = e.target.closest(handleSel);
-      if (!handle) return;
-      start(e.touches[0].clientX, e.touches[0].clientY, handle);
-    }, { passive: true });
-    document.addEventListener('touchend', () => { if (src) end(); });
-  }
+  // ── Generic DnD factory (moved to ./ui/dnd.js) ──
 
   // ── Song DnD ──
   setupDnD(songList, '.preset-row', '.drag-handle', (srcIdx, at) => {
@@ -2218,7 +1868,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
       }
     } else {
       sl.songs.push({
-        id: Date.now().toString(),
+        id: nextId(),
         name: libSong.name,
         bpm: libSong.bpm,
         tsNum: libSong.tsNum ?? 4,
@@ -2234,7 +1884,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   }
 
   // ── Song Library CRUD ──
-  function saveSongLib() { localStorage.setItem('metro-song-lib', JSON.stringify(songLibrary)); }
+  function saveSongLib() { writeJSON(LS_KEYS.songLib, songLibrary); }
 
   function propagateLibSongChange(libSong) {
     let changed = false;
@@ -2339,7 +1989,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   }
   function saveLibForm() {
     const name = libNameInput.value.trim();
-    const bpmVal = Math.min(300, Math.max(20, parseInt(libBpmInput.value) || bpm));
+    const bpmVal = Math.min(BPM_MAX, Math.max(BPM_MIN, parseInt(libBpmInput.value) || bpm));
     const tsNumVal = Number(document.getElementById('libTsNum')?.value) || 4;
     const tsDenVal = Number(document.getElementById('libTsDen')?.value) || 4;
     if (!name) { libNameInput.focus(); return; }
@@ -2357,7 +2007,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
       }
     } else {
       songLibrary.push({
-        id: Date.now().toString(),
+        id: nextId(),
         name,
         bpm: bpmVal,
         tsNum: tsNumVal,
@@ -2379,7 +2029,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   }
 
   document.getElementById('btnAddLibSong').addEventListener('click', () => {
-    if (songLibrary.length >= 10 && !isPro) {
+    if (songLibrary.length >= FREE_LIBRARY_LIMIT && !isPro) {
       requirePro(() => openAddLibForm());
     } else {
       openAddLibForm();
@@ -2410,8 +2060,8 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   // ──── Swipe Panel (5-slot clone carousel) ────
   // Slot layout: [clone-P2][P0][P1][P2][clone-P0]
   // physicalIdx: 0=clone-P2, 1=P0, 2=P1, 3=P2, 4=clone-P0
-  const TOTAL_PAGES = 3;
-  const SLOT_STEP   = 20; // % per slot (100% / 5 slots)
+  const TOTAL_PAGES = SWIPE_TOTAL_PAGES;
+  const SLOT_STEP   = SWIPE_SLOT_STEP; // % per slot (100% / 5 slots)
   let currentPage   = 0;
   let physicalIdx   = 1;  // start at slot 1 (real page 0)
 
@@ -2538,7 +2188,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     if (!swipeActive) { swipeStartX = null; return; }
     swipePagesEl.style.transition = '';
     const dx = e.changedTouches[0].clientX - swipeStartX;
-    const THRESHOLD = 50;
+    const THRESHOLD = SWIPE_THRESHOLD_PX;
     if      (dx < -THRESHOLD) goForward();
     else if (dx >  THRESHOLD) goBackward();
     else {
@@ -2578,7 +2228,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     if (mouseSwipeX === null) return;
     swipePagesEl.style.transition = '';
     const dx = e.clientX - mouseSwipeX;
-    const THRESHOLD = 50;
+    const THRESHOLD = SWIPE_THRESHOLD_PX;
     if      (dx < -THRESHOLD) goForward();
     else if (dx >  THRESHOLD) goBackward();
     else {
@@ -2625,7 +2275,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     update();
     devBtn.addEventListener('click', () => {
       isPro = !isPro;
-      localStorage.setItem('metro-dev-force-pro', isPro ? '1' : '0');
+      try { localStorage.setItem(LS_KEYS.devForcePro, isPro ? '1' : '0'); } catch {}
       update();
       renderLibrary();
       renderSetlists();

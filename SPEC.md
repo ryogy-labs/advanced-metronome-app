@@ -10,7 +10,15 @@
 
 ## Structure
 - `index.html`: 現在の本番エントリ。メトロノーム、セットリスト、ライブラリの3ビューを同一 HTML 内に持つ
-- `src/main.js`: アプリの中核。音声スケジューラ、背景再生、スワイプ UI、セットリスト/ライブラリ CRUD、DnD、画面遷移をまとめて管理している
+- `src/main.js`: アプリの中核。スワイプ UI、セットリスト/ライブラリ CRUD、画面遷移、音声スケジューラの駆動部、グローバル状態を保持する
+- `src/config.js`: BPM / 拍子 / クリック音 / フリープラン上限などの定数と `localStorage` キー (`LS_KEYS`) を集約する
+- `src/i18n.js`: ja/en 翻訳辞書と `createI18n(initialLang)` ファクトリ。言語切替は `localStorage` の `metro-lang` を経由する
+- `src/audio/synth.js`: スクエア波クリックの共通レンダラ `renderClick` と `getSubdivisionsPerBeat` を持つ。live AudioContext と OfflineAudioContext の双方から共有される
+- `src/audio/bg-loop.js`: バックグラウンド再生用の WAV ループを `OfflineAudioContext` で構築する `createBgLoopBuilder` ファクトリ。BPM/拍子/音量のシグネチャでキャッシュする
+- `src/ui/dnd.js`: タッチ/マウス共通の DnD 並び替えロジック (`setupDnD`)
+- `src/utils/storage.js`: `localStorage` の安全な読み書きラッパー。破損 JSON は `${key}.corrupt-backup` に退避してフォールバックを返す
+- `src/utils/dom.js`: HTML エスケープなど DOM 関連の小ユーティリティ (`escHtml`)
+- `src/utils/id.js`: ms 解像度＋シーケンス付きの衝突しにくい ID 生成 (`nextId`)
 - `src/style.css`: 全画面レイアウトと各ビューのスタイルを一括管理している
 - `metro-beat.html`: 旧プロトタイプの単一 HTML。現行の Vite エントリではないため、基本的には `index.html` / `src/*` を正とする
 - `vite.config.js`: 開発サーバー設定。現状は `X-Frame-Options: SAMEORIGIN` を付与している
@@ -35,7 +43,7 @@
 - セットリストの構造は `[{ id, name, songs: [{ id, name, bpm }] }]` を基本とする
 - 永続化される曲ライブラリは `localStorage` の `metro-song-lib` に保存する
 - 曲ライブラリの構造は `[{ id, name, bpm }]` を基本とする
-- セットリスト、曲、ライブラリ曲の ID は文字列で保持する。現行実装では `Date.now().toString()` で生成している
+- セットリスト、曲、ライブラリ曲の ID は文字列で保持する。現行実装では `src/utils/id.js` の `nextId()`（ms 解像度＋同 ms 内のシーケンス付き）で生成している
 - 現在開いているセットリスト、現在アクティブな曲、現在 BPM、再生中フラグ、ライブラリのソート状態、フォームの開閉状態、スワイプ位置、ボール演出設定はメモリ上の UI 状態であり永続化しない
 - リロードや別端末では、永続化済みのセットリストとライブラリは復元されるが、現在再生中の曲や画面状態は引き継がれない
 
@@ -49,6 +57,8 @@
 - 機能追加時は、まず `src/main.js` に集約されている既存責務を崩さないか確認する。大きく拡張する場合のみ責務分割を検討する
 
 ## Known Issues
-- `src/main.js` に UI・音声・永続化・DnD が集中しており、変更影響範囲が広い
+- `src/main.js` には依然として UI レンダリング・スワイプ・セットリスト/ライブラリ CRUD・スケジューラ駆動部・グローバル状態が集中しており、変更影響範囲は広い（音声プリミティブ・DnD・i18n・定数・ストレージは別モジュールへ切り出し済み）
+- グローバルな可変状態が `src/main.js` のクロージャに約40個並んでおり、ドメイン別ストアへの集約は未着手
+- セットリスト追加フォームとライブラリ追加フォームは類似実装が並行しており、共通コンポーネント化されていない
 - データは `localStorage` のみのため、ブラウザ削除・端末変更・プライベートモードでは失われる
 - `metro-beat.html` がリポジトリ内に残っており、現行実装との二重管理に見えやすい
