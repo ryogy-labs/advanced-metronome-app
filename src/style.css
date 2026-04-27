@@ -132,20 +132,36 @@ h1 span { color: var(--accent); }
 }
 
 .beat-row {
+  --beat-size: 40px;
+  --beat-gap: 8px;
   display: flex;
-  gap: 8px;
+  gap: var(--beat-gap);
   justify-content: center;
   flex-wrap: wrap;
   width: 100%;
   min-height: 40px;
   align-items: center;
+  margin-inline: auto;
+}
+
+.beat-row[data-count="8"],
+.beat-row[data-count="9"] {
+  --beat-size: 34px;
+  --beat-gap: 7px;
+}
+
+.beat-row[data-count="10"],
+.beat-row[data-count="11"],
+.beat-row[data-count="12"] {
+  --beat-size: 30px;
+  --beat-gap: 6px;
+  max-width: 216px;
 }
 
 .mute-btn {
   position: absolute;
   right: 0;
-  top: 50%;
-  transform: translateY(-50%);
+  top: -40px;
   width: 40px;
   height: 40px;
   border-radius: 50%;
@@ -160,8 +176,7 @@ h1 span { color: var(--accent); }
 .settings-btn {
   position: absolute;
   left: 0;
-  top: 50%;
-  transform: translateY(-50%);
+  top: -40px;
   width: 40px;
   height: 40px;
   border-radius: 50%;
@@ -182,8 +197,8 @@ h1 span { color: var(--accent); }
 .beat-dot {
   appearance: none;
   -webkit-appearance: none;
-  width: 40px;
-  height: 40px;
+  width: var(--beat-size);
+  height: var(--beat-size);
   border-radius: 50%;
   background: var(--surface2);
   border: 2px solid var(--border);
@@ -192,7 +207,7 @@ h1 span { color: var(--accent); }
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.7rem;
+  font-size: clamp(0.58rem, calc(var(--beat-size) * 0.0175), 0.7rem);
   color: var(--text2);
   font-weight: 600;
 }
@@ -524,6 +539,15 @@ h1 span { color: var(--accent); }
   align-items: center;
   gap: 12px;
   margin: 0;
+}
+
+.vol-row.is-disabled {
+  opacity: 0.42;
+}
+
+.vol-row.is-disabled .vol-slider,
+.vol-row.is-disabled .vol-num-input {
+  cursor: not-allowed;
 }
 
 /* Divider between master and per-sound sliders */
@@ -911,12 +935,20 @@ h1 span { color: var(--accent); }
 .form-ts-picker .ts-picker-group {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 8px;
+  min-width: 0;
 }
 .form-ts-picker .ts-picker-nums,
 .form-ts-picker .ts-picker-dens {
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
+}
+.form-ts-picker .ts-picker-nums {
+  justify-content: flex-end;
+  max-width: 176px;
 }
 .form-ts-picker .ts-btn {
   min-width: 28px;
