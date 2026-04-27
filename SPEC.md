@@ -17,11 +17,12 @@
 - `src/audio/scheduler.js`: 16 分音符解像度の foreground スケジューラ (`createScheduler`)。サブビートカウンタ・タイマー ID・直近スケジュール済み拍時刻を内包し、`start` / `stop` / `getScheduledBeatTimes` を公開する
 - `src/audio/bg-loop.js`: バックグラウンド再生用の WAV ループを `OfflineAudioContext` で構築する `createBgLoopBuilder` ファクトリ。BPM/拍子/音量のシグネチャでキャッシュする
 - `src/ui/dnd.js`: タッチ/マウス共通の DnD 並び替えロジック (`setupDnD`)
+- `src/ui/song-row.js`: セットリスト/ライブラリで共通の曲行レンダラ (`renderSongRows`)。トラック番号・ドラッグハンドルの有無や `data-action` 名、各種コールバックを引数で渡してビュー差分を吸収する
 - `src/utils/storage.js`: `localStorage` の安全な読み書きラッパー。破損 JSON は `${key}.corrupt-backup` に退避してフォールバックを返す
 - `src/utils/dom.js`: HTML エスケープなど DOM 関連の小ユーティリティ (`escHtml`)
 - `src/utils/id.js`: ms 解像度＋シーケンス付きの衝突しにくい ID 生成 (`nextId`)
 - `src/style.css`: 全画面レイアウトと各ビューのスタイルを一括管理している
-- `metro-beat.html`: 旧プロトタイプの単一 HTML。現行の Vite エントリではないため、基本的には `index.html` / `src/*` を正とする
+- `legacy/metro-beat.html`: 旧プロトタイプの単一 HTML。現行の Vite エントリではないため、基本的には `index.html` / `src/*` を正とする
 - `vite.config.js`: 開発サーバー設定。現状は `X-Frame-Options: SAMEORIGIN` を付与している
 
 ## Core Flows
@@ -60,6 +61,6 @@
 ## Known Issues
 - `src/main.js` には依然として UI レンダリング・スワイプ・セットリスト/ライブラリ CRUD・スケジューラ駆動部・グローバル状態が集中しており、変更影響範囲は広い（音声プリミティブ・DnD・i18n・定数・ストレージは別モジュールへ切り出し済み）
 - グローバルな可変状態が `src/main.js` のクロージャに約40個並んでおり、ドメイン別ストアへの集約は未着手
-- セットリスト追加フォームとライブラリ追加フォームは類似実装が並行しており、共通コンポーネント化されていない
+- セットリスト追加フォームとライブラリ追加フォームは類似実装が並行しており、共通コンポーネント化されていない（曲行のレンダリングは `src/ui/song-row.js` に集約済みだが、フォーム本体・拍子ピッカー・キャプチャプレビューは依然として二重実装）
 - データは `localStorage` のみのため、ブラウザ削除・端末変更・プライベートモードでは失われる
-- `metro-beat.html` がリポジトリ内に残っており、現行実装との二重管理に見えやすい
+- `legacy/metro-beat.html` は旧プロトタイプとして残存している（現行実装との二重管理に見える点は緩和）

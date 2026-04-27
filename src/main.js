@@ -17,6 +17,7 @@ import { nextId } from './utils/id.js';
 import { createBgLoopBuilder, arrayBufferToBase64 } from './audio/bg-loop.js';
 import { createScheduler } from './audio/scheduler.js';
 import { setupDnD } from './ui/dnd.js';
+import { renderSongRows } from './ui/song-row.js';
 
 const NativeMetronomeAudio = registerPlugin('MetronomeAudio');
 const isNative = window.Capacitor?.isNativePlatform() ?? false;
@@ -1446,30 +1447,22 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   function renderSongs() {
     const sl = currentSetlist();
     if (!sl) return;
-    if (sl.songs.length === 0) {
-      songList.innerHTML = `<div class="setlist-empty">${t('empty.noSongs')}</div>`;
-      return;
-    }
-    songList.innerHTML = sl.songs.map((p, idx) => `
-      <div class="preset-row${activeSongId === p.id ? ' active' : ''}" data-idx="${idx}">
-        <span class="drag-handle">⠿</span>
-        <button class="preset-apply" data-id="${p.id}">
-          <span class="preset-num">${idx + 1}</span>
-          <span class="preset-name">${escHtml(p.name) || t('untitled')}</span>
-          <span class="preset-bpm">${escHtml(p.bpm)} BPM</span>
-          <span class="preset-ts">${escHtml(p.tsNum ?? 4)}/${escHtml(p.tsDen ?? 4)}</span>
-        </button>
-        <button class="preset-icon-btn" data-id="${p.id}" data-action="edit" title="${t('action.edit')}">✏</button>
-        <button class="preset-icon-btn del" data-id="${p.id}" data-action="del" title="${t('action.delete')}">✕</button>
-      </div>
-    `).join('');
-
-    songList.querySelectorAll('.preset-apply').forEach(btn =>
-      btn.addEventListener('click', () => applySong(btn.dataset.id)));
-    songList.querySelectorAll('[data-action="edit"]').forEach(btn =>
-      btn.addEventListener('click', () => openEditSongForm(btn.dataset.id)));
-    songList.querySelectorAll('[data-action="del"]').forEach(btn =>
-      btn.addEventListener('click', () => deleteSong(btn.dataset.id)));
+    renderSongRows({
+      listEl: songList,
+      items: sl.songs,
+      activeId: activeSongId,
+      emptyText: t('empty.noSongs'),
+      untitledText: t('untitled'),
+      editTitle: t('action.edit'),
+      deleteTitle: t('action.delete'),
+      showTrackNumber: true,
+      showDragHandle: true,
+      editAction: 'edit',
+      deleteAction: 'del',
+      onApply: applySong,
+      onEdit: openEditSongForm,
+      onDelete: deleteSong,
+    });
   }
 
   function applySong(id) {
@@ -1879,29 +1872,21 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   }
 
   function renderLibrary() {
-    if (songLibrary.length === 0) {
-      libSongList.innerHTML = `<div class="setlist-empty">${t('empty.noSongs')}</div>`;
-      return;
-    }
-    const showDragHandle = libSortMode === 'manual';
-    libSongList.innerHTML = getLibrarySongsForDisplay().map((s, idx) => `
-      <div class="preset-row${activeLibSongId === s.id ? ' active' : ''}" data-idx="${idx}">
-        ${showDragHandle ? '<span class="drag-handle">⠿</span>' : ''}
-        <button class="preset-apply" data-id="${s.id}">
-          <span class="preset-name">${escHtml(s.name)}</span>
-          <span class="preset-bpm">${escHtml(s.bpm)} BPM</span>
-          <span class="preset-ts">${escHtml(s.tsNum ?? 4)}/${escHtml(s.tsDen ?? 4)}</span>
-        </button>
-        <button class="preset-icon-btn" data-id="${s.id}" data-action="edit-lib" title="${t('action.edit')}">✏</button>
-        <button class="preset-icon-btn del" data-id="${s.id}" data-action="del-lib" title="${t('action.delete')}">✕</button>
-      </div>
-    `).join('');
-    libSongList.querySelectorAll('.preset-apply').forEach(btn =>
-      btn.addEventListener('click', () => applyLibrarySong(btn.dataset.id)));
-    libSongList.querySelectorAll('[data-action="edit-lib"]').forEach(btn =>
-      btn.addEventListener('click', () => openEditLibForm(btn.dataset.id)));
-    libSongList.querySelectorAll('[data-action="del-lib"]').forEach(btn =>
-      btn.addEventListener('click', () => deleteLibSong(btn.dataset.id)));
+    renderSongRows({
+      listEl: libSongList,
+      items: getLibrarySongsForDisplay(),
+      activeId: activeLibSongId,
+      emptyText: t('empty.noSongs'),
+      editTitle: t('action.edit'),
+      deleteTitle: t('action.delete'),
+      showTrackNumber: false,
+      showDragHandle: libSortMode === 'manual',
+      editAction: 'edit-lib',
+      deleteAction: 'del-lib',
+      onApply: applyLibrarySong,
+      onEdit: openEditLibForm,
+      onDelete: deleteLibSong,
+    });
   }
 
   function openAddLibForm() {
