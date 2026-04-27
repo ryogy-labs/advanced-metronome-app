@@ -20,6 +20,7 @@ import { setupDnD } from './ui/dnd.js';
 import { renderSongRows } from './ui/song-row.js';
 import { createBallAnimator } from './ui/ball.js';
 import { createSwipePanel } from './ui/swipe-panel.js';
+import { mountTsPicker, setTsPickerValues } from './ui/ts-picker.js';
 
 const NativeMetronomeAudio = registerPlugin('MetronomeAudio');
 const isNative = window.Capacitor?.isNativePlatform() ?? false;
@@ -570,56 +571,8 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     applyBeatVolumes(song.beatVolumes ?? null);
   }
 
-  function buildTsPickerHTML(tsNumVal, tsDenVal, prefix) {
-    const nums = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-    const dens = [4, 8];
-    return `
-      <div class="ts-picker-row">
-        <label>${t('page.timesig')}</label>
-        <div class="ts-picker-group">
-          <div class="ts-picker-nums">
-            ${nums.map(n => `<button type="button" class="ts-btn${tsNumVal === n ? ' active' : ''}" data-target="${prefix}Num" data-val="${n}">${n}</button>`).join('')}
-          </div>
-          <span class="ts-slash">/</span>
-          <div class="ts-picker-dens">
-            ${dens.map(d => `<button type="button" class="ts-btn${tsDenVal === d ? ' active' : ''}" data-target="${prefix}Den" data-val="${d}">${d}</button>`).join('')}
-          </div>
-        </div>
-        <input type="hidden" id="${prefix}Num" value="${tsNumVal}">
-        <input type="hidden" id="${prefix}Den" value="${tsDenVal}">
-      </div>
-    `;
-  }
-
-  function mountTsPicker(container, tsNumVal, tsDenVal, prefix) {
-    if (!container) return;
-    container.innerHTML = buildTsPickerHTML(tsNumVal, tsDenVal, prefix);
-    container.onclick = e => {
-      const btn = e.target.closest('.ts-btn');
-      if (!btn || !container.contains(btn)) return;
-      const target = btn.dataset.target;
-      const val = Number(btn.dataset.val);
-      const inputEl = container.querySelector(`#${target}`);
-      if (!inputEl) return;
-      inputEl.value = String(val);
-      container.querySelectorAll(`.ts-btn[data-target="${target}"]`)
-        .forEach(b => b.classList.toggle('active', Number(b.dataset.val) === val));
-    };
-  }
-
-  function setTsPickerValues(prefix, nextNum, nextDen) {
-    const numEl = document.getElementById(`${prefix}Num`);
-    const denEl = document.getElementById(`${prefix}Den`);
-    if (!numEl || !denEl) return;
-    numEl.value = String(nextNum);
-    denEl.value = String(nextDen);
-    const container = numEl.closest('.form-ts-picker') || denEl.closest('.form-ts-picker');
-    if (!container) return;
-    container.querySelectorAll(`.ts-btn[data-target="${prefix}Num"]`)
-      .forEach(b => b.classList.toggle('active', Number(b.dataset.val) === nextNum));
-    container.querySelectorAll(`.ts-btn[data-target="${prefix}Den"]`)
-      .forEach(b => b.classList.toggle('active', Number(b.dataset.val) === nextDen));
-  }
+  // Time-signature picker: implementation lives in ./ui/ts-picker.js;
+  // imported `mountTsPicker` / `setTsPickerValues` shadow these names.
 
   function updateCapturePreview(prefix, bv, capturedBpm = null, capturedDen = tsDen) {
     const el = document.getElementById(`${prefix}CapturePreview`);
@@ -1267,7 +1220,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     setFormMode('library');
     pfName.value = '';
     pfBpm.value  = bpm;
-    mountTsPicker(pfTsPickerEl, tsNum, tsDen, 'pfTs');
+    mountTsPicker({ container: pfTsPickerEl, tsNum, tsDen, prefix: 'pfTs', t });
     updateCapturePreview('pf', pfFormBeatVolumes);
     presetForm.style.display = 'block';
     pfName.focus();
@@ -1284,7 +1237,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     setFormMode('manual');
     pfName.value = p.name;
     pfBpm.value  = p.bpm;
-    mountTsPicker(pfTsPickerEl, p.tsNum ?? 4, p.tsDen ?? 4, 'pfTs');
+    mountTsPicker({ container: pfTsPickerEl, tsNum: p.tsNum ?? 4, tsDen: p.tsDen ?? 4, prefix: 'pfTs', t });
     updateCapturePreview('pf', pfFormBeatVolumes, null, p.tsDen ?? 4);
     presetForm.style.display = 'block';
     pfName.focus();
@@ -1432,7 +1385,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
       pfFormBeatVolumes = currentBeatVolumes();
       pfFormBeatStates = currentBeatStates();
       pfBpm.value = bpm;
-      setTsPickerValues('pfTs', tsNum, tsDen);
+      setTsPickerValues({ prefix: 'pfTs', tsNum, tsDen });
       updateCapturePreview('pf', pfFormBeatVolumes, bpm, tsDen);
     });
   });
@@ -1613,7 +1566,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     libFormBeatStates = null;
     libNameInput.value = '';
     libBpmInput.value = bpm;
-    mountTsPicker(libTsPickerEl, 4, 4, 'libTs');
+    mountTsPicker({ container: libTsPickerEl, tsNum: 4, tsDen: 4, prefix: 'libTs', t });
     updateCapturePreview('lib', libFormBeatVolumes);
     libForm.style.display = 'block'; libNameInput.focus();
   }
@@ -1625,7 +1578,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     libFormBeatStates = s.beatStates ?? null;
     libNameInput.value = s.name;
     libBpmInput.value = s.bpm;
-    mountTsPicker(libTsPickerEl, s.tsNum ?? 4, s.tsDen ?? 4, 'libTs');
+    mountTsPicker({ container: libTsPickerEl, tsNum: s.tsNum ?? 4, tsDen: s.tsDen ?? 4, prefix: 'libTs', t });
     updateCapturePreview('lib', libFormBeatVolumes, null, s.tsDen ?? 4);
     libForm.style.display = 'block'; libNameInput.focus();
   }
@@ -1696,7 +1649,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
       libFormBeatVolumes = currentBeatVolumes();
       libFormBeatStates = currentBeatStates();
       libBpmInput.value = bpm;
-      setTsPickerValues('libTs', tsNum, tsDen);
+      setTsPickerValues({ prefix: 'libTs', tsNum, tsDen });
       updateCapturePreview('lib', libFormBeatVolumes, bpm, tsDen);
     });
   });

@@ -19,6 +19,7 @@
 - `src/audio/bg-playback.js`: バックグラウンド再生コントローラ (`createBgPlayback`)。`HTMLAudioElement` 経路と Capacitor `MetronomeAudio` プラグイン経路の両方の lifecycle (warm-up・start/stop・mute 同期・遅延付き refresh・native prepare promise) を内包し、`start` / `stop` / `refreshNow` / `refreshWhenSafe` / `refreshAndResume` / `cancelDeferredRefresh` / `syncMuted` / `syncNativeState` / `awaitNativePrepare` / `warmUp` を公開する
 - `src/ui/dnd.js`: タッチ/マウス共通の DnD 並び替えロジック (`setupDnD`)
 - `src/ui/song-row.js`: セットリスト/ライブラリで共通の曲行レンダラ (`renderSongRows`)。トラック番号・ドラッグハンドルの有無や `data-action` 名、各種コールバックを引数で渡してビュー差分を吸収する
+- `src/ui/ts-picker.js`: セットリスト曲フォーム/ライブラリフォーム共通の拍子ピッカー。`mountTsPicker` で初回描画 + クリック時の hidden input 更新、`setTsPickerValues` でマウント済みピッカーの選択値を後から差し替える。`prefix` (`'pfTs'` / `'libTs'`) で hidden input の id を分岐する
 - `src/ui/ball.js`: ボール演出の RAF アニメータ (`createBallAnimator`)。`.ball-canvas` 群の取得・リサイズ、Web Audio パスとネイティブループパスを跨いだフェーズ計算、ボール/影/接地線の描画を内包し、`refresh` / `resize` / `start` を公開する
 - `src/ui/swipe-panel.js`: 5スロットのクローン式カルーセル (`createSwipePanel`)。両端のクローン挿入、タッチ/マウスドラッグ、`transitionend` でのスロット巻き戻し、ドット連動を内包し、`onAfterClonesInserted` と `onPageEnter` フックでホスト側 (ボール初期化・ページ0復帰時のリサイズ) に通知する
 - `src/utils/storage.js`: `localStorage` の安全な読み書きラッパー。破損 JSON は `${key}.corrupt-backup` に退避してフォールバックを返す
