@@ -18,6 +18,7 @@ import { createScheduler } from './audio/scheduler.js';
 import { setupDnD } from './ui/dnd.js';
 import { renderSongRows } from './ui/song-row.js';
 import { createBallAnimator } from './ui/ball.js';
+import { createSwipePanel } from './ui/swipe-panel.js';
 
 const NativeMetronomeAudio = registerPlugin('MetronomeAudio');
 const isNative = window.Capacitor?.isNativePlatform() ?? false;
@@ -1844,185 +1845,22 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   renderLibrary();
 
   // ──── Swipe Panel (5-slot clone carousel) ────
-  // Slot layout: [clone-P2][P0][P1][P2][clone-P0]
-  // physicalIdx: 0=clone-P2, 1=P0, 2=P1, 3=P2, 4=clone-P0
-  const TOTAL_PAGES = SWIPE_TOTAL_PAGES;
-  const SLOT_STEP   = SWIPE_SLOT_STEP; // % per slot (100% / 5 slots)
-  let currentPage   = 0;
-  let physicalIdx   = 1;  // start at slot 1 (real page 0)
-
-  // Inject clone sentinels into the DOM
-  (() => {
-    const pages = Array.from(swipePagesEl.querySelectorAll('.swipe-page'));
-    // slot 0: clone of page 2 (shows when dragging right past page 0)
-    swipePagesEl.insertBefore(pages[2].cloneNode(true), pages[0]);
-    // slot 4: clone of page 0 (shows when dragging left past page 2)
-    swipePagesEl.appendChild(pages[0].cloneNode(true));
-  })();
-  refreshBallCanvases();
-  resizeBallCanvases();
-  syncVolumeSectionHeight();
-
-  // Set initial position instantly (no animation)
-  swipePagesEl.style.transition = 'none';
-  swipePagesEl.style.transform  = `translateX(-${physicalIdx * SLOT_STEP}%)`;
-  // Re-enable transition after layout settles
-  requestAnimationFrame(() => requestAnimationFrame(() => {
-    swipePagesEl.style.transition = '';
-  }));
-
-  // After a wrap transition lands on a clone slot, silently jump to the real slot.
-  // IMPORTANT: force a synchronous reflow (offsetWidth read) between setting
-  // transition:none+transform and re-enabling the transition, so the browser
-  // commits the instant jump before any future animated transition can start.
-  swipePagesEl.addEventListener('transitionend', () => {
-    if (physicalIdx === 4) {
-      // clone-P0 → real P0 (slot 1)
-      physicalIdx = 1;
-      swipePagesEl.style.transition = 'none';
-      swipePagesEl.style.transform  = `translateX(-${physicalIdx * SLOT_STEP}%)`;
-      void swipePagesEl.offsetWidth; // flush styles / force reflow
-      swipePagesEl.style.transition = '';
-    } else if (physicalIdx === 0) {
-      // clone-P2 → real P2 (slot 3)
-      physicalIdx = 3;
-      swipePagesEl.style.transition = 'none';
-      swipePagesEl.style.transform  = `translateX(-${physicalIdx * SLOT_STEP}%)`;
-      void swipePagesEl.offsetWidth; // flush styles / force reflow
-      swipePagesEl.style.transition = '';
-    }
-  });
-
-  function updateDots() {
-    pageDotEls.forEach((dot, i) => dot.classList.toggle('active', i === currentPage));
-  }
-
-  // Direct navigation to a logical page (dot clicks)
-  function goToPage(targetLogical) {
-    currentPage = ((targetLogical % TOTAL_PAGES) + TOTAL_PAGES) % TOTAL_PAGES;
-    physicalIdx = currentPage + 1; // 0→1, 1→2, 2→3
-    swipePagesEl.style.transition = '';
-    swipePagesEl.style.transform  = `translateX(-${physicalIdx * SLOT_STEP}%)`;
-    updateDots();
-    if (currentPage === 0) resizeBallCanvases();
-  }
-
-  // Navigate one step forward (swipe-left = next page, wraps naturally via clone-P0)
-  function goForward() {
-    currentPage = (currentPage + 1) % TOTAL_PAGES;
-    physicalIdx = physicalIdx + 1; // may reach 4 (clone-P0); transitionend jumps back
-    swipePagesEl.style.transition = '';
-    swipePagesEl.style.transform  = `translateX(-${physicalIdx * SLOT_STEP}%)`;
-    updateDots();
-    if (currentPage === 0) resizeBallCanvases();
-  }
-
-  // Navigate one step backward (swipe-right = prev page, wraps naturally via clone-P2)
-  function goBackward() {
-    currentPage = (currentPage + TOTAL_PAGES - 1) % TOTAL_PAGES;
-    physicalIdx = physicalIdx - 1; // may reach 0 (clone-P2); transitionend jumps back
-    swipePagesEl.style.transition = '';
-    swipePagesEl.style.transform  = `translateX(-${physicalIdx * SLOT_STEP}%)`;
-    updateDots();
-    if (currentPage === 0) resizeBallCanvases();
-  }
-
-  // Dot tap-to-switch
-  pageDotEls.forEach(dot =>
-    dot.addEventListener('click', () => goToPage(parseInt(dot.dataset.page))));
-
-  // Touch swipe gesture
-  let swipeStartX    = null;
-  let swipeStartY    = null;
-  let swipeActive    = false;
-  let swipeStartPhys = 0;  // physicalIdx at drag start
-
-  swipePagesEl.addEventListener('touchstart', e => {
-    const tgt = e.target;
-    // Don't intercept touches that start on interactive elements
-    if (tgt.tagName === 'INPUT' || tgt.tagName === 'BUTTON' || tgt.tagName === 'SELECT') return;
-    swipeStartX    = e.touches[0].clientX;
-    swipeStartY    = e.touches[0].clientY;
-    swipeActive    = false;
-    swipeStartPhys = physicalIdx;
-  }, { passive: true });
-
-  swipePagesEl.addEventListener('touchmove', e => {
-    if (swipeStartX === null) return;
-    const dx = e.touches[0].clientX - swipeStartX;
-    const dy = e.touches[0].clientY - swipeStartY;
-
-    if (!swipeActive) {
-      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
-      if (Math.abs(dx) > Math.abs(dy)) {
-        swipeActive = true;
-        swipePagesEl.style.transition = 'none';
-      } else {
-        swipeStartX = null; // vertical scroll — don't hijack
-        return;
-      }
-    }
-
-    e.preventDefault();
-    const containerW = swipePagesEl.parentElement.offsetWidth;
-    const dragPct    = (dx / containerW) * SLOT_STEP;
-    const basePct    = swipeStartPhys * SLOT_STEP;
-    swipePagesEl.style.transform = `translateX(${-(basePct - dragPct)}%)`;
-  }, { passive: false });
-
-  swipePagesEl.addEventListener('touchend', e => {
-    if (!swipeActive) { swipeStartX = null; return; }
-    swipePagesEl.style.transition = '';
-    const dx = e.changedTouches[0].clientX - swipeStartX;
-    const THRESHOLD = SWIPE_THRESHOLD_PX;
-    if      (dx < -THRESHOLD) goForward();
-    else if (dx >  THRESHOLD) goBackward();
-    else {
-      // Snap back to where drag started
-      physicalIdx = swipeStartPhys;
-      swipePagesEl.style.transform = `translateX(-${physicalIdx * SLOT_STEP}%)`;
-    }
-    swipeStartX = null;
-    swipeActive  = false;
-  });
-
-  // Mouse drag (for desktop testing)
-  let mouseSwipeX    = null;
-  let mouseSwipePhys = 0;
-  let mouseActive    = false;
-
-  swipePagesEl.addEventListener('mousedown', e => {
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') return;
-    mouseSwipeX    = e.clientX;
-    mouseSwipePhys = physicalIdx;
-    mouseActive    = false;
-  });
-  document.addEventListener('mousemove', e => {
-    if (mouseSwipeX === null) return;
-    const dx = e.clientX - mouseSwipeX;
-    if (!mouseActive && Math.abs(dx) > 8) {
-      mouseActive = true;
-      swipePagesEl.style.transition = 'none';
-    }
-    if (!mouseActive) return;
-    const containerW = swipePagesEl.parentElement.offsetWidth;
-    const dragPct    = (dx / containerW) * SLOT_STEP;
-    const basePct    = mouseSwipePhys * SLOT_STEP;
-    swipePagesEl.style.transform = `translateX(${-(basePct - dragPct)}%)`;
-  });
-  document.addEventListener('mouseup', e => {
-    if (mouseSwipeX === null) return;
-    swipePagesEl.style.transition = '';
-    const dx = e.clientX - mouseSwipeX;
-    const THRESHOLD = SWIPE_THRESHOLD_PX;
-    if      (dx < -THRESHOLD) goForward();
-    else if (dx >  THRESHOLD) goBackward();
-    else {
-      physicalIdx = mouseSwipePhys;
-      swipePagesEl.style.transform = `translateX(-${physicalIdx * SLOT_STEP}%)`;
-    }
-    mouseSwipeX = null;
-    mouseActive  = false;
+  createSwipePanel({
+    pagesEl: swipePagesEl,
+    dotEls: pageDotEls,
+    totalPages: SWIPE_TOTAL_PAGES,
+    slotStep: SWIPE_SLOT_STEP,
+    thresholdPx: SWIPE_THRESHOLD_PX,
+    // Clones duplicate the metronome page (which contains a `.ball-canvas`)
+    // and the volume section, so re-scan after they're inserted into the DOM.
+    onAfterClonesInserted: () => {
+      refreshBallCanvases();
+      resizeBallCanvases();
+      syncVolumeSectionHeight();
+    },
+    // The metronome page (logical page 0) hosts the canvas-based ball
+    // animation. When it becomes visible again, re-measure the canvas.
+    onPageEnter: (page) => { if (page === 0) resizeBallCanvases(); },
   });
 
   // ──── Bottom Navigation ────
