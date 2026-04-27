@@ -575,7 +575,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     const refreshSeq = ++playbackRefreshSeq;
     if (!isNative) {
       if (realignVisuals) startSchedulerFromNow();
-      refreshBackgroundLoop();
+      refreshBackgroundLoopWhenSafe();
       return;
     }
     void refreshBackgroundLoop().then(() => {
@@ -1046,11 +1046,29 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     });
   }
 
+  function getBallColorForBeatState(state) {
+    if (state === 'accent') return '#fc5c7d';
+    if (state === 'mute') return '#a8a8b8';
+    return '#7c5cfc';
+  }
+
+  function hexToRgb(hex) {
+    const clean = hex.replace('#', '');
+    const value = Number.parseInt(clean, 16);
+    return {
+      r: (value >> 16) & 255,
+      g: (value >> 8) & 255,
+      b: value & 255,
+    };
+  }
+
   function drawBallFrame(ctx, w, h, phase, beatIdx, topMargin) {
     ctx.clearRect(0, 0, w, h);
 
     const groundYBase = h - 10;
-    const isBeat1 = beatIdx === 0;
+    const beatState = getBeatIndicatorState(beatIdx);
+    const ballColor = running ? getBallColorForBeatState(beatState) : getBallColorForBeatState('normal');
+    const ballRgb = hexToRgb(ballColor);
     const margin = BALL_R + 4;
     const cx = animMode === 'horizontal'
       ? margin + ((beatIdx + phase) / beatsPerMeasure) * (w - 2 * margin)
@@ -1090,7 +1108,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     const shadowAlpha = 0.08 + 0.22 * (1 - heightFrac);
     const shadowRx    = BALL_R * (0.5 + 0.9 * (1 - heightFrac));
     ctx.save();
-    ctx.fillStyle = `rgba(124, 92, 252, ${shadowAlpha})`;
+    ctx.fillStyle = `rgba(${ballRgb.r}, ${ballRgb.g}, ${ballRgb.b}, ${shadowAlpha})`;
     ctx.beginPath();
     ctx.ellipse(cx, groundY, shadowRx, 4, 0, 0, Math.PI * 2);
     ctx.fill();
@@ -1106,12 +1124,11 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     ctx.stroke();
     ctx.restore();
 
-    // Ball: flash pink only on Beat 1 impact; other beats stay purple
+    // Ball color follows the same beat state used by the audible quarter click.
     const isImpact  = phase < 0.15 && running;
-    const ballColor = (isImpact && isBeat1) ? '#fc5c7d' : '#7c5cfc';
     ctx.save();
     ctx.shadowColor = ballColor;
-    ctx.shadowBlur  = (isImpact && isBeat1) ? 24 : 14;
+    ctx.shadowBlur  = isImpact && beatState === 'accent' ? 24 : 14;
     ctx.fillStyle   = ballColor;
     ctx.beginPath();
     ctx.ellipse(cx, ballY, rx, ry, 0, 0, Math.PI * 2);
@@ -1192,6 +1209,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   let _bgLoopPendingSig = '';
   let _bgLoopBuildPromise = null;
   let _bgLoopReloading = false;
+  let _bgLoopRefreshTimer = null;
   let _nativeLoopPreparePromise = null;
   const BG_LOOP_MEASURES = 32;
   const NATIVE_BG_LOOP_MEASURES = 2;
@@ -1363,6 +1381,50 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     return refreshBgLoopTrack();
   }
 
+  function cancelDeferredBackgroundLoopRefresh() {
+    if (_bgLoopRefreshTimer !== null) {
+      clearTimeout(_bgLoopRefreshTimer);
+      _bgLoopRefreshTimer = null;
+    }
+  }
+
+  function refreshBackgroundLoopWhenSafe() {
+    if (isNative) return refreshBackgroundLoop();
+    cancelDeferredBackgroundLoopRefresh();
+    if (document.hidden || !running) return refreshBackgroundLoop();
+
+    // Building the fallback WAV can occupy the main thread long enough to starve
+    // the short foreground scheduler window, so let the first beats settle first.
+    const measureMs = (60000 / bpm) * beatsPerMeasure;
+    const delayMs = Math.max(800, Math.min(measureMs + 100, 2500));
+    _bgLoopRefreshTimer = setTimeout(() => {
+      _bgLoopRefreshTimer = null;
+      if (running && document.hidden) {
+        void refreshBackgroundLoop().then(() => {
+          if (!running || !_bgLoopEl) return;
+          syncBgLoopMuted();
+          _bgLoopEl.play().catch(() => {});
+        });
+        return;
+      }
+      if (running) {
+        const runWhenIdle = window.requestIdleCallback
+          ? (cb) => window.requestIdleCallback(cb, { timeout: 1000 })
+          : (cb) => setTimeout(cb, 0);
+        runWhenIdle(() => {
+          if (running && !document.hidden) {
+            void refreshBackgroundLoop().then(() => {
+              if (!running || !_bgLoopEl) return;
+              syncBgLoopMuted();
+              _bgLoopEl.play().catch(() => {});
+            });
+          }
+        });
+      }
+    }, delayMs);
+    return Promise.resolve();
+  }
+
   function bgAudioStart() {
     if (isNative) {
       _nativeLoopPreparePromise = prepareNativeLoop().then(() =>
@@ -1379,7 +1441,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
       if (_bgLoopEl.src) {
         _bgLoopEl.play().catch(() => {});
       }
-      void refreshBgLoopTrack().then(() => {
+      void refreshBackgroundLoopWhenSafe().then(() => {
         if (!running) return;
         syncBgLoopMuted();
         _bgLoopEl.play().catch(() => {});
@@ -1388,6 +1450,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   }
 
   function bgAudioStop() {
+    cancelDeferredBackgroundLoopRefresh();
     if (isNative) {
       NativeMetronomeAudio.stopLoop().catch(err => {
         console.error('[MetronomeAudio] stopLoop failed', err);
@@ -1423,6 +1486,12 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
         void (_nativeLoopPreparePromise ?? Promise.resolve())
           .then(() => syncNativeLoopState());
       } else {
+        cancelDeferredBackgroundLoopRefresh();
+        void refreshBackgroundLoop().then(() => {
+          if (!running || !_bgLoopEl) return;
+          syncBgLoopMuted();
+          _bgLoopEl.play().catch(() => {});
+        });
         syncBgLoopMuted();
       }
     } else {
