@@ -21,6 +21,7 @@ import { renderSongRows } from './ui/song-row.js';
 import { createBallAnimator } from './ui/ball.js';
 import { createSwipePanel } from './ui/swipe-panel.js';
 import { mountTsPicker, setTsPickerValues } from './ui/ts-picker.js';
+import { createSongLibraryStore } from './state/song-library.js';
 
 const NativeMetronomeAudio = registerPlugin('MetronomeAudio');
 const isNative = window.Capacitor?.isNativePlatform() ?? false;
@@ -973,9 +974,14 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   let activeSlId    = null;   // setlist that owns the active song
   let editingSlId   = null;   // setlist being edited (index form)
   let editingSongId = null;   // song being edited (detail form)
-  let songLibrary   = safeParseJSON(LS_KEYS.songLib, []);
+  // Song library: persisted via state/song-library.js. Selection / form
+  // state remains here in main.js (UI concerns, not store concerns).
+  const songLibraryStore = createSongLibraryStore({
+    initial: safeParseJSON(LS_KEYS.songLib, []),
+    persist: (songs) => writeJSON(LS_KEYS.songLib, songs),
+    generateId: nextId,
+  });
   let activeLibSongId = null; // song currently selected from library tab
-  let libSortMode   = 'manual'; // 'manual' | 'name' | 'bpm'
   let editingLibId  = null;
   let libFormBeatVolumes = null;
   let libFormBeatStates = null;
@@ -1142,7 +1148,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     const p = sl.songs.find(s => s.id === id);
     if (!p) return;
     const linkedLibSong = (p.libSongId ?? null)
-      ? songLibrary.find(song => song.id === (p.libSongId ?? null))
+      ? songLibraryStore.findById(p.libSongId ?? null)
       : null;
     const songCfg = {
       bpm: p.bpm,
@@ -1178,7 +1184,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   }
 
   function applyLibrarySong(id) {
-    const s = songLibrary.find(song => song.id === id);
+    const s = songLibraryStore.findById(id);
     if (!s) return;
     const songCfg = {
       bpm: s.bpm,
@@ -1328,7 +1334,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
       }
     }
     if (!currentName && activeLibSongId) {
-      const s = songLibrary.find(song => song.id === activeLibSongId);
+      const s = songLibraryStore.findById(activeLibSongId);
       if (s) {
         currentName = s.name || t('untitled');
         currentBpm = s.bpm;
@@ -1412,10 +1418,8 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
 
   // ── Library Song DnD ──
   setupDnD(libSongList, '.preset-row', '.drag-handle', (srcIdx, at) => {
-    if (libSortMode !== 'manual') return;
-    const [item] = songLibrary.splice(srcIdx, 1);
-    songLibrary.splice(at, 0, item);
-    saveSongLib();
+    if (songLibraryStore.getSortMode() !== 'manual') return;
+    songLibraryStore.reorder(srcIdx, at);
     renderLibrary();
   });
 
@@ -1433,11 +1437,11 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   document.getElementById('pfLibPickerCancel').addEventListener('click', closeSongForm);
 
   function renderLibPicker() {
-    if (songLibrary.length === 0) {
+    if (songLibraryStore.count() === 0) {
       pfLibList.innerHTML = `<div class="setlist-empty">${t('empty.noLibrarySongs')}</div>`;
       return;
     }
-    pfLibList.innerHTML = getLibrarySongsForDisplay().map(s => `
+    pfLibList.innerHTML = songLibraryStore.sortedForDisplay().map(s => `
       <div class="preset-row">
         <button class="preset-apply" data-id="${s.id}">
           <span class="preset-name">${escHtml(s.name)}</span>
@@ -1451,7 +1455,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   }
 
   function pickFromLibrary(libId) {
-    const libSong = songLibrary.find(s => s.id === libId);
+    const libSong = songLibraryStore.findById(libId);
     if (!libSong) return;
     const sl = currentSetlist();
     if (!sl) return;
@@ -1494,8 +1498,6 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   }
 
   // ── Song Library CRUD ──
-  function saveSongLib() { writeJSON(LS_KEYS.songLib, songLibrary); }
-
   function propagateLibSongChange(libSong) {
     let changed = false;
     setlists.forEach(sl => {
@@ -1523,18 +1525,8 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     if (slDetailEl.classList.contains('active')) renderSongs();
   }
 
-  function getLibrarySongsForDisplay() {
-    if (libSortMode === 'name') {
-      return [...songLibrary].sort((a, b) => a.name.localeCompare(b.name));
-    }
-    if (libSortMode === 'bpm') {
-      return [...songLibrary].sort((a, b) => a.bpm - b.bpm || a.name.localeCompare(b.name));
-    }
-    return songLibrary;
-  }
-
   function setLibrarySortMode(mode) {
-    libSortMode = mode;
+    songLibraryStore.setSortMode(mode);
     libSortManualBtn.classList.toggle('active', mode === 'manual');
     libSortNameBtn.classList.toggle('active', mode === 'name');
     libSortBpmBtn.classList.toggle('active', mode === 'bpm');
@@ -1545,13 +1537,13 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   function renderLibrary() {
     renderSongRows({
       listEl: libSongList,
-      items: getLibrarySongsForDisplay(),
+      items: songLibraryStore.sortedForDisplay(),
       activeId: activeLibSongId,
       emptyText: t('empty.noSongs'),
       editTitle: t('action.edit'),
       deleteTitle: t('action.delete'),
       showTrackNumber: false,
-      showDragHandle: libSortMode === 'manual',
+      showDragHandle: songLibraryStore.getSortMode() === 'manual',
       editAction: 'edit-lib',
       deleteAction: 'del-lib',
       onApply: applyLibrarySong,
@@ -1571,7 +1563,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     libForm.style.display = 'block'; libNameInput.focus();
   }
   function openEditLibForm(id) {
-    const s = songLibrary.find(s => s.id === id);
+    const s = songLibraryStore.findById(id);
     if (!s) return;
     editingLibId = id;
     libFormBeatVolumes = s.beatVolumes ?? null;
@@ -1597,19 +1589,16 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     if (!name) { libNameInput.focus(); return; }
     let editedSong = null;
     if (editingLibId) {
-      const s = songLibrary.find(s => s.id === editingLibId);
-      if (s) {
-        s.name = name;
-        s.bpm = bpmVal;
-        s.tsNum = tsNumVal;
-        s.tsDen = tsDenVal;
-        s.beatVolumes = libFormBeatVolumes;
-        s.beatStates = libFormBeatStates;
-        editedSong = s;
-      }
+      editedSong = songLibraryStore.update(editingLibId, {
+        name,
+        bpm: bpmVal,
+        tsNum: tsNumVal,
+        tsDen: tsDenVal,
+        beatVolumes: libFormBeatVolumes,
+        beatStates: libFormBeatStates,
+      });
     } else {
-      songLibrary.push({
-        id: nextId(),
+      songLibraryStore.add({
         name,
         bpm: bpmVal,
         tsNum: tsNumVal,
@@ -1619,19 +1608,18 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
       });
     }
     if (editedSong) propagateLibSongChange(editedSong);
-    saveSongLib();
     closeLibForm();
     renderLibrary();
   }
   function deleteLibSong(id) {
     if (!confirm(t('confirm.deleteLibrarySong'))) return;
     if (activeLibSongId === id) activeLibSongId = null;
-    songLibrary = songLibrary.filter(s => s.id !== id);
-    saveSongLib(); renderLibrary(); updateNowPlaying();
+    songLibraryStore.remove(id);
+    renderLibrary(); updateNowPlaying();
   }
 
   document.getElementById('btnAddLibSong').addEventListener('click', () => {
-    if (songLibrary.length >= FREE_LIBRARY_LIMIT && !isPro) {
+    if (songLibraryStore.count() >= FREE_LIBRARY_LIMIT && !isPro) {
       requirePro(() => openAddLibForm());
     } else {
       openAddLibForm();

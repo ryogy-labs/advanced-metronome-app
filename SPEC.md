@@ -17,6 +17,7 @@
 - `src/audio/scheduler.js`: 16 分音符解像度の foreground スケジューラ (`createScheduler`)。サブビートカウンタ・タイマー ID・直近スケジュール済み拍時刻を内包し、`start` / `stop` / `getScheduledBeatTimes` を公開する
 - `src/audio/bg-loop.js`: バックグラウンド再生用の WAV ループを `OfflineAudioContext` で構築する `createBgLoopBuilder` ファクトリ。BPM/拍子/音量のシグネチャでキャッシュする
 - `src/audio/bg-playback.js`: バックグラウンド再生コントローラ (`createBgPlayback`)。`HTMLAudioElement` 経路と Capacitor `MetronomeAudio` プラグイン経路の両方の lifecycle (warm-up・start/stop・mute 同期・遅延付き refresh・native prepare promise) を内包し、`start` / `stop` / `refreshNow` / `refreshWhenSafe` / `refreshAndResume` / `cancelDeferredRefresh` / `syncMuted` / `syncNativeState` / `awaitNativePrepare` / `warmUp` を公開する
+- `src/state/song-library.js`: 曲ライブラリの永続化ストア (`createSongLibraryStore`)。`songs` 配列とソートモード (`'manual' | 'name' | 'bpm'`) を保持し、`add` / `update` / `remove` / `reorder` 経由のミューテーションで自動的に `localStorage` (`metro-song-lib`) を flush する。`all` / `count` / `findById` / `sortedForDisplay` / `getSortMode` / `setSortMode` を公開する。UI 選択状態 (`activeLibSongId`)・フォーム状態・DOM 描画はホスト (`src/main.js`) 側に残す
 - `src/ui/dnd.js`: タッチ/マウス共通の DnD 並び替えロジック (`setupDnD`)
 - `src/ui/song-row.js`: セットリスト/ライブラリで共通の曲行レンダラ (`renderSongRows`)。トラック番号・ドラッグハンドルの有無や `data-action` 名、各種コールバックを引数で渡してビュー差分を吸収する
 - `src/ui/ts-picker.js`: セットリスト曲フォーム/ライブラリフォーム共通の拍子ピッカー。`mountTsPicker` で初回描画 + クリック時の hidden input 更新、`setTsPickerValues` でマウント済みピッカーの選択値を後から差し替える。`prefix` (`'pfTs'` / `'libTs'`) で hidden input の id を分岐する
@@ -64,7 +65,7 @@
 
 ## Known Issues
 - `src/main.js` には依然として UI レンダリング・スワイプ・セットリスト/ライブラリ CRUD・スケジューラ駆動部・グローバル状態が集中しており、変更影響範囲は広い（音声プリミティブ・DnD・i18n・定数・ストレージは別モジュールへ切り出し済み）
-- グローバルな可変状態が `src/main.js` のクロージャに約40個並んでおり、ドメイン別ストアへの集約は未着手
-- セットリスト追加フォームとライブラリ追加フォームは類似実装が並行しており、共通コンポーネント化されていない（曲行のレンダリングは `src/ui/song-row.js` に集約済みだが、フォーム本体・拍子ピッカー・キャプチャプレビューは依然として二重実装）
+- グローバルな可変状態が `src/main.js` のクロージャに多数並んでおり、ドメイン別ストアへの集約は曲ライブラリ (`src/state/song-library.js`) のみ着手済み。セットリストや UI セレクション・フォーム状態は引き続き `main.js` のクロージャ
+- セットリスト追加フォームとライブラリ追加フォームは類似実装が並行しており、共通コンポーネント化されていない（曲行のレンダリングは `src/ui/song-row.js`、拍子ピッカーは `src/ui/ts-picker.js` に集約済みだが、フォーム本体・キャプチャプレビューは依然として二重実装）
 - データは `localStorage` のみのため、ブラウザ削除・端末変更・プライベートモードでは失われる
 - `legacy/metro-beat.html` は旧プロトタイプとして残存している（現行実装との二重管理に見える点は緩和）
