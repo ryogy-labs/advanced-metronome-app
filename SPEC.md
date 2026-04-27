@@ -14,6 +14,7 @@
 - `src/config.js`: BPM / 拍子 / クリック音 / フリープラン上限などの定数と `localStorage` キー (`LS_KEYS`) を集約する
 - `src/i18n.js`: ja/en 翻訳辞書と `createI18n(initialLang)` ファクトリ。言語切替は `localStorage` の `metro-lang` を経由する
 - `src/audio/synth.js`: スクエア波クリックの共通レンダラ `renderClick` と `getSubdivisionsPerBeat` を持つ。live AudioContext と OfflineAudioContext の双方から共有される
+- `src/audio/scheduler.js`: 16 分音符解像度の foreground スケジューラ (`createScheduler`)。サブビートカウンタ・タイマー ID・直近スケジュール済み拍時刻を内包し、`start` / `stop` / `getScheduledBeatTimes` を公開する
 - `src/audio/bg-loop.js`: バックグラウンド再生用の WAV ループを `OfflineAudioContext` で構築する `createBgLoopBuilder` ファクトリ。BPM/拍子/音量のシグネチャでキャッシュする
 - `src/ui/dnd.js`: タッチ/マウス共通の DnD 並び替えロジック (`setupDnD`)
 - `src/utils/storage.js`: `localStorage` の安全な読み書きラッパー。破損 JSON は `${key}.corrupt-backup` に退避してフォールバックを返す

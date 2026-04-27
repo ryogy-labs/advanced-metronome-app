@@ -3,20 +3,19 @@ import { registerPlugin } from '@capacitor/core';
 import {
   BPM_MIN, BPM_MAX, BPM_DEFAULT,
   TAP_RESET_MS,
-  SCHEDULER_LOOKAHEAD_MS, SCHEDULER_AHEAD_SEC,
   TS_NUMS, TS_DENS,
   BALL_TOP_MARGIN, BALL_RANGE_SCALE, BALL_R,
   SWIPE_TOTAL_PAGES, SWIPE_SLOT_STEP, SWIPE_THRESHOLD_PX,
   FREE_SETLIST_LIMIT, FREE_SONGS_PER_SETLIST, FREE_LIBRARY_LIMIT,
-  CLICK_ACCENT, CLICK_QUARTER, CLICK_EIGHTH, CLICK_SIXTEENTH,
+  CLICK_ACCENT, CLICK_QUARTER,
   LS_KEYS,
 } from './config.js';
 import { createI18n, readInitialLang } from './i18n.js';
 import { safeParseJSON, writeJSON } from './utils/storage.js';
 import { escHtml } from './utils/dom.js';
 import { nextId } from './utils/id.js';
-import { renderClick } from './audio/synth.js';
 import { createBgLoopBuilder, arrayBufferToBase64 } from './audio/bg-loop.js';
+import { createScheduler } from './audio/scheduler.js';
 import { setupDnD } from './ui/dnd.js';
 
 const NativeMetronomeAudio = registerPlugin('MetronomeAudio');
@@ -54,14 +53,9 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     return false; // 本番はデフォルト free
   })();
 
-  // AudioContext & scheduling (always runs at 16th note resolution)
+  // AudioContext (scheduling state lives in the scheduler module).
   let audioCtx = null;
   let masterGainNode = null;
-  let nextNoteTime = 0;
-  const lookahead = SCHEDULER_LOOKAHEAD_MS;
-  const scheduleAhead = SCHEDULER_AHEAD_SEC;
-  let timerID = null;
-  let subBeatCount = 0;     // 16th note position within measure
   let playbackRefreshSeq = 0;
   let nativeLoopAnchorMs = 0;
 
@@ -81,7 +75,6 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   })();
 
   // Ball animation
-  let scheduledBeatTimes = []; // { time: audioCtxTime, beatIdx }
   let squashEnabled = true;
   let animMode = 'vertical'; // 'vertical' | 'horizontal'
 
@@ -216,18 +209,6 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     beatStates = buildDefaultBeatStates(beatsPerMeasure);
   }
 
-  function getSubdivisionsPerBeat() {
-    return 16 / tsDen;
-  }
-
-  function getMeasureSubdivisionCount() {
-    return beatsPerMeasure * getSubdivisionsPerBeat();
-  }
-
-  function getBeatIntervalSeconds() {
-    return 60 / bpm;
-  }
-
   function getQuarterBeatSound(beatIdx) {
     const state = getBeatIndicatorState(beatIdx);
     if (state === 'mute') return null;
@@ -247,9 +228,10 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     }
     if (audioCtx) {
       const now = audioCtx.currentTime;
-      for (let i = scheduledBeatTimes.length - 1; i >= 0; i--) {
-        if (scheduledBeatTimes[i].time <= now) {
-          return scheduledBeatTimes[i].beatIdx;
+      const times = _scheduler.getScheduledBeatTimes();
+      for (let i = times.length - 1; i >= 0; i--) {
+        if (times[i].time <= now) {
+          return times[i].beatIdx;
         }
       }
     }
@@ -343,13 +325,6 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     return ctx;
   }
 
-  function playClick(time, vol, freq, dur) {
-    if (isNative) return;
-    if (vol <= 0) return;
-    const ctx = getCtx();
-    renderClick(ctx, masterGainNode, time, vol, freq, dur);
-  }
-
   function setMute(m) {
     isMuted = m;
     if (masterGainNode && audioCtx) {
@@ -367,52 +342,25 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   }
 
   // ──── Scheduler (always 16th note resolution) ────
-  function scheduleNote(time, subBeat) {
-    const subdivisions = getSubdivisionsPerBeat();
-    const beatOffset = subBeat % subdivisions;
-    const beatIdx = Math.floor(subBeat / subdivisions);
-
-    if (beatOffset === 0) {
-      // Track beat time for ball animation (keep last 8)
-      scheduledBeatTimes.push({ time, beatIdx });
-      if (scheduledBeatTimes.length > 8) scheduledBeatTimes.shift();
-
-      // Denominator-note position — also triggers visual flash
-      const delay = (time - getCtx().currentTime) * 1000;
-      setTimeout(() => flashBeat(beatIdx, time), Math.max(0, delay));
-      const beatSound = getQuarterBeatSound(beatIdx);
-      if (beatSound) {
-        playClick(time, beatSound.volume, beatSound.freq, beatSound.dur);
-      }
-    } else if (subdivisions === 2 || beatOffset === 2) {
-      // First subdivision: eighth notes in x/4, sixteenth notes in x/8.
-      playClick(time, volEighth * masterVol, CLICK_EIGHTH.freq, CLICK_EIGHTH.dur);
-    } else {
-      // Second subdivision: sixteenth notes in x/4. x/8 has no room below 16th resolution.
-      playClick(time, volSixteenth * masterVol, CLICK_SIXTEENTH.freq, CLICK_SIXTEENTH.dur);
-    }
-  }
-
-  function scheduler() {
-    const ctx = getCtx();
-    const subdivisionInterval = getBeatIntervalSeconds() / getSubdivisionsPerBeat();
-    while (nextNoteTime < ctx.currentTime + scheduleAhead) {
-      scheduleNote(nextNoteTime, subBeatCount);
-      subBeatCount = (subBeatCount + 1) % getMeasureSubdivisionCount();
-      nextNoteTime += subdivisionInterval;
-    }
-    timerID = setTimeout(scheduler, lookahead);
-  }
+  const _scheduler = createScheduler({
+    getCtx,
+    getDestination: () => masterGainNode,
+    isNative: () => isNative,
+    getState: () => ({
+      bpm,
+      beatsPerMeasure,
+      tsDen,
+      masterVol,
+      volEighth,
+      volSixteenth,
+    }),
+    getQuarterBeatSound,
+    onBeatFlash: flashBeat,
+  });
 
   function startSchedulerFromNow() {
-    const ctx = getCtx();
-    clearTimeout(timerID);
-    timerID = null;
-    subBeatCount = 0;
-    nextNoteTime = ctx.currentTime + (isNative ? 0.005 : 0.05);
-    scheduledBeatTimes = [];
+    _scheduler.start();
     updateBeatIndicators(0);
-    scheduler();
   }
 
   async function ensureSchedulerContextRunning() {
@@ -447,11 +395,9 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   function stopMetronome() {
     if (!running) return;
     running = false;
-    clearTimeout(timerID);
-    timerID = null;
+    _scheduler.stop();
     nativeLoopAnchorMs = 0;
     bgAudioStop();
-    scheduledBeatTimes = [];
     playBtn.textContent = t('metro.start');
     playBtn.classList.remove('running');
     releaseWakeLock();
@@ -1104,10 +1050,11 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
       updateBeatIndicators(beatIdx);
     } else if (running && audioCtx) {
       const now = audioCtx.currentTime;
+      const times = _scheduler.getScheduledBeatTimes();
       let lastBeat = null;
-      for (let i = scheduledBeatTimes.length - 1; i >= 0; i--) {
-        if (scheduledBeatTimes[i].time <= now) {
-          lastBeat = scheduledBeatTimes[i];
+      for (let i = times.length - 1; i >= 0; i--) {
+        if (times[i].time <= now) {
+          lastBeat = times[i];
           break;
         }
       }
@@ -1319,8 +1266,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   document.addEventListener('visibilitychange', () => {
     if (!running || !audioCtx) return;
     if (document.hidden) {
-      clearTimeout(timerID);
-      timerID = null;
+      _scheduler.stop();
       if (isNative) {
         audioCtx.suspend().catch(() => {});
         void (_nativeLoopPreparePromise ?? Promise.resolve())
