@@ -191,7 +191,10 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   };
 
   function buildDefaultBeatStates(count) {
-    return Array.from({ length: count }, (_, idx) => (idx === 0 ? 'accent' : 'normal'));
+    return Array.from({ length: count }, (_, idx) => {
+      const isCompoundAccent = tsDen === 8 && count >= 6 && count % 3 === 0 && idx % 3 === 0;
+      return idx === 0 || isCompoundAccent ? 'accent' : 'normal';
+    });
   }
 
   function normalizeBeatStates(states, count = beatsPerMeasure) {
@@ -262,6 +265,11 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   const volQuarterNum   = document.getElementById('volQuarterNum');
   const volEighthNum    = document.getElementById('volEighthNum');
   const volSixteenthNum = document.getElementById('volSixteenthNum');
+  const denominatorAwareVolumeEls = [
+    { labelKey: 'volume.quarter', slider: volQuarterEl, num: volQuarterNum },
+    { labelKey: 'volume.eighth', slider: volEighthEl, num: volEighthNum },
+    { labelKey: 'volume.sixteenth', slider: volSixteenthEl, num: volSixteenthNum },
+  ];
   const proPaywallEl      = document.getElementById('proPaywall');
   const paywallBuyBtn     = document.getElementById('paywallBuyBtn');
   const paywallRestoreBtn = document.getElementById('paywallRestoreBtn');
@@ -294,6 +302,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     if (navMetronomeLabel) navMetronomeLabel.textContent = t('nav.metronome');
     if (navSetlistLabel) navSetlistLabel.textContent = t('nav.setlist');
     if (navLibraryLabel) navLibraryLabel.textContent = t('nav.library');
+    updateDenominatorAwareVolumeUi();
   }
 
   // ──── Beat dots ────
@@ -309,6 +318,18 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
 
   function syncBeatStatesForMeasure() {
     beatStates = buildDefaultBeatStates(beatsPerMeasure);
+  }
+
+  function getSubdivisionsPerBeat() {
+    return 16 / tsDen;
+  }
+
+  function getMeasureSubdivisionCount() {
+    return beatsPerMeasure * getSubdivisionsPerBeat();
+  }
+
+  function getBeatIntervalSeconds() {
+    return 60 / bpm;
   }
 
   function getQuarterBeatSound(beatIdx) {
@@ -349,6 +370,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   function buildBeatDots() {
     beatRowEls.forEach(rowEl => {
       rowEl.innerHTML = '';
+      rowEl.dataset.count = String(beatsPerMeasure);
       for (let i = 0; i < beatsPerMeasure; i++) {
         const d = document.createElement('button');
         d.className = 'beat-dot';
@@ -459,37 +481,38 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
 
   // ──── Scheduler (always 16th note resolution) ────
   function scheduleNote(time, subBeat) {
-    const mod4    = subBeat % 4;
-    const beatIdx = Math.floor(subBeat / 4);
+    const subdivisions = getSubdivisionsPerBeat();
+    const beatOffset = subBeat % subdivisions;
+    const beatIdx = Math.floor(subBeat / subdivisions);
 
-    if (mod4 === 0) {
+    if (beatOffset === 0) {
       // Track beat time for ball animation (keep last 8)
       scheduledBeatTimes.push({ time, beatIdx });
       if (scheduledBeatTimes.length > 8) scheduledBeatTimes.shift();
 
-      // Quarter note position — also triggers visual flash
+      // Denominator-note position — also triggers visual flash
       const delay = (time - getCtx().currentTime) * 1000;
       setTimeout(() => flashBeat(beatIdx, time), Math.max(0, delay));
       const beatSound = getQuarterBeatSound(beatIdx);
       if (beatSound) {
         playClick(time, beatSound.volume, beatSound.freq, beatSound.dur);
       }
-    } else if (mod4 === 2) {
-      // Eighth note position
+    } else if (subdivisions === 2 || beatOffset === 2) {
+      // First subdivision: eighth notes in x/4, sixteenth notes in x/8.
       playClick(time, volEighth    * masterVol, 700, 0.022);
     } else {
-      // Sixteenth note position
+      // Second subdivision: sixteenth notes in x/4. x/8 has no room below 16th resolution.
       playClick(time, volSixteenth * masterVol, 550, 0.018);
     }
   }
 
   function scheduler() {
     const ctx = getCtx();
-    const sixteenthInterval = 60 / bpm / 4;
+    const subdivisionInterval = getBeatIntervalSeconds() / getSubdivisionsPerBeat();
     while (nextNoteTime < ctx.currentTime + scheduleAhead) {
       scheduleNote(nextNoteTime, subBeatCount);
-      subBeatCount = (subBeatCount + 1) % (beatsPerMeasure * 4);
-      nextNoteTime += sixteenthInterval;
+      subBeatCount = (subBeatCount + 1) % getMeasureSubdivisionCount();
+      nextNoteTime += subdivisionInterval;
     }
     timerID = setTimeout(scheduler, lookahead);
   }
@@ -568,6 +591,37 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   function updateVolSlider(slider, numEl) {
     updateSliderFill(slider, 0, 100);
     numEl.value = slider.value;
+  }
+
+  function getSubdivisionVolumeLabels(den = tsDen) {
+    if (den === 8) {
+      return currentLang === 'ja'
+        ? { quarter: '8分', eighth: '16分', sixteenth: '32分' }
+        : { quarter: 'Eighth', eighth: 'Sixteenth', sixteenth: '32nd' };
+    }
+    return currentLang === 'ja'
+      ? { quarter: '4分', eighth: '8分', sixteenth: '16分' }
+      : { quarter: 'Quarter', eighth: 'Eighth', sixteenth: 'Sixteenth' };
+  }
+
+  function updateDenominatorAwareVolumeUi() {
+    const labels = getSubdivisionVolumeLabels();
+    document.querySelectorAll('[data-i18n="volume.quarter"]')
+      .forEach(el => { el.textContent = labels.quarter; });
+    document.querySelectorAll('[data-i18n="volume.eighth"]')
+      .forEach(el => { el.textContent = labels.eighth; });
+    document.querySelectorAll('[data-i18n="volume.sixteenth"]')
+      .forEach(el => { el.textContent = labels.sixteenth; });
+
+    const disableFinest = tsDen === 8;
+    denominatorAwareVolumeEls.forEach(({ labelKey, slider, num }) => {
+      const disabled = disableFinest && labelKey === 'volume.sixteenth';
+      const row = slider?.closest('.vol-row');
+      if (slider) slider.disabled = disabled;
+      if (num) num.disabled = disabled;
+      row?.classList.toggle('is-disabled', disabled);
+      row?.setAttribute('aria-disabled', disabled ? 'true' : 'false');
+    });
   }
 
   function refreshRunningPlayback({ realignVisuals = false } = {}) {
@@ -681,7 +735,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   }
 
   function buildTsPickerHTML(tsNumVal, tsDenVal, prefix) {
-    const nums = [2, 3, 4, 5, 6, 7];
+    const nums = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
     const dens = [4, 8];
     return `
       <div class="ts-picker-row">
@@ -731,7 +785,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
       .forEach(b => b.classList.toggle('active', Number(b.dataset.val) === nextDen));
   }
 
-  function updateCapturePreview(prefix, bv, capturedBpm = null) {
+  function updateCapturePreview(prefix, bv, capturedBpm = null, capturedDen = tsDen) {
     const el = document.getElementById(`${prefix}CapturePreview`);
     if (!el) return;
     if (!bv) {
@@ -740,13 +794,14 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     }
     el.style.display = 'block';
     const bpmText = Number.isFinite(capturedBpm) ? `BPM:${Math.round(capturedBpm)} ` : '';
+    const labels = getSubdivisionVolumeLabels(capturedDen);
     el.textContent =
       bpmText +
       `Master:${Math.round((bv.master ?? 1) * 100)} ` +
       `${t('volume.beat1')}:${Math.round((bv.beat1 ?? 1) * 100)} ` +
-      `${t('volume.quarter')}:${Math.round((bv.quarter ?? 0.8) * 100)} ` +
-      `${t('volume.eighth')}:${Math.round((bv.eighth ?? 0.5) * 100)} ` +
-      `${t('volume.sixteenth')}:${Math.round((bv.sixteenth ?? 0) * 100)}`;
+      `${labels.quarter}:${Math.round((bv.quarter ?? 0.8) * 100)} ` +
+      `${labels.eighth}:${Math.round((bv.eighth ?? 0.5) * 100)} ` +
+      `${labels.sixteenth}:${Math.round((bv.sixteenth ?? 0) * 100)}`;
   }
 
   function parseVolumeInput(inputEl, fallback) {
@@ -758,6 +813,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
 
   function bindVolumeNumberInput(sliderEl, numEl, onApply) {
     const commit = () => {
+      if (sliderEl.disabled || numEl.disabled) return;
       const next = parseVolumeInput(numEl, Number(sliderEl.value));
       sliderEl.value = String(next);
       updateVolSlider(sliderEl, numEl);
@@ -837,7 +893,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   document.getElementById('bpmPlus10').addEventListener('click',  () => setBPM(bpm + 10));
 
   // ──── Time Signature Picker ────
-  const TS_NUMS = [2, 3, 4, 5, 6, 7];
+  const TS_NUMS = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
   const TS_DENS = [4, 8];
 
   function setTimeSig(nextNum, nextDen) {
@@ -848,6 +904,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     tsNumValEl.textContent = tsNum;
     tsDenValEl.textContent = tsDen;
     buildBeatDots();
+    updateDenominatorAwareVolumeUi();
     updateBeatIndicators(running ? 0 : null);
     if (running) refreshBackgroundLoop();
     if (running) { stopMetronome(); startMetronome(); }
@@ -939,6 +996,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   updateVolSlider(volQuarterEl,   volQuarterNum);
   updateVolSlider(volEighthEl,    volEighthNum);
   updateVolSlider(volSixteenthEl, volSixteenthNum);
+  updateDenominatorAwareVolumeUi();
 
   // ── Mode toggle (移動方向: 縦 / 横) ──
   const modeVertical   = document.getElementById('modeVertical');
@@ -1216,7 +1274,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
 
   async function buildClickLoopWav() {
     const sig = [
-      bpm, beatsPerMeasure,
+      bpm, beatsPerMeasure, tsDen,
       beatStates.join(','),
       masterVol, volBeat1, volQuarter, volEighth, volSixteenth,
     ].join('|');
@@ -1226,8 +1284,9 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     _bgLoopPendingSig = sig;
     _bgLoopBuildPromise = (async () => {
       const rate = audioCtx ? audioCtx.sampleRate : 44100;
-      const beatDur = 60 / bpm;
-      const sixteenthDur = beatDur / 4;
+      const beatDur = getBeatIntervalSeconds();
+      const subdivisions = getSubdivisionsPerBeat();
+      const subdivisionDur = beatDur / subdivisions;
       const loopMeasures = isNative ? NATIVE_BG_LOOP_MEASURES : BG_LOOP_MEASURES;
       const loopDuration = beatDur * beatsPerMeasure * loopMeasures;
       const frameCount = Math.max(1, Math.ceil(rate * loopDuration));
@@ -1248,15 +1307,15 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
       }
 
       function scheduleOfflineNote(time, subBeat) {
-        const mod4 = subBeat % 4;
-        const beatIdx = Math.floor(subBeat / 4);
+        const beatOffset = subBeat % subdivisions;
+        const beatIdx = Math.floor(subBeat / subdivisions);
 
-        if (mod4 === 0) {
+        if (beatOffset === 0) {
           const beatSound = getQuarterBeatSound(beatIdx);
           if (beatSound) {
             renderClick(time, beatSound.volume, beatSound.freq, beatSound.dur);
           }
-        } else if (mod4 === 2) {
+        } else if (subdivisions === 2 || beatOffset === 2) {
           renderClick(time, volEighth * masterVol, 700, 0.022);
         } else {
           renderClick(time, volSixteenth * masterVol, 550, 0.018);
@@ -1265,8 +1324,8 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
 
       for (let measure = 0; measure < loopMeasures; measure++) {
         const measureBaseTime = measure * beatDur * beatsPerMeasure;
-        for (let subBeat = 0; subBeat < beatsPerMeasure * 4; subBeat++) {
-          const time = measureBaseTime + (subBeat * sixteenthDur);
+        for (let subBeat = 0; subBeat < getMeasureSubdivisionCount(); subBeat++) {
+          const time = measureBaseTime + (subBeat * subdivisionDur);
           scheduleOfflineNote(time, subBeat);
         }
       }
@@ -1791,7 +1850,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     pfName.value = p.name;
     pfBpm.value  = p.bpm;
     mountTsPicker(pfTsPickerEl, p.tsNum ?? 4, p.tsDen ?? 4, 'pfTs');
-    updateCapturePreview('pf', pfFormBeatVolumes);
+    updateCapturePreview('pf', pfFormBeatVolumes, null, p.tsDen ?? 4);
     presetForm.style.display = 'block';
     pfName.focus();
   }
@@ -1939,7 +1998,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
       pfFormBeatStates = currentBeatStates();
       pfBpm.value = bpm;
       setTsPickerValues('pfTs', tsNum, tsDen);
-      updateCapturePreview('pf', pfFormBeatVolumes, bpm);
+      updateCapturePreview('pf', pfFormBeatVolumes, bpm, tsDen);
     });
   });
 
@@ -2268,7 +2327,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     libNameInput.value = s.name;
     libBpmInput.value = s.bpm;
     mountTsPicker(libTsPickerEl, s.tsNum ?? 4, s.tsDen ?? 4, 'libTs');
-    updateCapturePreview('lib', libFormBeatVolumes);
+    updateCapturePreview('lib', libFormBeatVolumes, null, s.tsDen ?? 4);
     libForm.style.display = 'block'; libNameInput.focus();
   }
   function closeLibForm() {
@@ -2339,7 +2398,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
       libFormBeatStates = currentBeatStates();
       libBpmInput.value = bpm;
       setTsPickerValues('libTs', tsNum, tsDen);
-      updateCapturePreview('lib', libFormBeatVolumes, bpm);
+      updateCapturePreview('lib', libFormBeatVolumes, bpm, tsDen);
     });
   });
 
