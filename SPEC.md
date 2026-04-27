@@ -16,6 +16,7 @@
 - `src/audio/synth.js`: スクエア波クリックの共通レンダラ `renderClick` と `getSubdivisionsPerBeat` を持つ。live AudioContext と OfflineAudioContext の双方から共有される
 - `src/audio/scheduler.js`: 16 分音符解像度の foreground スケジューラ (`createScheduler`)。サブビートカウンタ・タイマー ID・直近スケジュール済み拍時刻を内包し、`start` / `stop` / `getScheduledBeatTimes` を公開する
 - `src/audio/bg-loop.js`: バックグラウンド再生用の WAV ループを `OfflineAudioContext` で構築する `createBgLoopBuilder` ファクトリ。BPM/拍子/音量のシグネチャでキャッシュする
+- `src/audio/bg-playback.js`: バックグラウンド再生コントローラ (`createBgPlayback`)。`HTMLAudioElement` 経路と Capacitor `MetronomeAudio` プラグイン経路の両方の lifecycle (warm-up・start/stop・mute 同期・遅延付き refresh・native prepare promise) を内包し、`start` / `stop` / `refreshNow` / `refreshWhenSafe` / `refreshAndResume` / `cancelDeferredRefresh` / `syncMuted` / `syncNativeState` / `awaitNativePrepare` / `warmUp` を公開する
 - `src/ui/dnd.js`: タッチ/マウス共通の DnD 並び替えロジック (`setupDnD`)
 - `src/ui/song-row.js`: セットリスト/ライブラリで共通の曲行レンダラ (`renderSongRows`)。トラック番号・ドラッグハンドルの有無や `data-action` 名、各種コールバックを引数で渡してビュー差分を吸収する
 - `src/ui/ball.js`: ボール演出の RAF アニメータ (`createBallAnimator`)。`.ball-canvas` 群の取得・リサイズ、Web Audio パスとネイティブループパスを跨いだフェーズ計算、ボール/影/接地線の描画を内包し、`refresh` / `resize` / `start` を公開する

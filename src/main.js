@@ -14,6 +14,7 @@ import { safeParseJSON, writeJSON } from './utils/storage.js';
 import { escHtml } from './utils/dom.js';
 import { nextId } from './utils/id.js';
 import { createBgLoopBuilder, arrayBufferToBase64 } from './audio/bg-loop.js';
+import { createBgPlayback } from './audio/bg-playback.js';
 import { createScheduler } from './audio/scheduler.js';
 import { setupDnD } from './ui/dnd.js';
 import { renderSongRows } from './ui/song-row.js';
@@ -333,10 +334,10 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
       masterGainNode.gain.setTargetAtTime(m ? 0 : 1, audioCtx.currentTime, 0.015);
     }
     if (isNative && running) {
-      void (_nativeLoopPreparePromise ?? Promise.resolve())
-        .then(() => syncNativeLoopState());
+      void _bgPlayback.awaitNativePrepare()
+        .then(() => _bgPlayback.syncNativeState());
     }
-    syncBgLoopMuted();
+    _bgPlayback.syncMuted();
     muteBtnEls.forEach(btn => {
       btn.classList.toggle('muted', m);
       btn.textContent = m ? '🔇' : '🔊';
@@ -385,7 +386,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     const boot = () => {
       running = true;
       startSchedulerFromNow();
-      bgAudioStart();
+      _bgPlayback.start();
       playBtn.textContent = t('metro.stop');
       playBtn.classList.add('running');
       void acquireWakeLock();
@@ -399,7 +400,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     running = false;
     _scheduler.stop();
     nativeLoopAnchorMs = 0;
-    bgAudioStop();
+    _bgPlayback.stop();
     playBtn.textContent = t('metro.start');
     playBtn.classList.remove('running');
     releaseWakeLock();
@@ -464,10 +465,10 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     const refreshSeq = ++playbackRefreshSeq;
     if (!isNative) {
       if (realignVisuals) startSchedulerFromNow();
-      refreshBackgroundLoopWhenSafe();
+      _bgPlayback.refreshWhenSafe();
       return;
     }
-    void refreshBackgroundLoop().then(() => {
+    void _bgPlayback.refreshNow().then(() => {
       if (!running || refreshSeq !== playbackRefreshSeq) return;
       if (realignVisuals) {
         nativeLoopAnchorMs = performance.now();
@@ -739,7 +740,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     buildBeatDots();
     updateDenominatorAwareVolumeUi();
     updateBeatIndicators(running ? 0 : null);
-    if (running) refreshBackgroundLoop();
+    if (running) _bgPlayback.refreshNow();
     if (running) { stopMetronome(); startMetronome(); }
   }
 
@@ -945,173 +946,38 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
 
   // ──── iOS Background Playback ────
   // Foreground: WebAudio scheduler only.
-  // Background: HTMLAudio click loop (Safari keeps this alive more reliably).
-  let _bgLoopEl = null;
-  let _bgLoopReloading = false;
-  let _bgLoopRefreshTimer = null;
-  let _nativeLoopPreparePromise = null;
-
+  // Background: HTMLAudio click loop (Safari keeps this alive more reliably);
+  // on native iOS, hand the same WAV to the MetronomeAudio plugin.
+  // See src/audio/bg-playback.js for the full lifecycle.
   const _bgLoopBuilder = createBgLoopBuilder({
     getCtx: () => audioCtx,
     isNative: () => isNative,
   });
-
-  function buildClickLoopWav() {
-    return _bgLoopBuilder.build({
+  const _bgPlayback = createBgPlayback({
+    isNative,
+    nativePlugin: NativeMetronomeAudio,
+    bgLoopBuilder: _bgLoopBuilder,
+    arrayBufferToBase64,
+    getQuarterBeatSound,
+    getRunning: () => running,
+    getMuted: () => isMuted,
+    getLoopParams: () => ({
       bpm, beatsPerMeasure, tsDen, beatStates,
       masterVol, volBeat1, volQuarter, volEighth, volSixteenth,
-    }, getQuarterBeatSound);
-  }
-
-  function initBgLoopEl() {
-    if (_bgLoopEl) return;
-    _bgLoopEl = new Audio();
-    _bgLoopEl.loop = true;
-    _bgLoopEl.preload = 'auto';
-    _bgLoopEl.muted = true;
-    _bgLoopEl.playsInline = true;
-    _bgLoopEl.setAttribute('playsinline', '');
-    _bgLoopEl.setAttribute('webkit-playsinline', '');
-    _bgLoopEl.addEventListener('pause', () => {
-      if (!running || _bgLoopReloading) return;
-      _bgLoopEl.play().catch(() => {});
-    });
-  }
-
-  function syncBgLoopMuted() {
-    if (_bgLoopEl) _bgLoopEl.muted = !document.hidden ? true : isMuted;
-  }
-
-  async function refreshBgLoopTrack() {
-    initBgLoopEl();
-    const nextSrc = await buildClickLoopWav();
-    if (_bgLoopEl.src !== nextSrc) {
-      const wasPlaying = !_bgLoopEl.paused;
-      _bgLoopReloading = true;
-      _bgLoopEl.src = nextSrc;
-      _bgLoopEl.load();
-      _bgLoopReloading = false;
-      if (wasPlaying) _bgLoopEl.play().catch(() => {});
-    }
-  }
-
-  async function prepareNativeLoop() {
-    const url = await buildClickLoopWav();
-    const resp = await fetch(url);
-    const buf = await resp.arrayBuffer();
-    const base64 = arrayBufferToBase64(buf);
-    await NativeMetronomeAudio.prepareLoop({ base64 }).catch(err => {
-      console.error('[MetronomeAudio] prepareLoop failed', err);
-      throw err;
-    });
-  }
-
-  function nativeLoopMutedValue() {
-    return isMuted;
-  }
-
-  function syncNativeLoopState() {
-    if (!running) return Promise.resolve();
-    return NativeMetronomeAudio.startLoop({ muted: nativeLoopMutedValue() }).catch(err => {
-      console.error('[MetronomeAudio] startLoop failed', err);
-    });
-  }
-
-  function refreshBackgroundLoop() {
-    if (isNative) {
-      _nativeLoopPreparePromise = prepareNativeLoop().then(() => syncNativeLoopState());
-      return _nativeLoopPreparePromise;
-    }
-    return refreshBgLoopTrack();
-  }
-
-  function cancelDeferredBackgroundLoopRefresh() {
-    if (_bgLoopRefreshTimer !== null) {
-      clearTimeout(_bgLoopRefreshTimer);
-      _bgLoopRefreshTimer = null;
-    }
-  }
-
-  function refreshBackgroundLoopWhenSafe() {
-    if (isNative) return refreshBackgroundLoop();
-    cancelDeferredBackgroundLoopRefresh();
-    if (document.hidden || !running) return refreshBackgroundLoop();
-
-    // Building the fallback WAV can occupy the main thread long enough to starve
-    // the short foreground scheduler window, so let the first beats settle first.
-    const measureMs = (60000 / bpm) * beatsPerMeasure;
-    const delayMs = Math.max(800, Math.min(measureMs + 100, 2500));
-    _bgLoopRefreshTimer = setTimeout(() => {
-      _bgLoopRefreshTimer = null;
-      if (running && document.hidden) {
-        void refreshBackgroundLoop().then(() => {
-          if (!running || !_bgLoopEl) return;
-          syncBgLoopMuted();
-          _bgLoopEl.play().catch(() => {});
-        });
-        return;
-      }
-      if (running) {
-        const runWhenIdle = window.requestIdleCallback
-          ? (cb) => window.requestIdleCallback(cb, { timeout: 1000 })
-          : (cb) => setTimeout(cb, 0);
-        runWhenIdle(() => {
-          if (running && !document.hidden) {
-            void refreshBackgroundLoop().then(() => {
-              if (!running || !_bgLoopEl) return;
-              syncBgLoopMuted();
-              _bgLoopEl.play().catch(() => {});
-            });
-          }
-        });
-      }
-    }, delayMs);
-    return Promise.resolve();
-  }
-
-  function bgAudioStart() {
-    if (isNative) {
-      _nativeLoopPreparePromise = prepareNativeLoop().then(() =>
-        NativeMetronomeAudio.startLoop({ muted: isMuted }).then(() => {
-          nativeLoopAnchorMs = performance.now();
-          updateBeatIndicators(0);
-        }).catch(err => {
-          console.error('[MetronomeAudio] startLoop failed', err);
-        }));
-    } else {
-      initBgLoopEl();
-      // ユーザージェスチャー内で即 play（iOS autoplay 制限を回避）
-      syncBgLoopMuted();
-      if (_bgLoopEl.src) {
-        _bgLoopEl.play().catch(() => {});
-      }
-      void refreshBackgroundLoopWhenSafe().then(() => {
-        if (!running) return;
-        syncBgLoopMuted();
-        _bgLoopEl.play().catch(() => {});
-      });
-    }
-  }
-
-  function bgAudioStop() {
-    cancelDeferredBackgroundLoopRefresh();
-    if (isNative) {
-      NativeMetronomeAudio.stopLoop().catch(err => {
-        console.error('[MetronomeAudio] stopLoop failed', err);
-      });
-    } else if (_bgLoopEl) {
-      _bgLoopEl.pause();
-      _bgLoopEl.currentTime = 0;
-      _bgLoopEl.muted = true;
-    }
-  }
+    }),
+    getMeasureMs: () => (60000 / bpm) * beatsPerMeasure,
+    onNativeStart: () => {
+      nativeLoopAnchorMs = performance.now();
+      updateBeatIndicators(0);
+    },
+  });
 
   function resumeForegroundScheduler() {
     if (!running || !audioCtx || document.hidden) return;
     if (isNative) {
-      void syncNativeLoopState();
+      void _bgPlayback.syncNativeState();
     } else {
-      syncBgLoopMuted();
+      _bgPlayback.syncMuted();
     }
     void ensureSchedulerContextRunning().then(isRunning => {
       if (running && isRunning) {
@@ -1126,16 +992,12 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
       _scheduler.stop();
       if (isNative) {
         audioCtx.suspend().catch(() => {});
-        void (_nativeLoopPreparePromise ?? Promise.resolve())
-          .then(() => syncNativeLoopState());
+        void _bgPlayback.awaitNativePrepare()
+          .then(() => _bgPlayback.syncNativeState());
       } else {
-        cancelDeferredBackgroundLoopRefresh();
-        void refreshBackgroundLoop().then(() => {
-          if (!running || !_bgLoopEl) return;
-          syncBgLoopMuted();
-          _bgLoopEl.play().catch(() => {});
-        });
-        syncBgLoopMuted();
+        _bgPlayback.cancelDeferredRefresh();
+        void _bgPlayback.refreshAndResume();
+        _bgPlayback.syncMuted();
       }
     } else {
       resumeForegroundScheduler();
@@ -1911,6 +1773,6 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
 
   // バックグラウンドループ WAV をアプリ起動時に事前ビルドしておく
   // OfflineAudioContext は AudioContext 不要なのでユーザー操作前でも実行できる
-  void (isNative ? prepareNativeLoop() : refreshBgLoopTrack());
+  void _bgPlayback.warmUp();
 
 })();
