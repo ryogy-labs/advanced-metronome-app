@@ -22,6 +22,7 @@ import { createBallAnimator } from './ui/ball.js';
 import { createSwipePanel } from './ui/swipe-panel.js';
 import { mountTsPicker, setTsPickerValues } from './ui/ts-picker.js';
 import { createSongLibraryStore } from './state/song-library.js';
+import { createSetlistStore } from './state/setlist.js';
 
 const NativeMetronomeAudio = registerPlugin('MetronomeAudio');
 const isNative = window.Capacitor?.isNativePlatform() ?? false;
@@ -968,7 +969,13 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   window.addEventListener('pageshow', resumeForegroundScheduler);
 
   // ──── Setlists ────
-  let setlists      = safeParseJSON(LS_KEYS.setlists, []);
+  // Setlists: persisted via state/setlist.js. Selection / editing UI
+  // state stays here in main.js.
+  const setlistStore = createSetlistStore({
+    initial: safeParseJSON(LS_KEYS.setlists, []),
+    persist: (setlists) => writeJSON(LS_KEYS.setlists, setlists),
+    generateId: nextId,
+  });
   let currentSlId   = null;   // setlist shown in detail view
   let activeSongId  = null;   // song currently applied to metronome
   let activeSlId    = null;   // setlist that owns the active song
@@ -987,10 +994,6 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   let libFormBeatStates = null;
   let pfFormBeatVolumes = null;
   let pfFormBeatStates = null;
-
-  function saveSetlists() {
-    writeJSON(LS_KEYS.setlists, setlists);
-  }
 
   // (escHtml moved to ./utils/dom.js)
 
@@ -1036,7 +1039,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   }
 
   function showSlDetail(slId) {
-    const sl = setlists.find(s => s.id === slId);
+    const sl = setlistStore.findById(slId);
     if (!sl) return;
     currentSlId = slId;
     slDetailTitle.textContent = sl.name;
@@ -1048,11 +1051,11 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
 
   // ── Setlist index ──
   function renderSetlists() {
-    if (setlists.length === 0) {
+    if (setlistStore.count() === 0) {
       slIndexList.innerHTML = `<div class="setlist-empty">${t('empty.noSetlists')}</div>`;
       return;
     }
-    slIndexList.innerHTML = setlists.map((sl, idx) => `
+    slIndexList.innerHTML = setlistStore.all().map((sl, idx) => `
       <div class="sl-row" data-idx="${idx}">
         <span class="drag-handle">⠿</span>
         <button class="sl-row-btn" data-id="${sl.id}">
@@ -1080,7 +1083,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   }
 
   function openEditSlForm(id) {
-    const sl = setlists.find(s => s.id === id);
+    const sl = setlistStore.findById(id);
     if (!sl) return;
     editingSlId = id;
     slNameInput.value = sl.name;
@@ -1097,29 +1100,24 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     const name = slNameInput.value.trim();
     if (!name) { slNameInput.focus(); return; }
     if (editingSlId) {
-      const sl = setlists.find(s => s.id === editingSlId);
-      if (sl) {
-        sl.name = name;
-        if (currentSlId === editingSlId) slDetailTitle.textContent = name;
-      }
+      const sl = setlistStore.update(editingSlId, { name });
+      if (sl && currentSlId === editingSlId) slDetailTitle.textContent = name;
     } else {
-      setlists.push({ id: nextId(), name, songs: [] });
+      setlistStore.add({ name });
     }
-    saveSetlists();
     closeSlForm();
     renderSetlists();
   }
 
   function deleteSetlist(id) {
     if (!confirm(t('confirm.deleteSetlist'))) return;
-    setlists = setlists.filter(s => s.id !== id);
+    setlistStore.remove(id);
     if (activeSlId === id) { activeSongId = null; activeSlId = null; updateNowPlaying(); }
-    saveSetlists();
     renderSetlists();
   }
 
   // ── Song list ──
-  function currentSetlist() { return setlists.find(s => s.id === currentSlId); }
+  function currentSetlist() { return setlistStore.findById(currentSlId); }
 
   function renderSongs() {
     const sl = currentSetlist();
@@ -1266,29 +1264,24 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     const tsDenVal = Number(document.getElementById('pfTsDen')?.value) || 4;
     if (!name) { pfName.focus(); return; }
     if (editingSongId) {
-      const idx = sl.songs.findIndex(s => s.id === editingSongId);
-      if (idx !== -1) {
-        sl.songs[idx] = {
-          ...sl.songs[idx],
-          name,
-          bpm: bpmVal,
-          tsNum: tsNumVal,
-          tsDen: tsDenVal,
-          beatStates: pfFormBeatStates,
-          beatVolumes: pfFormBeatVolumes,
-          libSongId: null,
-        };
-        if (activeSongId === editingSongId) {
-          setBPM(bpmVal);
-          setTimeSig(tsNumVal, tsDenVal);
-          applyBeatStates(pfFormBeatStates ?? null, { refreshLoop: false });
-          applyBeatVolumes(pfFormBeatVolumes ?? null);
-          updateNowPlaying();
-        }
+      const updated = setlistStore.updateSong(sl.id, editingSongId, {
+        name,
+        bpm: bpmVal,
+        tsNum: tsNumVal,
+        tsDen: tsDenVal,
+        beatStates: pfFormBeatStates,
+        beatVolumes: pfFormBeatVolumes,
+        libSongId: null,
+      });
+      if (updated && activeSongId === editingSongId) {
+        setBPM(bpmVal);
+        setTimeSig(tsNumVal, tsDenVal);
+        applyBeatStates(pfFormBeatStates ?? null, { refreshLoop: false });
+        applyBeatVolumes(pfFormBeatVolumes ?? null);
+        updateNowPlaying();
       }
     } else {
-      sl.songs.push({
-        id: nextId(),
+      setlistStore.addSong(sl.id, {
         name,
         bpm: bpmVal,
         tsNum: tsNumVal,
@@ -1298,7 +1291,6 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
         libSongId: null,
       });
     }
-    saveSetlists();
     closeSongForm();
     renderSongs();
   }
@@ -1307,9 +1299,8 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     const sl = currentSetlist();
     if (!sl) return;
     if (!confirm(t('confirm.deleteSong'))) return;
-    sl.songs = sl.songs.filter(s => s.id !== id);
+    setlistStore.removeSong(sl.id, id);
     if (activeSongId === id) { activeSongId = null; updateNowPlaying(); }
-    saveSetlists();
     renderSongs();
   }
 
@@ -1326,8 +1317,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     let currentName = '';
     let currentBpm = null;
     if (activeSongId && activeSlId) {
-      const sl = setlists.find(s => s.id === activeSlId);
-      const p  = sl ? sl.songs.find(s => s.id === activeSongId) : null;
+      const p = setlistStore.findSong(activeSlId, activeSongId);
       if (p) {
         currentName = p.name || t('untitled');
         currentBpm = p.bpm;
@@ -1362,7 +1352,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
 
   // ── Setlist event listeners ──
   document.getElementById('btnAddSetlist').addEventListener('click', () => {
-    if (setlists.length >= FREE_SETLIST_LIMIT && !isPro) {
+    if (setlistStore.count() >= FREE_SETLIST_LIMIT && !isPro) {
       requirePro(() => openAddSlForm());
     } else {
       openAddSlForm();
@@ -1402,17 +1392,13 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   setupDnD(songList, '.preset-row', '.drag-handle', (srcIdx, at) => {
     const sl = currentSetlist();
     if (!sl) return;
-    const [item] = sl.songs.splice(srcIdx, 1);
-    sl.songs.splice(at, 0, item);
-    saveSetlists();
+    setlistStore.reorderSongs(sl.id, srcIdx, at);
     renderSongs();
   });
 
   // ── Setlist DnD ──
   setupDnD(slIndexList, '.sl-row', '.drag-handle', (srcIdx, at) => {
-    const [item] = setlists.splice(srcIdx, 1);
-    setlists.splice(at, 0, item);
-    saveSetlists();
+    setlistStore.reorder(srcIdx, at);
     renderSetlists();
   });
 
@@ -1460,29 +1446,24 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     const sl = currentSetlist();
     if (!sl) return;
     if (editingSongId) {
-      const idx = sl.songs.findIndex(s => s.id === editingSongId);
-      if (idx !== -1) {
-        sl.songs[idx] = {
-          ...sl.songs[idx],
-          name: libSong.name,
-          bpm: libSong.bpm,
-          tsNum: libSong.tsNum ?? 4,
-          tsDen: libSong.tsDen ?? 4,
-          beatStates: libSong.beatStates ?? null,
-          beatVolumes: libSong.beatVolumes ?? null,
-          libSongId: libSong.id,
-        };
-        if (activeSongId === editingSongId) {
-          setBPM(libSong.bpm);
-          setTimeSig(libSong.tsNum ?? 4, libSong.tsDen ?? 4);
-          applyBeatStates(libSong.beatStates ?? null, { refreshLoop: false });
-          applyBeatVolumes(libSong.beatVolumes ?? null);
-          updateNowPlaying();
-        }
+      const updated = setlistStore.updateSong(sl.id, editingSongId, {
+        name: libSong.name,
+        bpm: libSong.bpm,
+        tsNum: libSong.tsNum ?? 4,
+        tsDen: libSong.tsDen ?? 4,
+        beatStates: libSong.beatStates ?? null,
+        beatVolumes: libSong.beatVolumes ?? null,
+        libSongId: libSong.id,
+      });
+      if (updated && activeSongId === editingSongId) {
+        setBPM(libSong.bpm);
+        setTimeSig(libSong.tsNum ?? 4, libSong.tsDen ?? 4);
+        applyBeatStates(libSong.beatStates ?? null, { refreshLoop: false });
+        applyBeatVolumes(libSong.beatVolumes ?? null);
+        updateNowPlaying();
       }
     } else {
-      sl.songs.push({
-        id: nextId(),
+      setlistStore.addSong(sl.id, {
         name: libSong.name,
         bpm: libSong.bpm,
         tsNum: libSong.tsNum ?? 4,
@@ -1492,7 +1473,6 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
         libSongId: libSong.id,
       });
     }
-    saveSetlists();
     closeSongForm();
     renderSongs();
   }
@@ -1500,7 +1480,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   // ── Song Library CRUD ──
   function propagateLibSongChange(libSong) {
     let changed = false;
-    setlists.forEach(sl => {
+    setlistStore.all().forEach(sl => {
       sl.songs.forEach((song, idx) => {
         if ((song.libSongId ?? null) !== libSong.id) return;
         const nextSong = {
@@ -1512,7 +1492,10 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
           beatStates: libSong.beatStates ?? null,
           beatVolumes: libSong.beatVolumes ?? null,
         };
-        sl.songs[idx] = nextSong;
+        // Use the per-song helper rather than mutating the live array
+        // directly so persistence stays inside the store. The cost is
+        // one flush per match — fine for the typical handful of refs.
+        setlistStore.replaceSong(sl.id, song.id, nextSong);
         if (activeSongId === song.id) {
           applyPreset(nextSong);
           updateNowPlaying();
@@ -1521,7 +1504,6 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
       });
     });
     if (!changed) return;
-    saveSetlists();
     if (slDetailEl.classList.contains('active')) renderSongs();
   }
 

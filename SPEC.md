@@ -10,13 +10,14 @@
 
 ## Structure
 - `index.html`: 現在の本番エントリ。メトロノーム、セットリスト、ライブラリの3ビューを同一 HTML 内に持つ
-- `src/main.js`: アプリの中核。スワイプ UI、セットリスト/ライブラリ CRUD、画面遷移、音声スケジューラの駆動部、グローバル状態を保持する
+- `src/main.js`: アプリの中核。スワイプ UI、セットリスト/ライブラリ CRUD の駆動部、画面遷移、音声スケジューラの駆動部、UI 状態を保持する。永続データ自体は `src/state/*` のストアが所有する
 - `src/config.js`: BPM / 拍子 / クリック音 / フリープラン上限などの定数と `localStorage` キー (`LS_KEYS`) を集約する
 - `src/i18n.js`: ja/en 翻訳辞書と `createI18n(initialLang)` ファクトリ。言語切替は `localStorage` の `metro-lang` を経由する
 - `src/audio/synth.js`: スクエア波クリックの共通レンダラ `renderClick` と `getSubdivisionsPerBeat` を持つ。live AudioContext と OfflineAudioContext の双方から共有される
 - `src/audio/scheduler.js`: 16 分音符解像度の foreground スケジューラ (`createScheduler`)。サブビートカウンタ・タイマー ID・直近スケジュール済み拍時刻を内包し、`start` / `stop` / `getScheduledBeatTimes` を公開する
 - `src/audio/bg-loop.js`: バックグラウンド再生用の WAV ループを `OfflineAudioContext` で構築する `createBgLoopBuilder` ファクトリ。BPM/拍子/音量のシグネチャでキャッシュする
 - `src/audio/bg-playback.js`: バックグラウンド再生コントローラ (`createBgPlayback`)。`HTMLAudioElement` 経路と Capacitor `MetronomeAudio` プラグイン経路の両方の lifecycle (warm-up・start/stop・mute 同期・遅延付き refresh・native prepare promise) を内包し、`start` / `stop` / `refreshNow` / `refreshWhenSafe` / `refreshAndResume` / `cancelDeferredRefresh` / `syncMuted` / `syncNativeState` / `awaitNativePrepare` / `warmUp` を公開する
+- `src/state/setlist.js`: セットリストの永続化ストア (`createSetlistStore`)。`setlists` 配列を保持し、`add` / `update` / `remove` / `reorder` のセットリスト単位ミューテーションと `addSong` / `updateSong` / `replaceSong` / `removeSong` / `reorderSongs` のネスト曲単位ミューテーションを公開する。すべてのミューテーションで自動的に `localStorage` (`metro-setlists`) を flush する。`all` / `count` / `findById` / `findSong` で読み出しを行う。UI 状態 (`currentSlId`・`activeSlId`・`activeSongId`・`editingSlId`・`editingSongId`) はホスト (`src/main.js`) 側に残す
 - `src/state/song-library.js`: 曲ライブラリの永続化ストア (`createSongLibraryStore`)。`songs` 配列とソートモード (`'manual' | 'name' | 'bpm'`) を保持し、`add` / `update` / `remove` / `reorder` 経由のミューテーションで自動的に `localStorage` (`metro-song-lib`) を flush する。`all` / `count` / `findById` / `sortedForDisplay` / `getSortMode` / `setSortMode` を公開する。UI 選択状態 (`activeLibSongId`)・フォーム状態・DOM 描画はホスト (`src/main.js`) 側に残す
 - `src/ui/dnd.js`: タッチ/マウス共通の DnD 並び替えロジック (`setupDnD`)
 - `src/ui/song-row.js`: セットリスト/ライブラリで共通の曲行レンダラ (`renderSongRows`)。トラック番号・ドラッグハンドルの有無や `data-action` 名、各種コールバックを引数で渡してビュー差分を吸収する
@@ -65,7 +66,7 @@
 
 ## Known Issues
 - `src/main.js` には依然として UI レンダリング・スワイプ・セットリスト/ライブラリ CRUD・スケジューラ駆動部・グローバル状態が集中しており、変更影響範囲は広い（音声プリミティブ・DnD・i18n・定数・ストレージは別モジュールへ切り出し済み）
-- グローバルな可変状態が `src/main.js` のクロージャに多数並んでおり、ドメイン別ストアへの集約は曲ライブラリ (`src/state/song-library.js`) のみ着手済み。セットリストや UI セレクション・フォーム状態は引き続き `main.js` のクロージャ
+- 永続ドメインモデルはストアへ集約済み（セットリスト=`src/state/setlist.js`、曲ライブラリ=`src/state/song-library.js`）。`activeSongId` / `activeSlId` / `currentSlId` / `editingSlId` / `editingSongId` / `activeLibSongId` / `editingLibId` などの UI セレクション・フォーム状態と、フォームの一時バッファ (`pfFormBeatVolumes` 等) は引き続き `main.js` のクロージャに残る
 - セットリスト追加フォームとライブラリ追加フォームは類似実装が並行しており、共通コンポーネント化されていない（曲行のレンダリングは `src/ui/song-row.js`、拍子ピッカーは `src/ui/ts-picker.js` に集約済みだが、フォーム本体・キャプチャプレビューは依然として二重実装）
 - データは `localStorage` のみのため、ブラウザ削除・端末変更・プライベートモードでは失われる
 - `legacy/metro-beat.html` は旧プロトタイプとして残存している（現行実装との二重管理に見える点は緩和）
