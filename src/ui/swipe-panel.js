@@ -39,12 +39,21 @@ export function createSwipePanel({
   let currentPage = 0;
   let physicalIdx = 1; // start at slot 1 (real page 0)
 
+  function createSentinelClone(pageEl) {
+    const clone = pageEl.cloneNode(true);
+    clone.dataset.clone = 'sentinel';
+    clone.setAttribute('aria-hidden', 'true');
+    clone.inert = true;
+    clone.querySelectorAll('[id]').forEach(el => el.removeAttribute('id'));
+    return clone;
+  }
+
   // Inject clone sentinels into the DOM
   const pages = Array.from(pagesEl.querySelectorAll('.swipe-page'));
   // slot 0: clone of last page (shows when dragging right past page 0)
-  pagesEl.insertBefore(pages[totalPages - 1].cloneNode(true), pages[0]);
+  pagesEl.insertBefore(createSentinelClone(pages[totalPages - 1]), pages[0]);
   // slot 4: clone of first page (shows when dragging left past last page)
-  pagesEl.appendChild(pages[0].cloneNode(true));
+  pagesEl.appendChild(createSentinelClone(pages[0]));
 
   if (typeof onAfterClonesInserted === 'function') onAfterClonesInserted();
 
@@ -79,7 +88,15 @@ export function createSwipePanel({
   });
 
   function updateDots() {
-    dotEls.forEach((dot, i) => dot.classList.toggle('active', i === currentPage));
+    dotEls.forEach((dot, i) => {
+      const isActive = i === currentPage;
+      dot.classList.toggle('active', isActive);
+      if (isActive) {
+        dot.setAttribute('aria-current', 'page');
+      } else {
+        dot.removeAttribute('aria-current');
+      }
+    });
   }
 
   function emitPageEnter() {

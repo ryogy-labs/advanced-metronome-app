@@ -18,6 +18,7 @@ import {
   SCHEDULER_AHEAD_SEC,
 } from '../config.js';
 import { renderClick, getSubdivisionsPerBeat } from './synth.js';
+import { getBeatDurationSec } from './timing.js';
 
 export function createScheduler({
   getCtx,
@@ -66,7 +67,7 @@ export function createScheduler({
     const ctx = getCtx();
     const { bpm, beatsPerMeasure, tsDen } = getState();
     const subdivisions = getSubdivisionsPerBeat(tsDen);
-    const beatIntervalSec = 60 / bpm;
+    const beatIntervalSec = getBeatDurationSec(bpm);
     const subdivisionInterval = beatIntervalSec / subdivisions;
     const measureSubdivisionCount = beatsPerMeasure * subdivisions;
 

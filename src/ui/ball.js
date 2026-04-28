@@ -15,6 +15,7 @@
 //     with the ball position).
 
 import { BALL_R, BALL_RANGE_SCALE, BALL_TOP_MARGIN } from '../config.js';
+import { getNativeBeatPosition, getScheduledBeatPosition } from '../audio/timing.js';
 
 const COLOR_ACCENT = '#fc5c7d';
 const COLOR_MUTE   = '#a8a8b8';
@@ -145,28 +146,22 @@ export function createBallAnimator({
     let phase   = 0;
     let beatIdx = 0;
     if (isNative() && running && getNativeLoopAnchorMs() > 0) {
-      const anchorMs = getNativeLoopAnchorMs();
-      const beatDurMs = 60000 / bpm;
-      const loopDurMs = beatDurMs * beatsPerMeasure;
-      const elapsedMs = Math.max(0, performance.now() - anchorMs);
-      const loopMs = elapsedMs % loopDurMs;
-      beatIdx = Math.floor(loopMs / beatDurMs) % beatsPerMeasure;
-      phase = (loopMs % beatDurMs) / beatDurMs;
+      ({ beatIdx, phase } = getNativeBeatPosition({
+        nowMs: performance.now(),
+        anchorMs: getNativeLoopAnchorMs(),
+        bpm,
+        beatsPerMeasure,
+      }));
       onNativeBeat(beatIdx);
     } else if (running && getAudioCtx()) {
       const now = getAudioCtx().currentTime;
-      const times = getScheduledBeatTimes();
-      let lastBeat = null;
-      for (let i = times.length - 1; i >= 0; i--) {
-        if (times[i].time <= now) {
-          lastBeat = times[i];
-          break;
-        }
-      }
-      if (lastBeat) {
-        const beatDur = 60 / bpm;
-        phase   = Math.min((now - lastBeat.time) / beatDur, 1);
-        beatIdx = lastBeat.beatIdx;
+      const position = getScheduledBeatPosition({
+        scheduledBeatTimes: getScheduledBeatTimes(),
+        nowSec: now,
+        bpm,
+      });
+      if (position) {
+        ({ beatIdx, phase } = position);
       }
     } else {
       onIdle();

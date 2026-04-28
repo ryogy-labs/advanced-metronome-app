@@ -16,25 +16,56 @@
 // owns its own i18n instance and passes it in.
 
 import { TS_NUMS, TS_DENS } from '../config.js';
-import { escHtml } from '../utils/dom.js';
 
-function buildHtml(tsNum, tsDen, prefix, label) {
-  return `
-    <div class="ts-picker-row">
-      <label>${escHtml(label)}</label>
-      <div class="ts-picker-group">
-        <div class="ts-picker-nums">
-          ${TS_NUMS.map(n => `<button type="button" class="ts-btn${tsNum === n ? ' active' : ''}" data-target="${prefix}Num" data-val="${n}">${n}</button>`).join('')}
-        </div>
-        <span class="ts-slash">/</span>
-        <div class="ts-picker-dens">
-          ${TS_DENS.map(d => `<button type="button" class="ts-btn${tsDen === d ? ' active' : ''}" data-target="${prefix}Den" data-val="${d}">${d}</button>`).join('')}
-        </div>
-      </div>
-      <input type="hidden" id="${prefix}Num" value="${tsNum}">
-      <input type="hidden" id="${prefix}Den" value="${tsDen}">
-    </div>
-  `;
+function createButton(value, target, isActive) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'ts-btn';
+  btn.classList.toggle('active', isActive);
+  btn.dataset.target = target;
+  btn.dataset.val = String(value);
+  btn.textContent = String(value);
+  return btn;
+}
+
+function createHiddenInput(id, value) {
+  const input = document.createElement('input');
+  input.type = 'hidden';
+  input.id = id;
+  input.value = String(value);
+  return input;
+}
+
+function buildPickerFragment(tsNum, tsDen, prefix, label) {
+  const row = document.createElement('div');
+  row.className = 'ts-picker-row';
+
+  const labelEl = document.createElement('label');
+  labelEl.textContent = label;
+  row.appendChild(labelEl);
+
+  const group = document.createElement('div');
+  group.className = 'ts-picker-group';
+
+  const nums = document.createElement('div');
+  nums.className = 'ts-picker-nums';
+  nums.append(...TS_NUMS.map(n => createButton(n, `${prefix}Num`, tsNum === n)));
+  group.appendChild(nums);
+
+  const slash = document.createElement('span');
+  slash.className = 'ts-slash';
+  slash.textContent = '/';
+  group.appendChild(slash);
+
+  const dens = document.createElement('div');
+  dens.className = 'ts-picker-dens';
+  dens.append(...TS_DENS.map(d => createButton(d, `${prefix}Den`, tsDen === d)));
+  group.appendChild(dens);
+
+  row.appendChild(group);
+  row.appendChild(createHiddenInput(`${prefix}Num`, tsNum));
+  row.appendChild(createHiddenInput(`${prefix}Den`, tsDen));
+  return row;
 }
 
 // Mount a fresh picker into `container`. Replaces any prior contents
@@ -42,7 +73,7 @@ function buildHtml(tsNum, tsDen, prefix, label) {
 // so the active-button state matches the editing target).
 export function mountTsPicker({ container, tsNum, tsDen, prefix, t }) {
   if (!container) return;
-  container.innerHTML = buildHtml(tsNum, tsDen, prefix, t('page.timesig'));
+  container.replaceChildren(buildPickerFragment(tsNum, tsDen, prefix, t('page.timesig')));
   container.onclick = e => {
     const btn = e.target.closest('.ts-btn');
     if (!btn || !container.contains(btn)) return;

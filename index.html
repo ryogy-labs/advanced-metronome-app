@@ -16,15 +16,15 @@
   <div class="metro-top">
     <h1>Metro<span>Beat</span></h1>
     <div class="beat-header-row">
-      <button class="settings-btn" id="settingsBtnMetro" type="button" aria-label="設定">⚙️</button>
+      <button class="settings-btn" id="settingsBtnMetro" type="button" aria-label="設定" data-i18n-aria-label="action.settings">⚙️</button>
       <div class="beat-row" id="beatRow"></div>
-      <button class="mute-btn" id="muteBtnMetro" type="button" aria-label="ミュート切替">🔊</button>
+      <button class="mute-btn" id="muteBtnMetro" type="button" aria-label="ミュート切替" data-i18n-aria-label="action.toggleMute">🔊</button>
     </div>
     <div class="bpm-block">
       <div class="bpm-label">BPM</div>
       <div class="bpm-value" id="bpmDisplay">120</div>
       <input type="range" class="bpm-slider" id="bpmSlider"
-             min="20" max="300" value="120" step="1">
+             min="20" max="300" value="120" step="1" aria-label="BPM" data-i18n-aria-label="aria.bpm">
       <div class="bpm-btns">
         <button id="bpmMinus10">-10</button>
         <button id="bpmMinus5">-5</button>
@@ -52,28 +52,28 @@
         <div class="vol-section">
           <div class="vol-row master-vol-row">
             <div class="vol-name master-vol-name" data-i18n="volume.master"><b>全体</b></div>
-            <input type="range" class="vol-slider master-vol-slider" id="volMaster" min="0" max="100" value="100">
-            <input type="number" class="vol-num-input" id="volMasterNum" min="0" max="100" step="1" value="100" inputmode="numeric">
+            <input type="range" class="vol-slider master-vol-slider" id="volMaster" min="0" max="100" value="100" aria-label="全体音量" data-i18n-aria-label="aria.volumeMaster">
+            <input type="number" class="vol-num-input" id="volMasterNum" min="0" max="100" step="1" value="100" inputmode="numeric" aria-label="全体音量" data-i18n-aria-label="aria.volumeMaster">
           </div>
           <div class="vol-row">
             <div class="vol-name" data-i18n="volume.beat1"><b>頭拍</b></div>
-            <input type="range" class="vol-slider" id="volBeat1" min="0" max="100" value="100">
-            <input type="number" class="vol-num-input" id="volBeat1Num" min="0" max="100" step="1" value="100" inputmode="numeric">
+            <input type="range" class="vol-slider" id="volBeat1" min="0" max="100" value="100" aria-label="強拍音量" data-i18n-aria-label="aria.volumeBeat1">
+            <input type="number" class="vol-num-input" id="volBeat1Num" min="0" max="100" step="1" value="100" inputmode="numeric" aria-label="強拍音量" data-i18n-aria-label="aria.volumeBeat1">
           </div>
           <div class="vol-row">
             <div class="vol-name" data-i18n="volume.quarter"><b>4分</b></div>
-            <input type="range" class="vol-slider" id="volQuarter" min="0" max="100" value="80">
-            <input type="number" class="vol-num-input" id="volQuarterNum" min="0" max="100" step="1" value="80" inputmode="numeric">
+            <input type="range" class="vol-slider" id="volQuarter" min="0" max="100" value="80" aria-label="4分音量" data-i18n-aria-label="aria.volumeQuarter">
+            <input type="number" class="vol-num-input" id="volQuarterNum" min="0" max="100" step="1" value="80" inputmode="numeric" aria-label="4分音量" data-i18n-aria-label="aria.volumeQuarter">
           </div>
           <div class="vol-row">
             <div class="vol-name" data-i18n="volume.eighth"><b>8分</b></div>
-            <input type="range" class="vol-slider" id="volEighth" min="0" max="100" value="50">
-            <input type="number" class="vol-num-input" id="volEighthNum" min="0" max="100" step="1" value="50" inputmode="numeric">
+            <input type="range" class="vol-slider" id="volEighth" min="0" max="100" value="50" aria-label="8分音量" data-i18n-aria-label="aria.volumeEighth">
+            <input type="number" class="vol-num-input" id="volEighthNum" min="0" max="100" step="1" value="50" inputmode="numeric" aria-label="8分音量" data-i18n-aria-label="aria.volumeEighth">
           </div>
           <div class="vol-row">
             <div class="vol-name" data-i18n="volume.sixteenth"><b>16分</b></div>
-            <input type="range" class="vol-slider" id="volSixteenth" min="0" max="100" value="0">
-            <input type="number" class="vol-num-input" id="volSixteenthNum" min="0" max="100" step="1" value="0" inputmode="numeric">
+            <input type="range" class="vol-slider" id="volSixteenth" min="0" max="100" value="0" aria-label="16分音量" data-i18n-aria-label="aria.volumeSixteenth">
+            <input type="number" class="vol-num-input" id="volSixteenthNum" min="0" max="100" step="1" value="0" inputmode="numeric" aria-label="16分音量" data-i18n-aria-label="aria.volumeSixteenth">
           </div>
         </div>
       </div>
@@ -84,15 +84,15 @@
         <div class="ts-picker-wrap">
           <div class="ts-picker-row">
             <div class="ts-picker-col">
-              <button class="ts-arrow" id="tsNumUp">▲</button>
+              <button class="ts-arrow" id="tsNumUp" aria-label="拍子の分子を増やす" data-i18n-aria-label="aria.tsNumUp">▲</button>
               <div class="ts-val" id="tsNumVal">4</div>
-              <button class="ts-arrow" id="tsNumDn">▼</button>
+              <button class="ts-arrow" id="tsNumDn" aria-label="拍子の分子を減らす" data-i18n-aria-label="aria.tsNumDown">▼</button>
             </div>
             <div class="ts-slash">/</div>
             <div class="ts-picker-col">
-              <button class="ts-arrow" id="tsDenUp">▲</button>
+              <button class="ts-arrow" id="tsDenUp" aria-label="拍子の分母を増やす" data-i18n-aria-label="aria.tsDenUp">▲</button>
               <div class="ts-val" id="tsDenVal">4</div>
-              <button class="ts-arrow" id="tsDenDn">▼</button>
+              <button class="ts-arrow" id="tsDenDn" aria-label="拍子の分母を減らす" data-i18n-aria-label="aria.tsDenDown">▼</button>
             </div>
           </div>
         </div>
@@ -102,9 +102,9 @@
 
     <!-- Page indicator dots -->
     <div class="page-dots">
-      <button class="page-dot active" data-page="0"></button>
-      <button class="page-dot" data-page="1"></button>
-      <button class="page-dot" data-page="2"></button>
+      <button class="page-dot active" data-page="0" aria-label="ボール" aria-current="page"></button>
+      <button class="page-dot" data-page="1" aria-label="音量設定"></button>
+      <button class="page-dot" data-page="2" aria-label="拍子"></button>
     </div>
   </div><!-- /swipe-wrap -->
 
@@ -124,9 +124,9 @@
     <h1 class="view-title">Metro<span>Beat</span></h1>
     <!-- Beat indicator (mirrors metronome tab) -->
     <div class="beat-header-row">
-      <button class="settings-btn" id="settingsBtnSetlist" type="button" aria-label="設定">⚙️</button>
+      <button class="settings-btn" id="settingsBtnSetlist" type="button" aria-label="設定" data-i18n-aria-label="action.settings">⚙️</button>
       <div class="beat-row sl-beat-row" id="beatRowSetlist"></div>
-      <button class="mute-btn" id="muteBtnSetlist" type="button" aria-label="ミュート切替">🔊</button>
+      <button class="mute-btn" id="muteBtnSetlist" type="button" aria-label="ミュート切替" data-i18n-aria-label="action.toggleMute">🔊</button>
     </div>
   </div>
 
@@ -148,6 +148,7 @@
         <div class="setlist-list" id="slIndexList"></div>
         <div class="preset-form" id="slForm" style="display:none">
           <div class="pf-fields">
+            <label class="sr-only" for="slName" data-i18n="label.setlistName">セットリスト名</label>
             <input class="pf-name" type="text" id="slName" placeholder="セットリスト名 (例: ワンマンライブ)" data-i18n-placeholder="setlist.namePlaceholder">
           </div>
           <div class="pf-btns">
@@ -179,7 +180,9 @@
           </div>
           <div id="pfManual">
             <div class="pf-fields">
+              <label class="sr-only" for="pfName" data-i18n="library.songName">曲名</label>
               <input class="pf-name" type="text" id="pfName" placeholder="曲名" data-i18n-placeholder="library.songName">
+              <label class="sr-only" for="pfBpm" data-i18n="label.bpm">BPM</label>
               <input class="pf-bpm"  type="number" id="pfBpm"  placeholder="BPM" min="20" max="300">
             </div>
             <div id="pfTsPicker" class="form-ts-picker"></div>
@@ -208,9 +211,9 @@
   <div class="view-top-section">
     <h1 class="view-title">Metro<span>Beat</span></h1>
     <div class="beat-header-row">
-      <button class="settings-btn" id="settingsBtnLibrary" type="button" aria-label="設定">⚙️</button>
+      <button class="settings-btn" id="settingsBtnLibrary" type="button" aria-label="設定" data-i18n-aria-label="action.settings">⚙️</button>
       <div class="beat-row sl-beat-row" id="beatRowLibrary"></div>
-      <button class="mute-btn" id="muteBtnLibrary" type="button" aria-label="ミュート切替">🔊</button>
+      <button class="mute-btn" id="muteBtnLibrary" type="button" aria-label="ミュート切替" data-i18n-aria-label="action.toggleMute">🔊</button>
     </div>
   </div>
   <div class="view-body">
@@ -237,7 +240,9 @@
       <div class="setlist-list" id="libSongList"></div>
       <div class="preset-form" id="libForm" style="display:none">
         <div class="pf-fields">
+          <label class="sr-only" for="libName" data-i18n="library.songName">曲名</label>
           <input class="pf-name" type="text"   id="libName" placeholder="曲名" data-i18n-placeholder="library.songName">
+          <label class="sr-only" for="libBpm" data-i18n="label.bpm">BPM</label>
           <input class="pf-bpm"  type="number" id="libBpm"  placeholder="BPM" min="20" max="300">
         </div>
         <div id="libTsPicker" class="form-ts-picker"></div>
@@ -283,9 +288,9 @@
 </nav>
 
 <!-- Pro ペイウォール -->
-<div id="proPaywall" class="modal-overlay" style="display:none" aria-modal="true" role="dialog">
+<div id="proPaywall" class="modal-overlay" style="display:none" aria-modal="true" role="dialog" aria-labelledby="paywallTitle">
   <div class="modal-card">
-    <h2 class="modal-title">Metro Beat Pro</h2>
+    <h2 class="modal-title" id="paywallTitle">Metro Beat Pro</h2>
     <ul class="paywall-list">
       <li data-i18n="paywall.unlimited">✓ セットリスト・ライブラリが無制限に</li>
       <li data-i18n="paywall.volumePreset">✓ 曲ごとの音量プリセット保存</li>
@@ -294,16 +299,16 @@
     </ul>
     <button id="paywallBuyBtn" class="btn-primary" data-i18n="paywall.upgrade">Pro にアップグレード（$7.99）</button>
     <button id="paywallRestoreBtn" class="btn-ghost" data-i18n="paywall.restore">購入を復元</button>
-    <button id="paywallCloseBtn" class="btn-close" aria-label="閉じる">✕</button>
+    <button id="paywallCloseBtn" class="btn-close" aria-label="閉じる" data-i18n-aria-label="action.close">✕</button>
   </div>
 </div>
 
 <!-- ── Settings Modal ── -->
 <div class="settings-overlay" id="settingsOverlay" hidden>
-  <div class="settings-modal" id="settingsModal" role="dialog" aria-modal="true" aria-label="設定">
+  <div class="settings-modal" id="settingsModal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
     <div class="settings-header">
-      <span class="settings-title" data-i18n="settings.title">設定</span>
-      <button class="settings-close" id="settingsClose" aria-label="閉じる">✕</button>
+      <span class="settings-title" id="settingsTitle" data-i18n="settings.title">設定</span>
+      <button class="settings-close" id="settingsClose" aria-label="閉じる" data-i18n-aria-label="action.close">✕</button>
     </div>
     <div class="settings-body">
       <div class="settings-row">

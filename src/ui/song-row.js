@@ -10,7 +10,37 @@
 // renderSongRows centralizes the markup + listener wiring; callers pass a
 // description of the list and the per-action callbacks.
 
-import { escHtml } from '../utils/dom.js';
+const renderCache = new WeakMap();
+
+function buildRenderSignature({
+  items,
+  emptyText,
+  untitledText,
+  editTitle,
+  deleteTitle,
+  showTrackNumber,
+  showDragHandle,
+  editAction,
+  deleteAction,
+}) {
+  return JSON.stringify({
+    items: items.map(item => ({
+      id: item.id,
+      name: item.name,
+      bpm: item.bpm,
+      tsNum: item.tsNum ?? 4,
+      tsDen: item.tsDen ?? 4,
+    })),
+    emptyText,
+    untitledText,
+    editTitle,
+    deleteTitle,
+    showTrackNumber,
+    showDragHandle,
+    editAction,
+    deleteAction,
+  });
+}
 
 export function renderSongRows({
   listEl,
@@ -28,39 +58,199 @@ export function renderSongRows({
   onEdit,            // (id) => void
   onDelete,          // (id) => void
 }) {
+  const signature = buildRenderSignature({
+    items,
+    emptyText,
+    untitledText,
+    editTitle,
+    deleteTitle,
+    showTrackNumber,
+    showDragHandle,
+    editAction,
+    deleteAction,
+  });
+  if (renderCache.get(listEl) === signature) {
+    setActiveRow(listEl, activeId);
+    return;
+  }
+  renderCache.set(listEl, signature);
+
   if (!items.length) {
-    listEl.innerHTML = `<div class="setlist-empty">${escHtml(emptyText)}</div>`;
+    const emptyEl = document.createElement('div');
+    emptyEl.className = 'setlist-empty';
+    emptyEl.textContent = emptyText;
+    listEl.replaceChildren(emptyEl);
     return;
   }
 
-  listEl.innerHTML = items.map((item, idx) => {
-    const isActive = activeId === item.id;
-    const handleHtml = showDragHandle ? '<span class="drag-handle">⠿</span>' : '';
-    const numHtml = showTrackNumber ? `<span class="preset-num">${idx + 1}</span>` : '';
-    const nameHtml = escHtml(item.name) || (untitledText ? escHtml(untitledText) : '');
-    const tsNum = item.tsNum ?? 4;
-    const tsDen = item.tsDen ?? 4;
-    return `
-      <div class="preset-row${isActive ? ' active' : ''}" data-idx="${idx}">
-        ${handleHtml}
-        <button class="preset-apply" data-id="${escHtml(item.id)}">
-          ${numHtml}
-          <span class="preset-name">${nameHtml}</span>
-          <span class="preset-bpm">${escHtml(item.bpm)} BPM</span>
-          <span class="preset-ts">${escHtml(tsNum)}/${escHtml(tsDen)}</span>
-        </button>
-        <button class="preset-icon-btn" data-id="${escHtml(item.id)}" data-action="${editAction}" title="${escHtml(editTitle)}">✏</button>
-        <button class="preset-icon-btn del" data-id="${escHtml(item.id)}" data-action="${deleteAction}" title="${escHtml(deleteTitle)}">✕</button>
-      </div>
-    `;
-  }).join('');
+  reconcileSongRows({
+    listEl,
+    items,
+    activeId,
+    untitledText,
+    editTitle,
+    deleteTitle,
+    showTrackNumber,
+    showDragHandle,
+    editAction,
+    deleteAction,
+    onApply,
+    onEdit,
+    onDelete,
+  });
+}
 
-  listEl.querySelectorAll('.preset-apply').forEach(btn =>
-    btn.addEventListener('click', () => onApply(btn.dataset.id)));
-  listEl.querySelectorAll(`[data-action="${editAction}"]`).forEach(btn =>
-    btn.addEventListener('click', () => onEdit(btn.dataset.id)));
-  listEl.querySelectorAll(`[data-action="${deleteAction}"]`).forEach(btn =>
-    btn.addEventListener('click', () => onDelete(btn.dataset.id)));
+function reconcileSongRows({
+  listEl,
+  items,
+  activeId,
+  untitledText,
+  editTitle,
+  deleteTitle,
+  showTrackNumber,
+  showDragHandle,
+  editAction,
+  deleteAction,
+  onApply,
+  onEdit,
+  onDelete,
+}) {
+  const existingRows = new Map(
+    Array.from(listEl.children)
+      .filter(el => el.classList.contains('preset-row'))
+      .map(row => [row.dataset.id, row])
+  );
+
+  items.forEach((item, idx) => {
+    const id = String(item.id);
+    let row = existingRows.get(id);
+    if (!row) {
+      row = document.createElement('div');
+      row.className = 'preset-row';
+      row.dataset.id = id;
+    }
+    existingRows.delete(id);
+    updateSongRow(row, {
+      item,
+      idx,
+      activeId,
+      untitledText,
+      editTitle,
+      deleteTitle,
+      showTrackNumber,
+      showDragHandle,
+      editAction,
+      deleteAction,
+      onApply,
+      onEdit,
+      onDelete,
+    });
+    listEl.appendChild(row);
+  });
+
+  existingRows.forEach(row => row.remove());
+}
+
+function updateSongRow(row, {
+  item,
+  idx,
+  activeId,
+  untitledText,
+  editTitle,
+  deleteTitle,
+  showTrackNumber,
+  showDragHandle,
+  editAction,
+  deleteAction,
+  onApply,
+  onEdit,
+  onDelete,
+}) {
+  const id = String(item.id);
+  const tsNum = item.tsNum ?? 4;
+  const tsDen = item.tsDen ?? 4;
+  const rawName = item.name || untitledText || '';
+  const nameText = item.name || untitledText || '';
+  const rowSignature = JSON.stringify({
+    id,
+    idx,
+    name: item.name,
+    bpm: item.bpm,
+    tsNum,
+    tsDen,
+    untitledText,
+    editTitle,
+    deleteTitle,
+    showTrackNumber,
+    showDragHandle,
+    editAction,
+    deleteAction,
+  });
+
+  row.dataset.id = id;
+  row.dataset.idx = String(idx);
+  row.classList.toggle('active', activeId === id);
+  if (row.dataset.signature === rowSignature) return;
+  row.dataset.signature = rowSignature;
+
+  const children = [];
+  if (showDragHandle) {
+    const handle = document.createElement('span');
+    handle.className = 'drag-handle';
+    handle.setAttribute('aria-hidden', 'true');
+    handle.textContent = '⠿';
+    children.push(handle);
+  }
+
+  const applyBtn = document.createElement('button');
+  applyBtn.className = 'preset-apply';
+  applyBtn.dataset.id = id;
+  applyBtn.addEventListener('click', () => onApply(id));
+
+  if (showTrackNumber) {
+    const num = document.createElement('span');
+    num.className = 'preset-num';
+    num.textContent = String(idx + 1);
+    applyBtn.appendChild(num);
+  }
+
+  const name = document.createElement('span');
+  name.className = 'preset-name';
+  name.textContent = nameText;
+  applyBtn.appendChild(name);
+
+  const bpm = document.createElement('span');
+  bpm.className = 'preset-bpm';
+  bpm.textContent = `${item.bpm} BPM`;
+  applyBtn.appendChild(bpm);
+
+  const ts = document.createElement('span');
+  ts.className = 'preset-ts';
+  ts.textContent = `${tsNum}/${tsDen}`;
+  applyBtn.appendChild(ts);
+  children.push(applyBtn);
+
+  const editBtn = document.createElement('button');
+  editBtn.className = 'preset-icon-btn';
+  editBtn.dataset.id = id;
+  editBtn.dataset.action = editAction;
+  editBtn.title = editTitle;
+  editBtn.setAttribute('aria-label', `${rawName} ${editTitle}`.trim());
+  editBtn.textContent = '✏';
+  editBtn.addEventListener('click', () => onEdit(id));
+  children.push(editBtn);
+
+  const deleteBtn = document.createElement('button');
+  deleteBtn.className = 'preset-icon-btn del';
+  deleteBtn.dataset.id = id;
+  deleteBtn.dataset.action = deleteAction;
+  deleteBtn.title = deleteTitle;
+  deleteBtn.setAttribute('aria-label', `${rawName} ${deleteTitle}`.trim());
+  deleteBtn.textContent = '✕';
+  deleteBtn.addEventListener('click', () => onDelete(id));
+  children.push(deleteBtn);
+
+  row.replaceChildren(...children);
 }
 
 // Selection-only update: toggles the `.active` class on rows in `listEl`
