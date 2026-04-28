@@ -17,7 +17,7 @@ import { createBgLoopBuilder, arrayBufferToBase64 } from './audio/bg-loop.js';
 import { createBgPlayback } from './audio/bg-playback.js';
 import { createScheduler } from './audio/scheduler.js';
 import { setupDnD } from './ui/dnd.js';
-import { renderSongRows } from './ui/song-row.js';
+import { renderSongRows, setActiveRow } from './ui/song-row.js';
 import { createBallAnimator } from './ui/ball.js';
 import { createSwipePanel } from './ui/swipe-panel.js';
 import { mountTsPicker, setTsPickerValues } from './ui/ts-picker.js';
@@ -1143,7 +1143,9 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
         startMetronome();
       }
     } else {
-      // New song: switch BPM and auto-start
+      // New song: switch BPM and auto-start. The song list itself
+      // didn't change — only `activeSongId` did — so toggle the active
+      // row in place rather than re-rendering the whole list.
       activeLibSongId = null;
       activeSongId = id;
       activeSlId   = currentSlId;
@@ -1151,7 +1153,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
       setTimeSig(songCfg.tsNum, songCfg.tsDen);
       applyBeatStates(songCfg.beatStates ?? null, { refreshLoop: false });
       applyBeatVolumes(songCfg.beatVolumes);
-      renderSongs();
+      setActiveRow(songList, id);
       updateNowPlaying();
       startMetronome();
     }
@@ -1180,7 +1182,9 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
       }
       return;
     }
-    // New library song: switch BPM and auto-start
+    // New library song: switch BPM and auto-start. The library list
+    // itself didn't change — only `activeLibSongId` did — so toggle the
+    // active row in place rather than re-rendering the whole list.
     activeLibSongId = id;
     activeSongId = null;
     activeSlId = null;
@@ -1188,7 +1192,7 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     setTimeSig(songCfg.tsNum, songCfg.tsDen);
     applyBeatStates(songCfg.beatStates ?? null, { refreshLoop: false });
     applyBeatVolumes(songCfg.beatVolumes);
-    renderLibrary();
+    setActiveRow(libSongList, id);
     updateNowPlaying();
     startMetronome();
   }

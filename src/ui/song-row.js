@@ -62,3 +62,20 @@ export function renderSongRows({
   listEl.querySelectorAll(`[data-action="${deleteAction}"]`).forEach(btn =>
     btn.addEventListener('click', () => onDelete(btn.dataset.id)));
 }
+
+// Selection-only update: toggles the `.active` class on rows in `listEl`
+// without rebuilding markup or rebinding listeners. Use this when only
+// the active selection changed and the row data is otherwise unchanged
+// — e.g. tapping a song to activate it. Falls back gracefully if the
+// list hasn't been rendered yet (no rows to toggle).
+//
+// `activeId === null` clears the active row. Matching is by the inner
+// `.preset-apply` button's `data-id` (the same id `renderSongRows`
+// stamps on it), so callers don't need to coordinate a separate lookup.
+export function setActiveRow(listEl, activeId) {
+  listEl.querySelectorAll('.preset-row').forEach(row => {
+    const apply = row.querySelector('.preset-apply');
+    const id = apply?.dataset.id ?? null;
+    row.classList.toggle('active', id != null && id === activeId);
+  });
+}
