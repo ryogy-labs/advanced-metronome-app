@@ -21,6 +21,7 @@ import { renderSongRows } from './ui/song-row.js';
 import { createBallAnimator } from './ui/ball.js';
 import { createSwipePanel } from './ui/swipe-panel.js';
 import { mountTsPicker, setTsPickerValues } from './ui/ts-picker.js';
+import { createSongForm } from './ui/song-form.js';
 import { createSongLibraryStore } from './state/song-library.js';
 import { createSetlistStore } from './state/setlist.js';
 
@@ -575,25 +576,9 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
 
   // Time-signature picker: implementation lives in ./ui/ts-picker.js;
   // imported `mountTsPicker` / `setTsPickerValues` shadow these names.
-
-  function updateCapturePreview(prefix, bv, capturedBpm = null, capturedDen = tsDen) {
-    const el = document.getElementById(`${prefix}CapturePreview`);
-    if (!el) return;
-    if (!bv) {
-      el.style.display = 'none';
-      return;
-    }
-    el.style.display = 'block';
-    const bpmText = Number.isFinite(capturedBpm) ? `BPM:${Math.round(capturedBpm)} ` : '';
-    const labels = getSubdivisionVolumeLabels(capturedDen);
-    el.textContent =
-      bpmText +
-      `Master:${Math.round((bv.master ?? 1) * 100)} ` +
-      `${t('volume.beat1')}:${Math.round((bv.beat1 ?? 1) * 100)} ` +
-      `${labels.quarter}:${Math.round((bv.quarter ?? 0.8) * 100)} ` +
-      `${labels.eighth}:${Math.round((bv.eighth ?? 0.5) * 100)} ` +
-      `${labels.sixteenth}:${Math.round((bv.sixteenth ?? 0) * 100)}`;
-  }
+  //
+  // Capture-preview rendering (the small "BPM:N Master:.. ..." line under
+  // the form's capture button) lives inside ./ui/song-form.js.
 
   function parseVolumeInput(inputEl, fallback) {
     const raw = String(inputEl.value || '').trim();
@@ -990,10 +975,6 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   });
   let activeLibSongId = null; // song currently selected from library tab
   let editingLibId  = null;
-  let libFormBeatVolumes = null;
-  let libFormBeatStates = null;
-  let pfFormBeatVolumes = null;
-  let pfFormBeatStates = null;
 
   // (escHtml moved to ./utils/dom.js)
 
@@ -1006,8 +987,6 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   const slNameInput   = document.getElementById('slName');
   const songList      = document.getElementById('songList');
   const presetForm    = document.getElementById('presetForm');
-  const pfName        = document.getElementById('pfName');
-  const pfBpm         = document.getElementById('pfBpm');
   const pfModeManual  = document.getElementById('pfModeManual');
   const pfModeLib     = document.getElementById('pfModeLib');
   const pfManual      = document.getElementById('pfManual');
@@ -1015,15 +994,12 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   const pfLibList     = document.getElementById('pfLibList');
   const libSongList   = document.getElementById('libSongList');
   const libForm       = document.getElementById('libForm');
-  const libNameInput  = document.getElementById('libName');
-  const libBpmInput   = document.getElementById('libBpm');
   const libSortManualBtn = document.getElementById('libSortManual');
   const libSortNameBtn   = document.getElementById('libSortName');
   const libSortBpmBtn    = document.getElementById('libSortBpm');
-  const libTsPickerEl    = document.getElementById('libTsPicker');
-  const pfTsPickerEl     = document.getElementById('pfTsPicker');
-  const libCaptureBtn    = document.getElementById('libCaptureBtn');
-  const pfCaptureBtn     = document.getElementById('pfCaptureBtn');
+  // pfName / pfBpm / pfTsPicker / pfCaptureBtn / pfSave / pfCancel and
+  // their lib* twins are owned by the createSongForm instances below;
+  // they look up the elements internally.
   const nowPlayingEls = [
     document.getElementById('nowPlaying'),
     document.getElementById('nowPlayingLib'),
@@ -1217,17 +1193,17 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     startMetronome();
   }
 
+  // Setlist song form (manual section). Created lazily-but-once after the
+  // helper functions it depends on are declared; the actual `createSongForm`
+  // call happens further down so `setlistStore` etc. are in scope.
+  let pfSongForm = null;
+
   function openAddSongForm() {
     editingSongId = null;
-    pfFormBeatVolumes = null;
-    pfFormBeatStates = null;
     setFormMode('library');
-    pfName.value = '';
-    pfBpm.value  = bpm;
-    mountTsPicker({ container: pfTsPickerEl, tsNum, tsDen, prefix: 'pfTs', t });
-    updateCapturePreview('pf', pfFormBeatVolumes);
+    pfSongForm.open({ bpm });
     presetForm.style.display = 'block';
-    pfName.focus();
+    pfSongForm.focusName();
   }
 
   function openEditSongForm(id) {
@@ -1236,60 +1212,42 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     const p = sl.songs.find(s => s.id === id);
     if (!p) return;
     editingSongId = id;
-    pfFormBeatVolumes = p.beatVolumes ?? null;
-    pfFormBeatStates = p.beatStates ?? null;
     setFormMode('manual');
-    pfName.value = p.name;
-    pfBpm.value  = p.bpm;
-    mountTsPicker({ container: pfTsPickerEl, tsNum: p.tsNum ?? 4, tsDen: p.tsDen ?? 4, prefix: 'pfTs', t });
-    updateCapturePreview('pf', pfFormBeatVolumes, null, p.tsDen ?? 4);
+    pfSongForm.open({
+      name: p.name,
+      bpm: p.bpm,
+      tsNum: p.tsNum ?? 4,
+      tsDen: p.tsDen ?? 4,
+      beatVolumes: p.beatVolumes ?? null,
+      beatStates: p.beatStates ?? null,
+    });
     presetForm.style.display = 'block';
-    pfName.focus();
+    pfSongForm.focusName();
   }
 
   function closeSongForm() {
     editingSongId = null;
-    pfFormBeatVolumes = null;
-    pfFormBeatStates = null;
-    updateCapturePreview('pf', null);
+    pfSongForm?.close();
     if (presetForm) presetForm.style.display = 'none';
   }
 
-  function saveSongForm() {
+  function commitSongForm(values) {
     const sl = currentSetlist();
     if (!sl) return;
-    const name   = pfName.value.trim();
-    const bpmVal = Math.min(BPM_MAX, Math.max(BPM_MIN, parseInt(pfBpm.value) || bpm));
-    const tsNumVal = Number(document.getElementById('pfTsNum')?.value) || 4;
-    const tsDenVal = Number(document.getElementById('pfTsDen')?.value) || 4;
-    if (!name) { pfName.focus(); return; }
     if (editingSongId) {
       const updated = setlistStore.updateSong(sl.id, editingSongId, {
-        name,
-        bpm: bpmVal,
-        tsNum: tsNumVal,
-        tsDen: tsDenVal,
-        beatStates: pfFormBeatStates,
-        beatVolumes: pfFormBeatVolumes,
+        ...values,
         libSongId: null,
       });
       if (updated && activeSongId === editingSongId) {
-        setBPM(bpmVal);
-        setTimeSig(tsNumVal, tsDenVal);
-        applyBeatStates(pfFormBeatStates ?? null, { refreshLoop: false });
-        applyBeatVolumes(pfFormBeatVolumes ?? null);
+        setBPM(values.bpm);
+        setTimeSig(values.tsNum, values.tsDen);
+        applyBeatStates(values.beatStates ?? null, { refreshLoop: false });
+        applyBeatVolumes(values.beatVolumes ?? null);
         updateNowPlaying();
       }
     } else {
-      setlistStore.addSong(sl.id, {
-        name,
-        bpm: bpmVal,
-        tsNum: tsNumVal,
-        tsDen: tsDenVal,
-        beatStates: pfFormBeatStates,
-        beatVolumes: pfFormBeatVolumes,
-        libSongId: null,
-      });
+      setlistStore.addSong(sl.id, { ...values, libSongId: null });
     }
     closeSongForm();
     renderSongs();
@@ -1372,18 +1330,31 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
       openAddSongForm();
     }
   });
-  document.getElementById('pfSave').addEventListener('click', saveSongForm);
-  document.getElementById('pfCancel').addEventListener('click', closeSongForm);
-  pfName.addEventListener('keydown', e => { if (e.key === 'Enter') saveSongForm(); });
-  pfBpm.addEventListener('keydown',  e => { if (e.key === 'Enter') saveSongForm(); });
-  pfCaptureBtn.addEventListener('click', () => {
-    requirePro(() => {
-      pfFormBeatVolumes = currentBeatVolumes();
-      pfFormBeatStates = currentBeatStates();
-      pfBpm.value = bpm;
-      setTsPickerValues({ prefix: 'pfTs', tsNum, tsDen });
-      updateCapturePreview('pf', pfFormBeatVolumes, bpm, tsDen);
-    });
+  // Save / cancel / keydown / capture wiring is now owned by the
+  // setlist-side createSongForm instance below; only the outer
+  // library-picker cancel stays here because it lives outside the
+  // shared form module.
+  pfSongForm = createSongForm({
+    prefix: 'pf',
+    t,
+    mountTsPicker,
+    setTsPickerValues,
+    bpmRange: { min: BPM_MIN, max: BPM_MAX },
+    getCurrentBpm: () => bpm,
+    getSubdivisionVolumeLabels,
+    onSave: commitSongForm,
+    onCancel: closeSongForm,
+    onCaptureRequest: () => {
+      requirePro(() => {
+        pfSongForm.applyCapture({
+          bpm,
+          tsNum,
+          tsDen,
+          beatVolumes: currentBeatVolumes(),
+          beatStates: currentBeatStates(),
+        });
+      });
+    },
   });
 
   // ── Generic DnD factory (moved to ./ui/dnd.js) ──
@@ -1534,60 +1505,68 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
     });
   }
 
+  // Library form. Save/cancel/keydown/capture are wired by createSongForm
+  // below; the host only orchestrates "show the outer libForm" and the
+  // editingLibId tracking.
+  const libSongForm = createSongForm({
+    prefix: 'lib',
+    t,
+    mountTsPicker,
+    setTsPickerValues,
+    bpmRange: { min: BPM_MIN, max: BPM_MAX },
+    getCurrentBpm: () => bpm,
+    getSubdivisionVolumeLabels,
+    onSave: commitLibForm,
+    onCancel: closeLibForm,
+    onCaptureRequest: () => {
+      requirePro(() => {
+        libSongForm.applyCapture({
+          bpm,
+          tsNum,
+          tsDen,
+          beatVolumes: currentBeatVolumes(),
+          beatStates: currentBeatStates(),
+        });
+      });
+    },
+  });
+
   function openAddLibForm() {
     editingLibId = null;
-    libFormBeatVolumes = null;
-    libFormBeatStates = null;
-    libNameInput.value = '';
-    libBpmInput.value = bpm;
-    mountTsPicker({ container: libTsPickerEl, tsNum: 4, tsDen: 4, prefix: 'libTs', t });
-    updateCapturePreview('lib', libFormBeatVolumes);
-    libForm.style.display = 'block'; libNameInput.focus();
+    // Library add starts at 4/4 (independent of the metronome's current
+    // ts), matching prior behavior — a library entry is a stand-alone
+    // template, not a snapshot of the running metronome unless the user
+    // explicitly hits "capture from current state."
+    libSongForm.open({ bpm, tsNum: 4, tsDen: 4 });
+    libForm.style.display = 'block';
+    libSongForm.focusName();
   }
   function openEditLibForm(id) {
     const s = songLibraryStore.findById(id);
     if (!s) return;
     editingLibId = id;
-    libFormBeatVolumes = s.beatVolumes ?? null;
-    libFormBeatStates = s.beatStates ?? null;
-    libNameInput.value = s.name;
-    libBpmInput.value = s.bpm;
-    mountTsPicker({ container: libTsPickerEl, tsNum: s.tsNum ?? 4, tsDen: s.tsDen ?? 4, prefix: 'libTs', t });
-    updateCapturePreview('lib', libFormBeatVolumes, null, s.tsDen ?? 4);
-    libForm.style.display = 'block'; libNameInput.focus();
+    libSongForm.open({
+      name: s.name,
+      bpm: s.bpm,
+      tsNum: s.tsNum ?? 4,
+      tsDen: s.tsDen ?? 4,
+      beatVolumes: s.beatVolumes ?? null,
+      beatStates: s.beatStates ?? null,
+    });
+    libForm.style.display = 'block';
+    libSongForm.focusName();
   }
   function closeLibForm() {
     editingLibId = null;
-    libFormBeatVolumes = null;
-    libFormBeatStates = null;
-    updateCapturePreview('lib', null);
+    libSongForm.close();
     libForm.style.display = 'none';
   }
-  function saveLibForm() {
-    const name = libNameInput.value.trim();
-    const bpmVal = Math.min(BPM_MAX, Math.max(BPM_MIN, parseInt(libBpmInput.value) || bpm));
-    const tsNumVal = Number(document.getElementById('libTsNum')?.value) || 4;
-    const tsDenVal = Number(document.getElementById('libTsDen')?.value) || 4;
-    if (!name) { libNameInput.focus(); return; }
+  function commitLibForm(values) {
     let editedSong = null;
     if (editingLibId) {
-      editedSong = songLibraryStore.update(editingLibId, {
-        name,
-        bpm: bpmVal,
-        tsNum: tsNumVal,
-        tsDen: tsDenVal,
-        beatVolumes: libFormBeatVolumes,
-        beatStates: libFormBeatStates,
-      });
+      editedSong = songLibraryStore.update(editingLibId, values);
     } else {
-      songLibraryStore.add({
-        name,
-        bpm: bpmVal,
-        tsNum: tsNumVal,
-        tsDen: tsDenVal,
-        beatVolumes: libFormBeatVolumes,
-        beatStates: libFormBeatStates,
-      });
+      songLibraryStore.add(values);
     }
     if (editedSong) propagateLibSongChange(editedSong);
     closeLibForm();
@@ -1610,19 +1589,6 @@ const isNative = window.Capacitor?.isNativePlatform() ?? false;
   libSortManualBtn.addEventListener('click', () => setLibrarySortMode('manual'));
   libSortNameBtn.addEventListener('click',   () => setLibrarySortMode('name'));
   libSortBpmBtn.addEventListener('click',    () => setLibrarySortMode('bpm'));
-  document.getElementById('libSave').addEventListener('click', saveLibForm);
-  document.getElementById('libCancel').addEventListener('click', closeLibForm);
-  libNameInput.addEventListener('keydown', e => { if (e.key === 'Enter') saveLibForm(); });
-  libBpmInput.addEventListener('keydown',  e => { if (e.key === 'Enter') saveLibForm(); });
-  libCaptureBtn.addEventListener('click', () => {
-    requirePro(() => {
-      libFormBeatVolumes = currentBeatVolumes();
-      libFormBeatStates = currentBeatStates();
-      libBpmInput.value = bpm;
-      setTsPickerValues({ prefix: 'libTs', tsNum, tsDen });
-      updateCapturePreview('lib', libFormBeatVolumes, bpm, tsDen);
-    });
-  });
 
   // ── Init ──
   showSlIndex();

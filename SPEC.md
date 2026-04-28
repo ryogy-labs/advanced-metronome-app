@@ -22,6 +22,7 @@
 - `src/ui/dnd.js`: タッチ/マウス共通の DnD 並び替えロジック (`setupDnD`)
 - `src/ui/song-row.js`: セットリスト/ライブラリで共通の曲行レンダラ (`renderSongRows`)。トラック番号・ドラッグハンドルの有無や `data-action` 名、各種コールバックを引数で渡してビュー差分を吸収する
 - `src/ui/ts-picker.js`: セットリスト曲フォーム/ライブラリフォーム共通の拍子ピッカー。`mountTsPicker` で初回描画 + クリック時の hidden input 更新、`setTsPickerValues` でマウント済みピッカーの選択値を後から差し替える。`prefix` (`'pfTs'` / `'libTs'`) で hidden input の id を分岐する
+- `src/ui/song-form.js`: セットリスト曲フォーム (`pf*` id) とライブラリフォーム (`lib*` id) で共通の手動入力ライフサイクル (`createSongForm`)。名前・BPM・拍子ピッカー・キャプチャプレビュー・保存/キャンセル/Enter ハンドリング・`beatVolumes` / `beatStates` の一時バッファを内包し、`open` / `close` / `applyCapture` / `focusName` を公開する。外側のフォーム可視制御 (`#presetForm.style.display` / `#libForm.style.display`)・Pro ゲート・ストア dispatch・`propagateLibSongChange` などのクロスカット処理はホスト (`src/main.js`) 側に残す
 - `src/ui/ball.js`: ボール演出の RAF アニメータ (`createBallAnimator`)。`.ball-canvas` 群の取得・リサイズ、Web Audio パスとネイティブループパスを跨いだフェーズ計算、ボール/影/接地線の描画を内包し、`refresh` / `resize` / `start` を公開する
 - `src/ui/swipe-panel.js`: 5スロットのクローン式カルーセル (`createSwipePanel`)。両端のクローン挿入、タッチ/マウスドラッグ、`transitionend` でのスロット巻き戻し、ドット連動を内包し、`onAfterClonesInserted` と `onPageEnter` フックでホスト側 (ボール初期化・ページ0復帰時のリサイズ) に通知する
 - `src/utils/storage.js`: `localStorage` の安全な読み書きラッパー。破損 JSON は `${key}.corrupt-backup` に退避してフォールバックを返す
@@ -66,7 +67,7 @@
 
 ## Known Issues
 - `src/main.js` には依然として UI レンダリング・スワイプ・セットリスト/ライブラリ CRUD・スケジューラ駆動部・グローバル状態が集中しており、変更影響範囲は広い（音声プリミティブ・DnD・i18n・定数・ストレージは別モジュールへ切り出し済み）
-- 永続ドメインモデルはストアへ集約済み（セットリスト=`src/state/setlist.js`、曲ライブラリ=`src/state/song-library.js`）。`activeSongId` / `activeSlId` / `currentSlId` / `editingSlId` / `editingSongId` / `activeLibSongId` / `editingLibId` などの UI セレクション・フォーム状態と、フォームの一時バッファ (`pfFormBeatVolumes` 等) は引き続き `main.js` のクロージャに残る
-- セットリスト追加フォームとライブラリ追加フォームは類似実装が並行しており、共通コンポーネント化されていない（曲行のレンダリングは `src/ui/song-row.js`、拍子ピッカーは `src/ui/ts-picker.js` に集約済みだが、フォーム本体・キャプチャプレビューは依然として二重実装）
+- 永続ドメインモデルはストアへ集約済み（セットリスト=`src/state/setlist.js`、曲ライブラリ=`src/state/song-library.js`）。`activeSongId` / `activeSlId` / `currentSlId` / `editingSlId` / `editingSongId` / `activeLibSongId` / `editingLibId` などの UI セレクション状態は引き続き `main.js` のクロージャに残る（フォーム内部の一時バッファは `src/ui/song-form.js` に移管済み）
+- セットリスト追加フォームとライブラリ追加フォームは `src/ui/song-form.js` の `createSongForm` で共通化済み（名前・BPM・拍子・キャプチャプレビュー・保存/キャンセル/Enter ハンドリング）。外側フォーム可視制御・Pro ゲート・ストア dispatch・ライブラリ→セットリスト伝播 (`propagateLibSongChange`) はホスト側に残る
 - データは `localStorage` のみのため、ブラウザ削除・端末変更・プライベートモードでは失われる
 - `legacy/metro-beat.html` は旧プロトタイプとして残存している（現行実装との二重管理に見える点は緩和）
