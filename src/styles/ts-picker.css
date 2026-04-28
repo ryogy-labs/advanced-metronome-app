@@ -1,0 +1,60 @@
+
+/* ── Time Signature Picker (Page 2) ── */
+.ts-picker-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: 0 2px 12px rgba(100,80,200,0.06);
+}
+
+.ts-picker-row {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.ts-picker-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.ts-val {
+  font-size: 5rem;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--text);
+  width: 100px;
+  text-align: center;
+  user-select: none;
+}
+
+.ts-arrow {
+  width: 60px;
+  height: 42px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.ts-arrow:hover  { background: var(--accent); color: #fff; border-color: var(--accent); }
+.ts-arrow:active { opacity: 0.7; }
+
+.ts-slash {
+  font-size: 5.5rem;
+  font-weight: 200;
+  color: var(--text2);
+  line-height: 1;
+  user-select: none;
+}

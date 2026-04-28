@@ -28,7 +28,8 @@
 - `src/utils/storage.js`: `localStorage` の安全な読み書きラッパー。破損 JSON は `${key}.corrupt-backup` に退避してフォールバックを返す
 - `src/utils/dom.js`: HTML エスケープなど DOM 関連の小ユーティリティ (`escHtml`)
 - `src/utils/id.js`: ms 解像度＋シーケンス付きの衝突しにくい ID 生成 (`nextId`)
-- `src/style.css`: 全画面レイアウトと各ビューのスタイルを一括管理している
+- `src/style.css`: 全画面スタイルのエントリ。`src/styles/*.css` を `@import` で順番に読み込む薄いインデックスで、`<link rel="stylesheet">` (index.html) と `import './style.css'` (main.js) の双方からこのファイルを参照する
+- `src/styles/`: 用途別に分割された CSS。`base.css` (リセット・カラートークン・body) → `layout.css` (`.view` コンテナ) → `metronome-screen.css` (メトロ画面: metro-top / 拍ドット / BPM / スワイプ / メトロ下部 / Play・Tap / ボール / トグル行) → `volume.css` (Page 1 音量) → `ts-picker.css` (Page 2 拍子ピッカー) → `setlist-screen.css` (card-label・セットリストリスト・ドラッグハンドル・DnD・preset 行・モードセレクター) → `song-form.css` (`createSongForm` 用フォーム) → `nav.css` (ボトムナビ・設定モーダル) → `setlist-views.css` (セットリスト詳細/フル表示・Now Playing) → `paywall.css` の順で `@import` する。Vite がバンドル時にインライン化する
 - `legacy/metro-beat.html`: 旧プロトタイプの単一 HTML。現行の Vite エントリではないため、基本的には `index.html` / `src/*` を正とする
 - `vite.config.js`: 開発サーバー設定。現状は `X-Frame-Options: SAMEORIGIN` を付与している
 

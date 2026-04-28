@@ -1,0 +1,48 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* ── Light mode (default) ── */
+:root {
+  --bg: #f5f5fb;
+  --surface: #ffffff;
+  --surface2: #ededf7;
+  --border: #dcdcee;
+  --nav-divider: #cfd3dd;
+  --accent: #7c5cfc;
+  --accent2: #fc5c7d;
+  --beat1: #fc5c7d;
+  --beat2: #7c5cfc;
+  --text: #1c1c2e;
+  --text2: #8888aa;
+  --radius: 12px;
+}
+
+/* ── Dark mode ── */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f13;
+    --surface: #1a1a24;
+    --surface2: #22222f;
+    --border: #2e2e40;
+    --nav-divider: #555a69;
+    --text: #e8e8f0;
+    --text2: #888899;
+  }
+}
+
+/* ── Base: fixed full-height, no scroll ── */
+html { height: 100%; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  height: 100dvh;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
