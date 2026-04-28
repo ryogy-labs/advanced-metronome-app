@@ -1,0 +1,200 @@
+
+/* ── card-label (shared) ── */
+.card-label {
+  font-size: 0.72rem;
+  color: var(--text2);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+/* ── Setlist ── */
+.setlist-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: 0 2px 12px rgba(100,80,200,0.06);
+}
+
+.setlist-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.setlist-header .card-label { margin-bottom: 0; }
+
+.lib-sort-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.btn-sl-add {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 5px 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  letter-spacing: 0.04em;
+  transition: opacity 0.15s;
+}
+.btn-sl-add:hover { opacity: 0.85; }
+
+.setlist-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.setlist-empty {
+  font-size: 0.8rem;
+  color: var(--text2);
+  text-align: center;
+  padding: 14px 0;
+}
+
+.preset-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 8px;
+}
+.preset-row.active .preset-apply {
+  border-color: var(--accent);
+  background: rgba(124,92,252,0.07);
+}
+
+.preset-apply {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 8px 10px;
+  cursor: pointer;
+  text-align: left;
+  min-width: 0;
+  transition: background 0.12s, border-color 0.12s;
+}
+.preset-apply:hover {
+  background: var(--surface2);
+  border-color: var(--accent);
+}
+
+.preset-num {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.preset-name {
+  flex: 1;
+  font-size: 0.85rem;
+  color: var(--text);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.preset-bpm {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--accent);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.preset-ts {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text2);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.preset-icon-btn {
+  width: 30px;
+  height: 30px;
+  border: none;
+  background: none;
+  color: var(--text2);
+  cursor: pointer;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.12s, color 0.12s;
+}
+.preset-icon-btn:hover { background: var(--surface2); color: var(--text); }
+.preset-icon-btn.del:hover { color: var(--accent2); }
+
+/* ── Drag handle ── */
+.drag-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  flex-shrink: 0;
+  color: var(--text2);
+  font-size: 1.1rem;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.drag-handle:active { cursor: grabbing; }
+
+/* ── DnD ── */
+.dnd-source { opacity: 0 !important; }
+
+.dnd-ghost {
+  background: var(--surface);
+  opacity: 0.9;
+  box-shadow: 0 8px 28px rgba(124, 92, 252, 0.22);
+  border-radius: 8px;
+}
+.dnd-ghost .preset-apply    { padding: 12px 12px; }
+.dnd-ghost .preset-name     { font-size: 0.95rem; }
+.dnd-ghost .preset-bpm      { font-size: 0.85rem; }
+.dnd-ghost .preset-num      { width: 30px; height: 30px; font-size: 0.75rem; }
+.dnd-ghost .preset-icon-btn { width: 34px; height: 34px; }
+
+.dnd-active .preset-row:not(.dnd-source),
+.dnd-active .sl-row:not(.dnd-source) {
+  transition: transform 150ms cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+/* Beat row on setlist page */
+.sl-beat-row { justify-content: center; }
+
+/* ── Preset form mode selector ── */
+.pf-mode-row {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 10px;
+}
+.pf-lib-list {
+  max-height: 220px;
+  overflow-y: auto;
+}

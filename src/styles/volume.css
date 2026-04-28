@@ -1,0 +1,115 @@
+
+/* ── Volume Section (Page 1) ── */
+.vol-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  --vol-vspace: 18px;
+  padding: var(--vol-vspace) 18px;
+  width: 100%;
+  max-width: 420px;
+  min-height: 0;
+  box-shadow: 0 2px 12px rgba(100,80,200,0.06);
+  display: flex;
+  flex-direction: column;
+  gap: var(--vol-vspace);
+}
+.vol-section .card-label { margin-bottom: 14px; }
+
+.vol-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+}
+
+.vol-row.is-disabled {
+  opacity: 0.42;
+}
+
+.vol-row.is-disabled .vol-slider,
+.vol-row.is-disabled .vol-num-input {
+  cursor: not-allowed;
+}
+
+/* Divider between master and per-sound sliders */
+#spVolume .vol-section .vol-row:nth-child(2) {
+  position: relative;
+}
+#spVolume .vol-section .vol-row:nth-child(2)::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(var(--vol-vspace) * -0.5);
+  border-top: 1px solid var(--border);
+}
+
+.vol-name {
+  font-size: 0.8rem;
+  color: var(--text2);
+  width: 80px;
+  flex-shrink: 0;
+}
+.vol-name b { color: var(--text); display: block; font-size: 0.85rem; }
+
+.vol-slider {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(to right, var(--accent2) var(--pct,80%), var(--border) var(--pct,80%));
+  outline: none;
+  cursor: pointer;
+}
+.vol-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: var(--accent2);
+  box-shadow: 0 0 8px var(--accent2);
+  cursor: pointer;
+}
+.vol-slider::-moz-range-thumb {
+  width: 22px; height: 22px;
+  border: none;
+  border-radius: 50%;
+  background: var(--accent2);
+  box-shadow: 0 0 8px var(--accent2);
+  cursor: pointer;
+}
+
+.vol-num-input {
+  font-size: 0.8rem;
+  color: var(--text);
+  width: 46px;
+  text-align: right;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 2px 6px;
+  background: var(--surface);
+}
+.vol-num-input:focus {
+  outline: 1px solid var(--accent);
+  border-color: var(--accent);
+}
+.vol-num-input::-webkit-outer-spin-button,
+.vol-num-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.vol-num-input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.master-vol-name b {
+  font-size: 0.9rem;
+  display: inline;
+}
+.master-vol-slider {
+  background: linear-gradient(to right, var(--accent) var(--pct,100%), var(--border) var(--pct,100%)) !important;
+}
+.master-vol-slider::-webkit-slider-thumb { background: var(--accent) !important; }
+.master-vol-slider::-moz-range-thumb     { background: var(--accent) !important; }

@@ -1,0 +1,127 @@
+
+/* Preset form */
+.preset-form {
+  margin-top: 10px;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+
+.pf-fields {
+  display: flex;
+  gap: 7px;
+  margin-bottom: 8px;
+}
+.pf-fields input {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 7px;
+  padding: 7px 9px;
+  font-size: 0.85rem;
+  outline: none;
+}
+.pf-fields input:focus { border-color: var(--accent); }
+.pf-name { flex: 1; min-width: 0; }
+.pf-bpm  { width: 70px; }
+
+.form-ts-picker {
+  margin: 6px 0 10px;
+}
+.form-ts-picker .ts-picker-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.form-ts-picker .ts-picker-row > label {
+  font-size: 0.78rem;
+  color: var(--text2);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.form-ts-picker .ts-picker-group {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+.form-ts-picker .ts-picker-nums,
+.form-ts-picker .ts-picker-dens {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.form-ts-picker .ts-picker-nums {
+  justify-content: flex-end;
+  max-width: 176px;
+}
+.form-ts-picker .ts-btn {
+  min-width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text2);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.form-ts-picker .ts-btn.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+.form-ts-picker .ts-slash {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text2);
+  line-height: 1;
+}
+
+.capture-btn {
+  background: var(--surface2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 7px 10px;
+  font-size: 0.8rem;
+  width: 100%;
+  cursor: pointer;
+}
+.capture-preview {
+  margin-top: 6px;
+  margin-bottom: 10px;
+  font-size: 0.75rem;
+  color: var(--text2);
+}
+
+.pf-btns {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.pf-save {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 7px;
+  padding: 6px 20px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.pf-save:hover { opacity: 0.85; }
+.pf-cancel {
+  background: var(--surface2);
+  color: var(--text2);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 6px 14px;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.pf-cancel:hover { background: var(--border); }

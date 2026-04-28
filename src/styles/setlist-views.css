@@ -1,0 +1,137 @@
+
+/* ── Setlist sub-views ── */
+.sl-subview {
+  display: none;
+  width: 100%;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+.sl-subview.active { display: flex; }
+
+.sl-detail-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  max-width: 420px;
+}
+
+.btn-sl-back {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 7px 13px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+.btn-sl-back:hover { background: var(--surface2); }
+
+.sl-detail-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Setlist index rows */
+.sl-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 8px;
+}
+
+.sl-row-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 11px 13px;
+  cursor: pointer;
+  text-align: left;
+  min-width: 0;
+  transition: background 0.12s, border-color 0.12s;
+}
+.sl-row-btn:hover { background: var(--surface2); border-color: var(--accent); }
+
+.sl-row-title {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+
+.sl-row-count {
+  font-size: 0.75rem;
+  color: var(--text2);
+  flex-shrink: 0;
+}
+
+/* ── Setlist full view ── */
+.setlist-full {
+  border: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  padding: 0 !important;
+}
+.setlist-full .preset-apply  { padding: 12px 12px; }
+.setlist-full .preset-name   { font-size: 0.95rem; }
+.setlist-full .preset-bpm    { font-size: 0.85rem; }
+.setlist-full .preset-num    { width: 30px; height: 30px; font-size: 0.75rem; }
+.setlist-full .preset-icon-btn { width: 34px; height: 34px; }
+
+/* ── Now Playing banner ── */
+.now-playing {
+  width: 100%;
+  max-width: 420px;
+  background: linear-gradient(135deg, var(--accent), #5a3de0);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #fff;
+  cursor: pointer;
+  transition: opacity 0.15s, background 0.2s, color 0.2s;
+  user-select: none;
+}
+.now-playing:hover { opacity: 0.85; }
+.now-playing.paused {
+  background: var(--surface);
+  color: var(--accent);
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+.now-playing.paused:hover { opacity: 0.75; }
+.np-icon {
+  font-size: 0.85rem;
+  opacity: 0.85;
+  flex-shrink: 0;
+}
+.np-name {
+  flex: 1;
+  font-weight: 600;
+  font-size: 0.95rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.np-bpm {
+  font-size: 0.85rem;
+  font-weight: 700;
+  opacity: 0.9;
+  flex-shrink: 0;
+}
