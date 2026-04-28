@@ -67,7 +67,8 @@
 - 機能追加時は、まず `src/main.js` に集約されている既存責務を崩さないか確認する。大きく拡張する場合のみ責務分割を検討する
 
 ## Known Issues
-- `src/main.js` には依然として UI レンダリング・スワイプ・セットリスト/ライブラリ CRUD・スケジューラ駆動部・グローバル状態が集中しており、変更影響範囲は広い（音声プリミティブ・DnD・i18n・定数・ストレージは別モジュールへ切り出し済み）
+- `src/main.js` は依然としてアプリの orchestration shell で、DOM 配線・CRUD ドライバ（renderSetlists/renderSongs/renderLibrary 等）・スケジューラ起動・グローバル UI セレクション・各種ハンドラ wire-up が集中する（音声プリミティブ・スワイプ・ボール・曲行レンダラ・song-form・ts-picker・DnD・i18n・定数・ストレージ・永続ストアは別モジュールへ切り出し済み）
+- データ変更を伴うリスト再構築（renderSetlists / renderSongs / renderLibrary）は依然として innerHTML 全置換で行っている。選択行のみ切り替える経路は `setActiveRow` で granular 化済み
 - 永続ドメインモデルはストアへ集約済み（セットリスト=`src/state/setlist.js`、曲ライブラリ=`src/state/song-library.js`）。`activeSongId` / `activeSlId` / `currentSlId` / `editingSlId` / `editingSongId` / `activeLibSongId` / `editingLibId` などの UI セレクション状態は引き続き `main.js` のクロージャに残る（フォーム内部の一時バッファは `src/ui/song-form.js` に移管済み）
 - セットリスト追加フォームとライブラリ追加フォームは `src/ui/song-form.js` の `createSongForm` で共通化済み（名前・BPM・拍子・キャプチャプレビュー・保存/キャンセル/Enter ハンドリング）。外側フォーム可視制御・Pro ゲート・ストア dispatch・ライブラリ→セットリスト伝播 (`propagateLibSongChange`) はホスト側に残る
 - データは `localStorage` のみのため、ブラウザ削除・端末変更・プライベートモードでは失われる
