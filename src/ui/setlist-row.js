@@ -1,25 +1,3 @@
-const renderCache = new WeakMap();
-
-function buildRenderSignature({
-  setlists,
-  emptyText,
-  songsCountText,
-  editTitle,
-  deleteTitle,
-}) {
-  return JSON.stringify({
-    setlists: setlists.map(setlist => ({
-      id: setlist.id,
-      name: setlist.name,
-      songCount: setlist.songs.length,
-    })),
-    emptyText,
-    songsCountText,
-    editTitle,
-    deleteTitle,
-  });
-}
-
 export function renderSetlistRows({
   listEl,
   setlists,
@@ -31,16 +9,6 @@ export function renderSetlistRows({
   onEdit,
   onDelete,
 }) {
-  const signature = buildRenderSignature({
-    setlists,
-    emptyText,
-    songsCountText,
-    editTitle,
-    deleteTitle,
-  });
-  if (renderCache.get(listEl) === signature) return;
-  renderCache.set(listEl, signature);
-
   if (!setlists.length) {
     const emptyEl = document.createElement('div');
     emptyEl.className = 'setlist-empty';
@@ -103,7 +71,10 @@ function updateSetlistRow(row, {
 
   row.dataset.id = id;
   row.dataset.idx = String(idx);
-  if (row.dataset.signature === signature) return;
+  if (row.dataset.signature === signature) {
+    bindSetlistRowHandlers(row, { id, onOpen, onEdit, onDelete });
+    return;
+  }
   row.dataset.signature = signature;
 
   const handle = document.createElement('span');
@@ -114,7 +85,6 @@ function updateSetlistRow(row, {
   const openBtn = document.createElement('button');
   openBtn.className = 'sl-row-btn';
   openBtn.dataset.id = id;
-  openBtn.addEventListener('click', () => onOpen(id));
 
   const title = document.createElement('span');
   title.className = 'sl-row-title';
@@ -133,7 +103,6 @@ function updateSetlistRow(row, {
   editBtn.title = editTitle;
   editBtn.setAttribute('aria-label', `${setlist.name} ${editTitle}`.trim());
   editBtn.textContent = '✏';
-  editBtn.addEventListener('click', () => onEdit(id));
 
   const deleteBtn = document.createElement('button');
   deleteBtn.className = 'preset-icon-btn del';
@@ -142,7 +111,16 @@ function updateSetlistRow(row, {
   deleteBtn.title = deleteTitle;
   deleteBtn.setAttribute('aria-label', `${setlist.name} ${deleteTitle}`.trim());
   deleteBtn.textContent = '✕';
-  deleteBtn.addEventListener('click', () => onDelete(id));
 
   row.replaceChildren(handle, openBtn, editBtn, deleteBtn);
+  bindSetlistRowHandlers(row, { id, onOpen, onEdit, onDelete });
+}
+
+function bindSetlistRowHandlers(row, { id, onOpen, onEdit, onDelete }) {
+  const openBtn = row.querySelector('.sl-row-btn');
+  const editBtn = row.querySelector('[data-action="edit-sl"]');
+  const deleteBtn = row.querySelector('[data-action="del-sl"]');
+  if (openBtn) openBtn.onclick = () => onOpen(id);
+  if (editBtn) editBtn.onclick = () => onEdit(id);
+  if (deleteBtn) deleteBtn.onclick = () => onDelete(id);
 }

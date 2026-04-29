@@ -143,11 +143,7 @@ export function createBgPlayback({
     _bgLoopRefreshTimer = setTimeout(() => {
       _bgLoopRefreshTimer = null;
       if (getRunning() && document.hidden) {
-        void refreshNow().then(() => {
-          if (!getRunning() || !_bgLoopEl) return;
-          syncMuted();
-          _bgLoopEl.play().catch(() => {});
-        });
+        void refreshAndResume();
         return;
       }
       if (getRunning()) {
@@ -156,11 +152,7 @@ export function createBgPlayback({
           : (cb) => setTimeout(cb, 0);
         runWhenIdle(() => {
           if (getRunning() && !document.hidden) {
-            void refreshNow().then(() => {
-              if (!getRunning() || !_bgLoopEl) return;
-              syncMuted();
-              _bgLoopEl.play().catch(() => {});
-            });
+            void refreshAndResume();
           }
         });
       }

@@ -28,17 +28,16 @@ import {
   getNextBeatState,
   normalizeBeatStates,
 } from '../state/beat-states.js';
+import { withSongDefaults } from '../state/song-config.js';
 
 const NativeMetronomeAudio = registerPlugin('MetronomeAudio');
-const isNative = window.Capacitor?.isNativePlatform() ?? false;
+const isNative = Boolean(
+  window.Capacitor &&
+  typeof window.Capacitor.isNativePlatform === 'function' &&
+  window.Capacitor.isNativePlatform()
+);
 
 export function createMetronomeController({ i18n, t, onPlaybackStateChange, onI18nChange }) {
-  const isNativeApp = Boolean(
-    window.Capacitor &&
-    typeof window.Capacitor.isNativePlatform === 'function' &&
-    window.Capacitor.isNativePlatform()
-  );
-
   let bpm = BPM_DEFAULT;
   let beatsPerMeasure = 4;
   let beatStates = ['accent', 'normal', 'normal', 'normal'];
@@ -588,16 +587,7 @@ export function createMetronomeController({ i18n, t, onPlaybackStateChange, onI1
     volQuarter = bv.quarter ?? 0.8;
     volEighth = bv.eighth ?? 0.5;
     volSixteenth = bv.sixteenth ?? 0.0;
-    volMasterEl.value = Math.round(masterVol * 100);
-    volBeat1El.value = Math.round(volBeat1 * 100);
-    volQuarterEl.value = Math.round(volQuarter * 100);
-    volEighthEl.value = Math.round(volEighth * 100);
-    volSixteenthEl.value = Math.round(volSixteenth * 100);
-    updateVolSlider(volMasterEl, volMasterNum);
-    updateVolSlider(volBeat1El, volBeat1Num);
-    updateVolSlider(volQuarterEl, volQuarterNum);
-    updateVolSlider(volEighthEl, volEighthNum);
-    updateVolSlider(volSixteenthEl, volSixteenthNum);
+    syncVolumeBindings();
     updateDenominatorAwareVolumeUi();
     refreshRunningLoopOnly();
   }
@@ -610,12 +600,13 @@ export function createMetronomeController({ i18n, t, onPlaybackStateChange, onI1
   }
 
   function applySongConfig(songCfg) {
-    setBPM(songCfg.bpm);
-    setTimeSig(songCfg.tsNum, songCfg.tsDen);
-    setSwingMode(songCfg.swingMode ?? SWING_DEFAULT_MODE);
-    setSwingAmount(songCfg.swingAmount ?? SWING_DEFAULT_AMOUNT);
-    applyBeatStates(songCfg.beatStates ?? null, { refreshLoop: false });
-    applyBeatVolumes(songCfg.beatVolumes);
+    const next = withSongDefaults(songCfg);
+    setBPM(next.bpm);
+    setTimeSig(next.tsNum, next.tsDen);
+    setSwingMode(next.swingMode);
+    setSwingAmount(next.swingAmount);
+    applyBeatStates(next.beatStates, { refreshLoop: false });
+    applyBeatVolumes(next.beatVolumes);
   }
 
   function setTimeSig(nextNum, nextDen) {
@@ -663,6 +654,23 @@ export function createMetronomeController({ i18n, t, onPlaybackStateChange, onI1
     });
   }
 
+  function getVolumeBindings() {
+    return [
+      { slider: volMasterEl, num: volMasterNum, get: () => masterVol, set: v => { masterVol = v; } },
+      { slider: volBeat1El, num: volBeat1Num, get: () => volBeat1, set: v => { volBeat1 = v; } },
+      { slider: volQuarterEl, num: volQuarterNum, get: () => volQuarter, set: v => { volQuarter = v; } },
+      { slider: volEighthEl, num: volEighthNum, get: () => volEighth, set: v => { volEighth = v; } },
+      { slider: volSixteenthEl, num: volSixteenthNum, get: () => volSixteenth, set: v => { volSixteenth = v; } },
+    ];
+  }
+
+  function syncVolumeBindings() {
+    getVolumeBindings().forEach(({ slider, num, get }) => {
+      slider.value = Math.round(get() * 100);
+      updateVolSlider(slider, num);
+    });
+  }
+
   function tapTempo() {
     const now = performance.now();
     tapTimes = tapTimes.filter(t => now - t < TAP_RESET_MS);
@@ -670,6 +678,7 @@ export function createMetronomeController({ i18n, t, onPlaybackStateChange, onI1
     if (tapTimes.length < 2) return;
     let total = 0;
     for (let i = 1; i < tapTimes.length; i++) total += tapTimes[i] - tapTimes[i - 1];
+    if (total <= 0) return;
     setBPM(60000 / (total / (tapTimes.length - 1)));
   }
 
@@ -733,36 +742,14 @@ export function createMetronomeController({ i18n, t, onPlaybackStateChange, onI1
     setValue: setTimeSig,
   });
 
-  volMasterEl.addEventListener('input', () => {
-    masterVol = volMasterEl.value / 100;
-    updateVolSlider(volMasterEl, volMasterNum);
-    refreshRunningLoopOnly();
+  getVolumeBindings().forEach(({ slider, num, set }) => {
+    slider.addEventListener('input', () => {
+      set(slider.value / 100);
+      updateVolSlider(slider, num);
+      refreshRunningLoopOnly();
+    });
+    bindVolumeNumberInput(slider, num, set);
   });
-  volBeat1El.addEventListener('input', () => {
-    volBeat1 = volBeat1El.value / 100;
-    updateVolSlider(volBeat1El, volBeat1Num);
-    refreshRunningLoopOnly();
-  });
-  volQuarterEl.addEventListener('input', () => {
-    volQuarter = volQuarterEl.value / 100;
-    updateVolSlider(volQuarterEl, volQuarterNum);
-    refreshRunningLoopOnly();
-  });
-  volEighthEl.addEventListener('input', () => {
-    volEighth = volEighthEl.value / 100;
-    updateVolSlider(volEighthEl, volEighthNum);
-    refreshRunningLoopOnly();
-  });
-  volSixteenthEl.addEventListener('input', () => {
-    volSixteenth = volSixteenthEl.value / 100;
-    updateVolSlider(volSixteenthEl, volSixteenthNum);
-    refreshRunningLoopOnly();
-  });
-  bindVolumeNumberInput(volMasterEl, volMasterNum, v => { masterVol = v; });
-  bindVolumeNumberInput(volBeat1El, volBeat1Num, v => { volBeat1 = v; });
-  bindVolumeNumberInput(volQuarterEl, volQuarterNum, v => { volQuarter = v; });
-  bindVolumeNumberInput(volEighthEl, volEighthNum, v => { volEighth = v; });
-  bindVolumeNumberInput(volSixteenthEl, volSixteenthNum, v => { volSixteenth = v; });
   swingModeBtns.forEach(btn => {
     btn.addEventListener('click', () => setSwingMode(btn.dataset.swingMode));
   });
@@ -795,11 +782,7 @@ export function createMetronomeController({ i18n, t, onPlaybackStateChange, onI1
   });
 
   updateSliderFill(bpmSlider, BPM_MIN, BPM_MAX);
-  updateVolSlider(volMasterEl, volMasterNum);
-  updateVolSlider(volBeat1El, volBeat1Num);
-  updateVolSlider(volQuarterEl, volQuarterNum);
-  updateVolSlider(volEighthEl, volEighthNum);
-  updateVolSlider(volSixteenthEl, volSixteenthNum);
+  syncVolumeBindings();
   syncSwingUi();
   updateDenominatorAwareVolumeUi();
   buildBeatDots();
@@ -839,6 +822,7 @@ export function createMetronomeController({ i18n, t, onPlaybackStateChange, onI1
     setVisualDelayMs,
     onVisualDelayCalibrateTap: calibrateVisualDelayTap,
     getVisualDelayCalibrationHint,
+    visualDelayRange: { min: VISUAL_DELAY_MIN_MS, max: VISUAL_DELAY_MAX_MS },
     getMode: () => animMode,
     setMode: (mode) => { animMode = mode; },
     getSquashEnabled: () => squashEnabled,
@@ -892,16 +876,14 @@ export function createMetronomeController({ i18n, t, onPlaybackStateChange, onI1
       }
     } else {
       resumeForegroundScheduler();
+      if (wakeLockEnabled) void acquireWakeLock();
     }
-  });
-  document.addEventListener('visibilitychange', () => {
-    if (!document.hidden && running && wakeLockEnabled) void acquireWakeLock();
   });
   window.addEventListener('focus', resumeForegroundScheduler);
   window.addEventListener('pageshow', resumeForegroundScheduler);
 
   return {
-    isNativeApp,
+    isNativeApp: isNative,
     get bpm() { return bpm; },
     get tsNum() { return tsNum; },
     get tsDen() { return tsDen; },

@@ -1,17 +1,4 @@
-const renderCache = new WeakMap();
-
-function buildRenderSignature({ songs, emptyText }) {
-  return JSON.stringify({
-    songs: songs.map(song => ({
-      id: song.id,
-      name: song.name,
-      bpm: song.bpm,
-      tsNum: song.tsNum ?? 4,
-      tsDen: song.tsDen ?? 4,
-    })),
-    emptyText,
-  });
-}
+import { getSongTimeSignature } from '../state/song-config.js';
 
 export function renderLibraryPicker({
   listEl,
@@ -19,10 +6,6 @@ export function renderLibraryPicker({
   emptyText,
   onPick,
 }) {
-  const signature = buildRenderSignature({ songs, emptyText });
-  if (renderCache.get(listEl) === signature) return;
-  renderCache.set(listEl, signature);
-
   if (!songs.length) {
     const emptyEl = document.createElement('div');
     emptyEl.className = 'setlist-empty';
@@ -55,8 +38,7 @@ export function renderLibraryPicker({
 
 function updateLibraryPickerRow(row, { song, onPick }) {
   const id = String(song.id);
-  const tsNum = song.tsNum ?? 4;
-  const tsDen = song.tsDen ?? 4;
+  const { tsNum, tsDen } = getSongTimeSignature(song);
   const signature = JSON.stringify({
     id,
     name: song.name,
@@ -66,13 +48,15 @@ function updateLibraryPickerRow(row, { song, onPick }) {
   });
 
   row.dataset.id = id;
-  if (row.dataset.signature === signature) return;
+  if (row.dataset.signature === signature) {
+    bindLibraryPickerRowHandler(row, { id, onPick });
+    return;
+  }
   row.dataset.signature = signature;
 
   const applyBtn = document.createElement('button');
   applyBtn.className = 'preset-apply';
   applyBtn.dataset.id = id;
-  applyBtn.addEventListener('click', () => onPick(id));
 
   const name = document.createElement('span');
   name.className = 'preset-name';
@@ -90,4 +74,10 @@ function updateLibraryPickerRow(row, { song, onPick }) {
   applyBtn.appendChild(ts);
 
   row.replaceChildren(applyBtn);
+  bindLibraryPickerRowHandler(row, { id, onPick });
+}
+
+function bindLibraryPickerRowHandler(row, { id, onPick }) {
+  const applyBtn = row.querySelector('.preset-apply');
+  if (applyBtn) applyBtn.onclick = () => onPick(id);
 }

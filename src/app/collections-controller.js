@@ -1,7 +1,6 @@
 import {
   BPM_MIN, BPM_MAX,
   FREE_SETLIST_LIMIT, FREE_SONGS_PER_SETLIST, FREE_LIBRARY_LIMIT,
-  SWING_DEFAULT_AMOUNT, SWING_DEFAULT_MODE,
   LS_KEYS,
 } from '../config.js';
 import { safeParseJSON, writeJSON } from '../utils/storage.js';
@@ -15,6 +14,7 @@ import { mountTsPicker, setTsPickerValues } from '../ui/ts-picker.js';
 import { createSongForm } from '../ui/song-form.js';
 import { createSongLibraryStore } from '../state/song-library.js';
 import { createSetlistStore } from '../state/setlist.js';
+import { withSongDefaults } from '../state/song-config.js';
 import { createUiSelection } from '../state/ui-selection.js';
 
 export function createCollectionsController({ t, metronome, paywall }) {
@@ -200,15 +200,7 @@ export function createCollectionsController({ t, metronome, paywall }) {
     const linkedLibSong = (p.libSongId ?? null)
       ? songLibraryStore.findById(p.libSongId ?? null)
       : null;
-    const songCfg = {
-      bpm: p.bpm,
-      tsNum: p.tsNum ?? linkedLibSong?.tsNum ?? 4,
-      tsDen: p.tsDen ?? linkedLibSong?.tsDen ?? 4,
-      beatStates: p.beatStates ?? linkedLibSong?.beatStates ?? null,
-      beatVolumes: p.beatVolumes ?? linkedLibSong?.beatVolumes ?? null,
-      swingMode: p.swingMode ?? linkedLibSong?.swingMode ?? SWING_DEFAULT_MODE,
-      swingAmount: p.swingAmount ?? linkedLibSong?.swingAmount ?? SWING_DEFAULT_AMOUNT,
-    };
+    const songCfg = withSongDefaults(p, linkedLibSong);
     if (selection.activeSongId === id) {
       restartOrStopSameSong(songCfg);
       return;
@@ -223,15 +215,7 @@ export function createCollectionsController({ t, metronome, paywall }) {
   function applyLibrarySong(id) {
     const s = songLibraryStore.findById(id);
     if (!s) return;
-    const songCfg = {
-      bpm: s.bpm,
-      tsNum: s.tsNum ?? 4,
-      tsDen: s.tsDen ?? 4,
-      beatStates: s.beatStates ?? null,
-      beatVolumes: s.beatVolumes ?? null,
-      swingMode: s.swingMode ?? SWING_DEFAULT_MODE,
-      swingAmount: s.swingAmount ?? SWING_DEFAULT_AMOUNT,
-    };
+    const songCfg = withSongDefaults(s);
     if (selection.activeLibrarySongId === id) {
       restartOrStopSameSong(songCfg);
       return;
@@ -260,13 +244,7 @@ export function createCollectionsController({ t, metronome, paywall }) {
     setFormMode('manual');
     pfSongForm.open({
       name: p.name,
-      bpm: p.bpm,
-      tsNum: p.tsNum ?? 4,
-      tsDen: p.tsDen ?? 4,
-      beatVolumes: p.beatVolumes ?? null,
-      beatStates: p.beatStates ?? null,
-      swingMode: p.swingMode ?? SWING_DEFAULT_MODE,
-      swingAmount: p.swingAmount ?? SWING_DEFAULT_AMOUNT,
+      ...withSongDefaults(p),
     });
     presetForm.style.display = 'block';
     pfSongForm.focusName();
@@ -287,15 +265,7 @@ export function createCollectionsController({ t, metronome, paywall }) {
         libSongId: null,
       });
       if (updated && selection.activeSongId === selection.editingSongId) {
-        metronome.applySongConfig({
-          bpm: values.bpm,
-          tsNum: values.tsNum,
-          tsDen: values.tsDen,
-          beatStates: values.beatStates ?? null,
-          beatVolumes: values.beatVolumes ?? null,
-          swingMode: values.swingMode ?? SWING_DEFAULT_MODE,
-          swingAmount: values.swingAmount ?? SWING_DEFAULT_AMOUNT,
-        });
+        metronome.applySongConfig(withSongDefaults(values));
         updateNowPlaying();
       }
     } else {
@@ -339,13 +309,7 @@ export function createCollectionsController({ t, metronome, paywall }) {
     if (!sl) return;
     const values = {
       name: libSong.name,
-      bpm: libSong.bpm,
-      tsNum: libSong.tsNum ?? 4,
-      tsDen: libSong.tsDen ?? 4,
-      beatStates: libSong.beatStates ?? null,
-      beatVolumes: libSong.beatVolumes ?? null,
-      swingMode: libSong.swingMode ?? SWING_DEFAULT_MODE,
-      swingAmount: libSong.swingAmount ?? SWING_DEFAULT_AMOUNT,
+      ...withSongDefaults(libSong),
       libSongId: libSong.id,
     };
     if (selection.editingSongId) {
@@ -362,15 +326,7 @@ export function createCollectionsController({ t, metronome, paywall }) {
   }
 
   function applyPreset(song) {
-    metronome.applySongConfig({
-      bpm: song.bpm,
-      tsNum: song.tsNum ?? 4,
-      tsDen: song.tsDen ?? 4,
-      beatStates: song.beatStates ?? null,
-      beatVolumes: song.beatVolumes ?? null,
-      swingMode: song.swingMode ?? SWING_DEFAULT_MODE,
-      swingAmount: song.swingAmount ?? SWING_DEFAULT_AMOUNT,
-    });
+    metronome.applySongConfig(withSongDefaults(song));
   }
 
   function propagateLibSongChange(libSong) {
@@ -381,13 +337,7 @@ export function createCollectionsController({ t, metronome, paywall }) {
         const nextSong = {
           ...song,
           name: libSong.name,
-          bpm: libSong.bpm,
-          tsNum: libSong.tsNum ?? 4,
-          tsDen: libSong.tsDen ?? 4,
-          beatStates: libSong.beatStates ?? null,
-          beatVolumes: libSong.beatVolumes ?? null,
-          swingMode: libSong.swingMode ?? SWING_DEFAULT_MODE,
-          swingAmount: libSong.swingAmount ?? SWING_DEFAULT_AMOUNT,
+          ...withSongDefaults(libSong),
         };
         setlistStore.replaceSong(sl.id, song.id, nextSong);
         if (selection.activeSongId === song.id) {
@@ -464,13 +414,7 @@ export function createCollectionsController({ t, metronome, paywall }) {
     selection.startEditingLibrarySong(id);
     libSongForm.open({
       name: s.name,
-      bpm: s.bpm,
-      tsNum: s.tsNum ?? 4,
-      tsDen: s.tsDen ?? 4,
-      beatVolumes: s.beatVolumes ?? null,
-      beatStates: s.beatStates ?? null,
-      swingMode: s.swingMode ?? SWING_DEFAULT_MODE,
-      swingAmount: s.swingAmount ?? SWING_DEFAULT_AMOUNT,
+      ...withSongDefaults(s),
     });
     libForm.style.display = 'block';
     libSongForm.focusName();
