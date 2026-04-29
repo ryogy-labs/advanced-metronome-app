@@ -114,6 +114,10 @@ export function createMetronomeController({ i18n, t, onPlaybackStateChange, onI1
   ];
 
   (function iosAudioUnlock() {
+    // iOS can deliver only part of the gesture sequence depending on
+    // Safari/PWA/native shell state, so listen to touchstart, touchend,
+    // and click. Capture lets this run before UI handlers; each listener
+    // removes itself once the AudioContext has had a chance to resume.
     const unlock = () => {
       if (audioCtx && audioCtx.state === 'suspended') {
         audioCtx.resume().catch(() => {});

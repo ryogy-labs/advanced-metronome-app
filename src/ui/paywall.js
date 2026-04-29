@@ -19,9 +19,9 @@
 //   - isPro():        () => boolean — current pro state
 //   - requirePro(cb): runs `cb` if pro, else opens the paywall
 //
-// Buy / restore stubs only log placeholders and close the modal — the
-// production hook-up will replace these handlers from inside this
-// module without touching call sites.
+// Buy / restore stubs only close the modal for now. The production
+// hook-up will replace these handlers from inside this module without
+// touching call sites.
 
 import { createModalFocusController } from './modal-a11y.js';
 
@@ -69,6 +69,10 @@ export function createPaywall({
     show();
   }
 
+  function logDevOnly(message) {
+    if (import.meta.env.DEV) console.info(message);
+  }
+
   // ── Modal wiring ──
   closeBtn?.addEventListener('click', hide);
   overlay?.addEventListener('click', e => {
@@ -78,13 +82,13 @@ export function createPaywall({
     focusController?.handleKeydown(e, hide);
   });
   buyBtn?.addEventListener('click', () => {
-    // Production: RevenueCat の購入フローを呼び出す
-    console.log('[DEV] 購入フロー（未実装）');
+    // TODO(revenuecat): call the purchase flow here.
+    logDevOnly('[DEV] Purchase flow is not wired yet');
     hide();
   });
   restoreBtn?.addEventListener('click', () => {
-    // Production: RevenueCat の restorePurchases を呼び出す
-    console.log('[DEV] 購入復元（未実装）');
+    // TODO(revenuecat): call restorePurchases here.
+    logDevOnly('[DEV] Restore purchases is not wired yet');
     hide();
   });
 
