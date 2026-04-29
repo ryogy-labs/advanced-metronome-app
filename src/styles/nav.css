@@ -31,7 +31,7 @@
 .nav-btn + .nav-btn {
   border-left: 1px solid var(--nav-divider);
 }
-.nav-btn.active  { color: var(--accent); }
+.nav-btn.active  { color: var(--accent-text); }
 .nav-btn:hover:not(.active) { color: var(--text); }
 
 .nav-icon {

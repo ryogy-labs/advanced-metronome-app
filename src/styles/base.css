@@ -8,11 +8,12 @@
   --border: #dcdcee;
   --nav-divider: #cfd3dd;
   --accent: #7c5cfc;
+  --accent-text: #5a3de0;
   --accent2: #fc5c7d;
   --beat1: #fc5c7d;
   --beat2: #7c5cfc;
   --text: #1c1c2e;
-  --text2: #8888aa;
+  --text2: #5f5f78;
   --radius: 12px;
 }
 
@@ -24,8 +25,9 @@
     --surface2: #22222f;
     --border: #2e2e40;
     --nav-divider: #555a69;
+    --accent-text: #aa99ff;
     --text: #e8e8f0;
-    --text2: #888899;
+    --text2: #b9b9c8;
   }
 }
 
