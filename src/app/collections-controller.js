@@ -1,6 +1,7 @@
 import {
   BPM_MIN, BPM_MAX,
   FREE_SETLIST_LIMIT, FREE_SONGS_PER_SETLIST, FREE_LIBRARY_LIMIT,
+  SWING_DEFAULT_AMOUNT, SWING_DEFAULT_MODE,
   LS_KEYS,
 } from '../config.js';
 import { safeParseJSON, writeJSON } from '../utils/storage.js';
@@ -205,6 +206,8 @@ export function createCollectionsController({ t, metronome, paywall }) {
       tsDen: p.tsDen ?? linkedLibSong?.tsDen ?? 4,
       beatStates: p.beatStates ?? linkedLibSong?.beatStates ?? null,
       beatVolumes: p.beatVolumes ?? linkedLibSong?.beatVolumes ?? null,
+      swingMode: p.swingMode ?? linkedLibSong?.swingMode ?? SWING_DEFAULT_MODE,
+      swingAmount: p.swingAmount ?? linkedLibSong?.swingAmount ?? SWING_DEFAULT_AMOUNT,
     };
     if (selection.activeSongId === id) {
       restartOrStopSameSong(songCfg);
@@ -226,6 +229,8 @@ export function createCollectionsController({ t, metronome, paywall }) {
       tsDen: s.tsDen ?? 4,
       beatStates: s.beatStates ?? null,
       beatVolumes: s.beatVolumes ?? null,
+      swingMode: s.swingMode ?? SWING_DEFAULT_MODE,
+      swingAmount: s.swingAmount ?? SWING_DEFAULT_AMOUNT,
     };
     if (selection.activeLibrarySongId === id) {
       restartOrStopSameSong(songCfg);
@@ -260,6 +265,8 @@ export function createCollectionsController({ t, metronome, paywall }) {
       tsDen: p.tsDen ?? 4,
       beatVolumes: p.beatVolumes ?? null,
       beatStates: p.beatStates ?? null,
+      swingMode: p.swingMode ?? SWING_DEFAULT_MODE,
+      swingAmount: p.swingAmount ?? SWING_DEFAULT_AMOUNT,
     });
     presetForm.style.display = 'block';
     pfSongForm.focusName();
@@ -286,6 +293,8 @@ export function createCollectionsController({ t, metronome, paywall }) {
           tsDen: values.tsDen,
           beatStates: values.beatStates ?? null,
           beatVolumes: values.beatVolumes ?? null,
+          swingMode: values.swingMode ?? SWING_DEFAULT_MODE,
+          swingAmount: values.swingAmount ?? SWING_DEFAULT_AMOUNT,
         });
         updateNowPlaying();
       }
@@ -335,6 +344,8 @@ export function createCollectionsController({ t, metronome, paywall }) {
       tsDen: libSong.tsDen ?? 4,
       beatStates: libSong.beatStates ?? null,
       beatVolumes: libSong.beatVolumes ?? null,
+      swingMode: libSong.swingMode ?? SWING_DEFAULT_MODE,
+      swingAmount: libSong.swingAmount ?? SWING_DEFAULT_AMOUNT,
       libSongId: libSong.id,
     };
     if (selection.editingSongId) {
@@ -357,6 +368,8 @@ export function createCollectionsController({ t, metronome, paywall }) {
       tsDen: song.tsDen ?? 4,
       beatStates: song.beatStates ?? null,
       beatVolumes: song.beatVolumes ?? null,
+      swingMode: song.swingMode ?? SWING_DEFAULT_MODE,
+      swingAmount: song.swingAmount ?? SWING_DEFAULT_AMOUNT,
     });
   }
 
@@ -373,6 +386,8 @@ export function createCollectionsController({ t, metronome, paywall }) {
           tsDen: libSong.tsDen ?? 4,
           beatStates: libSong.beatStates ?? null,
           beatVolumes: libSong.beatVolumes ?? null,
+          swingMode: libSong.swingMode ?? SWING_DEFAULT_MODE,
+          swingAmount: libSong.swingAmount ?? SWING_DEFAULT_AMOUNT,
         };
         setlistStore.replaceSong(sl.id, song.id, nextSong);
         if (selection.activeSongId === song.id) {
@@ -430,6 +445,7 @@ export function createCollectionsController({ t, metronome, paywall }) {
           tsDen: metronome.tsDen,
           beatVolumes: metronome.currentBeatVolumes(),
           beatStates: metronome.currentBeatStates(),
+          ...metronome.currentSwing(),
         });
       });
     },
@@ -453,6 +469,8 @@ export function createCollectionsController({ t, metronome, paywall }) {
       tsDen: s.tsDen ?? 4,
       beatVolumes: s.beatVolumes ?? null,
       beatStates: s.beatStates ?? null,
+      swingMode: s.swingMode ?? SWING_DEFAULT_MODE,
+      swingAmount: s.swingAmount ?? SWING_DEFAULT_AMOUNT,
     });
     libForm.style.display = 'block';
     libSongForm.focusName();
@@ -502,6 +520,7 @@ export function createCollectionsController({ t, metronome, paywall }) {
           tsDen: metronome.tsDen,
           beatVolumes: metronome.currentBeatVolumes(),
           beatStates: metronome.currentBeatStates(),
+          ...metronome.currentSwing(),
         });
       });
     },

@@ -112,7 +112,7 @@ function drawBallFrame(ctx, w, h, phase, beatIdx, topMargin, opts) {
 
 export function createBallAnimator({
   canvasSelector = '.ball-canvas',
-  getState,                  // () => { running, bpm, beatsPerMeasure, animMode, squashEnabled }
+  getState,                  // () => { running, bpm, beatsPerMeasure, tsDen, swingMode, swingAmount, animMode, squashEnabled }
   getAudioCtx,               // () => AudioContext | null
   getScheduledBeatTimes,     // () => [{ time, beatIdx }]
   isNative,                  // () => bool
@@ -141,7 +141,7 @@ export function createBallAnimator({
   }
 
   function frame() {
-    const { running, bpm, beatsPerMeasure, animMode, squashEnabled } = getState();
+    const { running, bpm, beatsPerMeasure, tsDen, swingMode, swingAmount, animMode, squashEnabled } = getState();
 
     let phase   = 0;
     let beatIdx = 0;
@@ -151,6 +151,9 @@ export function createBallAnimator({
         anchorMs: getNativeLoopAnchorMs(),
         bpm,
         beatsPerMeasure,
+        tsDen,
+        swingMode,
+        swingAmount,
       }));
       onNativeBeat(beatIdx);
     } else if (running && getAudioCtx()) {

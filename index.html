@@ -36,7 +36,7 @@
     </div>
   </div>
 
-  <!-- B: Swipe center area (3 pages) -->
+  <!-- B: Swipe center area (4 pages) -->
   <div class="swipe-wrap">
     <div class="swipe-pages" id="swipePages">
 
@@ -78,7 +78,30 @@
         </div>
       </div>
 
-      <!-- Page 2: Time Signature -->
+      <!-- Page 2: Swing -->
+      <div class="swipe-page" id="spSwing">
+        <div class="swipe-page-title" data-i18n="page.swing">スウィング</div>
+        <div class="swing-panel">
+          <div class="swing-header">
+            <span class="swing-label" data-i18n="swing.title">スウィング</span>
+            <span class="swing-value" id="swingAmountLabel">66.7</span>
+          </div>
+          <div class="swing-mode" role="group" aria-label="スウィング対象" data-i18n-aria-label="aria.swingMode">
+            <button type="button" class="swing-mode-btn active" id="swingModeOff" data-swing-mode="off" data-i18n="common.off">OFF</button>
+            <button type="button" class="swing-mode-btn" id="swingModeEighth" data-swing-mode="eighth" data-i18n="swing.eighth">8分</button>
+            <button type="button" class="swing-mode-btn" id="swingModeSixteenth" data-swing-mode="sixteenth" data-i18n="swing.sixteenth">16分</button>
+          </div>
+          <input type="range" class="swing-slider" id="swingAmount" min="0.1" max="99.9" value="66.7" step="0.1" aria-label="スウィング幅" data-i18n-aria-label="aria.swingAmount">
+          <div class="swing-scale" aria-label="スウィング幅プリセット" data-i18n-aria-label="aria.swingPresets">
+            <button type="button" class="swing-preset" data-swing-preset="0.1">0</button>
+            <button type="button" class="swing-preset" data-swing-preset="50">50</button>
+            <button type="button" class="swing-preset" data-swing-preset="66.7">66.7</button>
+            <button type="button" class="swing-preset" data-swing-preset="99.9">100</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Page 3: Time Signature -->
       <div class="swipe-page" id="spTimeSig">
         <div class="swipe-page-title" data-i18n="page.timesig">拍子</div>
         <div class="ts-picker-wrap">
@@ -104,7 +127,8 @@
     <div class="page-dots">
       <button class="page-dot active" data-page="0" aria-label="ボール" aria-current="page"></button>
       <button class="page-dot" data-page="1" aria-label="音量設定"></button>
-      <button class="page-dot" data-page="2" aria-label="拍子"></button>
+      <button class="page-dot" data-page="2" aria-label="スウィング"></button>
+      <button class="page-dot" data-page="3" aria-label="拍子"></button>
     </div>
   </div><!-- /swipe-wrap -->
 

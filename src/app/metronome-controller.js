@@ -3,13 +3,19 @@ import {
   BPM_MIN, BPM_MAX, BPM_DEFAULT,
   TAP_RESET_MS,
   TS_NUMS, TS_DENS,
+  SWING_MODES, SWING_DEFAULT_MODE, SWING_DEFAULT_AMOUNT, SWING_MIN, SWING_MAX,
   CLICK_ACCENT, CLICK_QUARTER,
   LS_KEYS,
 } from '../config.js';
 import { createBgLoopBuilder, arrayBufferToBase64 } from '../audio/bg-loop.js';
 import { createBgPlayback } from '../audio/bg-playback.js';
 import { createScheduler } from '../audio/scheduler.js';
-import { findLastScheduledBeat, getLoopDurationMs, getNativeBeatPosition } from '../audio/timing.js';
+import {
+  clampSwingAmount,
+  findLastScheduledBeat,
+  getLoopDurationMs,
+  getNativeBeatPosition,
+} from '../audio/timing.js';
 import { createSettingsPanel } from '../ui/settings-panel.js';
 import { createBeatDots } from '../ui/beat-dots.js';
 import { createBpmControls } from '../ui/bpm-controls.js';
@@ -42,6 +48,8 @@ export function createMetronomeController({ i18n, t, onPlaybackStateChange, onI1
   let volQuarter = 0.8;
   let volEighth = 0.5;
   let volSixteenth = 0.0;
+  let swingMode = SWING_DEFAULT_MODE;
+  let swingAmount = SWING_DEFAULT_AMOUNT;
   let running = false;
   let tapTimes = [];
   let isMuted = false;
@@ -84,6 +92,10 @@ export function createMetronomeController({ i18n, t, onPlaybackStateChange, onI1
   const volQuarterNum = document.getElementById('volQuarterNum');
   const volEighthNum = document.getElementById('volEighthNum');
   const volSixteenthNum = document.getElementById('volSixteenthNum');
+  const swingAmountEl = document.getElementById('swingAmount');
+  const swingAmountLabel = document.getElementById('swingAmountLabel');
+  const swingModeBtns = Array.from(document.querySelectorAll('[data-swing-mode]'));
+  const swingPresetBtns = Array.from(document.querySelectorAll('[data-swing-preset]'));
   const denominatorAwareVolumeEls = [
     { labelKey: 'volume.quarter', slider: volQuarterEl, num: volQuarterNum },
     { labelKey: 'volume.eighth', slider: volEighthEl, num: volEighthNum },
@@ -137,6 +149,10 @@ export function createMetronomeController({ i18n, t, onPlaybackStateChange, onI1
     return { volume: volQuarter * masterVol, freq: CLICK_QUARTER.freq, dur: CLICK_QUARTER.dur };
   }
 
+  function getEffectiveSixteenthVolume() {
+    return swingMode === 'eighth' ? 0 : volSixteenth;
+  }
+
   function getCtx() {
     if (!audioCtx) {
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -157,7 +173,9 @@ export function createMetronomeController({ i18n, t, onPlaybackStateChange, onI1
       tsDen,
       masterVol,
       volEighth,
-      volSixteenth,
+      volSixteenth: getEffectiveSixteenthVolume(),
+      swingMode,
+      swingAmount,
     }),
     getQuarterBeatSound,
     onBeatFlash: flashBeat,
@@ -171,6 +189,9 @@ export function createMetronomeController({ i18n, t, onPlaybackStateChange, onI1
         anchorMs: nativeLoopAnchorMs,
         bpm,
         beatsPerMeasure,
+        tsDen,
+        swingMode,
+        swingAmount,
       }).beatIdx;
     }
     if (!audioCtx) return null;
@@ -256,7 +277,8 @@ export function createMetronomeController({ i18n, t, onPlaybackStateChange, onI1
     getMuted: () => isMuted,
     getLoopParams: () => ({
       bpm, beatsPerMeasure, tsDen, beatStates,
-      masterVol, volBeat1, volQuarter, volEighth, volSixteenth,
+      masterVol, volBeat1, volQuarter, volEighth, volSixteenth: getEffectiveSixteenthVolume(),
+      swingMode, swingAmount,
     }),
     getMeasureMs: () => getLoopDurationMs({ bpm, beatsPerMeasure }),
     onNativeStart: () => {
@@ -333,6 +355,37 @@ export function createMetronomeController({ i18n, t, onPlaybackStateChange, onI1
     refreshRunningPlayback({ realignVisuals: isNative });
   }
 
+  function setSwingMode(mode) {
+    swingMode = SWING_MODES.includes(mode) ? mode : SWING_DEFAULT_MODE;
+    syncSwingUi();
+    updateDenominatorAwareVolumeUi();
+    refreshRunningPlayback({ realignVisuals: true });
+  }
+
+  function setSwingAmount(amount) {
+    swingAmount = clampSwingAmount(amount);
+    syncSwingUi();
+    refreshRunningPlayback({ realignVisuals: true });
+  }
+
+  function syncSwingUi() {
+    swingModeBtns.forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.swingMode === swingMode);
+    });
+    if (swingAmountEl) {
+      swingAmountEl.value = swingAmount.toFixed(1);
+      const pct = ((swingAmount - SWING_MIN) / (SWING_MAX - SWING_MIN)) * 100;
+      swingAmountEl.style.setProperty('--pct', `${pct}%`);
+    }
+    if (swingAmountLabel) swingAmountLabel.textContent = swingAmount.toFixed(1);
+    swingPresetBtns.forEach(btn => {
+      const preset = Number(btn.dataset.swingPreset);
+      const isActive = Math.abs(swingAmount - preset) <= 0.05;
+      btn.classList.toggle('active', isActive);
+      btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+    });
+  }
+
   function setBPM(val) {
     bpm = Math.min(BPM_MAX, Math.max(BPM_MIN, Math.round(val)));
     bpmControls?.sync(bpm);
@@ -370,11 +423,23 @@ export function createMetronomeController({ i18n, t, onPlaybackStateChange, onI1
       .forEach(el => { el.textContent = labels.sixteenth; });
 
     const disableFinest = tsDen === 8;
+    const muteFinestForSwing = swingMode === 'eighth';
     denominatorAwareVolumeEls.forEach(({ labelKey, slider, num }) => {
-      const disabled = disableFinest && labelKey === 'volume.sixteenth';
+      const isFinest = labelKey === 'volume.sixteenth';
+      const disabled = isFinest && (disableFinest || muteFinestForSwing);
       const row = slider?.closest('.vol-row');
       if (slider) slider.disabled = disabled;
       if (num) num.disabled = disabled;
+      if (isFinest && slider && num) {
+        if (muteFinestForSwing) {
+          slider.value = '0';
+          num.value = '0';
+          updateSliderFill(slider, 0, 100);
+        } else {
+          slider.value = String(Math.round(volSixteenth * 100));
+          updateVolSlider(slider, num);
+        }
+      }
       row?.classList.toggle('is-disabled', disabled);
       row?.setAttribute('aria-disabled', disabled ? 'true' : 'false');
     });
@@ -394,6 +459,10 @@ export function createMetronomeController({ i18n, t, onPlaybackStateChange, onI1
     return [...beatStates];
   }
 
+  function currentSwing() {
+    return { swingMode, swingAmount };
+  }
+
   function applyBeatVolumes(bv) {
     if (!bv) return;
     masterVol = bv.master ?? 1.0;
@@ -411,6 +480,7 @@ export function createMetronomeController({ i18n, t, onPlaybackStateChange, onI1
     updateVolSlider(volQuarterEl, volQuarterNum);
     updateVolSlider(volEighthEl, volEighthNum);
     updateVolSlider(volSixteenthEl, volSixteenthNum);
+    updateDenominatorAwareVolumeUi();
     refreshRunningLoopOnly();
   }
 
@@ -424,6 +494,8 @@ export function createMetronomeController({ i18n, t, onPlaybackStateChange, onI1
   function applySongConfig(songCfg) {
     setBPM(songCfg.bpm);
     setTimeSig(songCfg.tsNum, songCfg.tsDen);
+    setSwingMode(songCfg.swingMode ?? SWING_DEFAULT_MODE);
+    setSwingAmount(songCfg.swingAmount ?? SWING_DEFAULT_AMOUNT);
     applyBeatStates(songCfg.beatStates ?? null, { refreshLoop: false });
     applyBeatVolumes(songCfg.beatVolumes);
   }
@@ -503,10 +575,11 @@ export function createMetronomeController({ i18n, t, onPlaybackStateChange, onI1
       nodes.push(document.createTextNode(part));
       return nodes;
     }));
-    ['page.ball', 'page.volume', 'page.timesig'].forEach((key, idx) => {
+    ['page.ball', 'page.volume', 'page.swing', 'page.timesig'].forEach((key, idx) => {
       pageDotEls[idx]?.setAttribute('aria-label', t(key));
     });
     updateDenominatorAwareVolumeUi();
+    syncSwingUi();
   }
 
   bpmControls = createBpmControls({
@@ -569,6 +642,13 @@ export function createMetronomeController({ i18n, t, onPlaybackStateChange, onI1
   bindVolumeNumberInput(volQuarterEl, volQuarterNum, v => { volQuarter = v; });
   bindVolumeNumberInput(volEighthEl, volEighthNum, v => { volEighth = v; });
   bindVolumeNumberInput(volSixteenthEl, volSixteenthNum, v => { volSixteenth = v; });
+  swingModeBtns.forEach(btn => {
+    btn.addEventListener('click', () => setSwingMode(btn.dataset.swingMode));
+  });
+  swingAmountEl?.addEventListener('input', () => setSwingAmount(Number(swingAmountEl.value)));
+  swingPresetBtns.forEach(btn => {
+    btn.addEventListener('click', () => setSwingAmount(Number(btn.dataset.swingPreset)));
+  });
 
   playBtn.addEventListener('click', togglePlayback);
   tapBtn.addEventListener('click', tapTempo);
@@ -586,6 +666,7 @@ export function createMetronomeController({ i18n, t, onPlaybackStateChange, onI1
   updateVolSlider(volQuarterEl, volQuarterNum);
   updateVolSlider(volEighthEl, volEighthNum);
   updateVolSlider(volSixteenthEl, volSixteenthNum);
+  syncSwingUi();
   updateDenominatorAwareVolumeUi();
   buildBeatDots();
   updateBeatIndicators();
@@ -624,7 +705,7 @@ export function createMetronomeController({ i18n, t, onPlaybackStateChange, onI1
 
   const ballAnimator = createBallAnimator({
     canvasSelector: '.ball-canvas',
-    getState: () => ({ running, bpm, beatsPerMeasure, animMode, squashEnabled }),
+    getState: () => ({ running, bpm, beatsPerMeasure, tsDen, swingMode, swingAmount, animMode, squashEnabled }),
     getAudioCtx: () => audioCtx,
     getScheduledBeatTimes: () => scheduler.getScheduledBeatTimes(),
     isNative: () => isNative,
@@ -681,6 +762,8 @@ export function createMetronomeController({ i18n, t, onPlaybackStateChange, onI1
     get bpm() { return bpm; },
     get tsNum() { return tsNum; },
     get tsDen() { return tsDen; },
+    get swingMode() { return swingMode; },
+    get swingAmount() { return swingAmount; },
     get running() { return running; },
     startMetronome,
     stopMetronome,
@@ -688,6 +771,7 @@ export function createMetronomeController({ i18n, t, onPlaybackStateChange, onI1
     applySongConfig,
     currentBeatVolumes,
     currentBeatStates,
+    currentSwing,
     getSubdivisionVolumeLabels,
     refreshBallCanvases,
     resizeBallCanvases,

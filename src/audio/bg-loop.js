@@ -5,6 +5,7 @@ import {
   CLICK_SIXTEENTH,
 } from '../config.js';
 import { renderClick, getSubdivisionsPerBeat } from './synth.js';
+import { buildMeasureSubBeatEvents } from './timing.js';
 
 // Builds a looping click WAV blob whose silent looping plays back even when
 // the page is hidden. Cached by signature so identical state reuses the URL.
@@ -25,6 +26,8 @@ export function createBgLoopBuilder({ getCtx, isNative }) {
       state.volQuarter,
       state.volEighth,
       state.volSixteenth,
+      state.swingMode,
+      state.swingAmount,
     ].join('|');
   }
 
@@ -39,18 +42,24 @@ export function createBgLoopBuilder({ getCtx, isNative }) {
       const rate = liveCtx ? liveCtx.sampleRate : 44100;
       const beatDur = 60 / state.bpm;
       const subdivisions = getSubdivisionsPerBeat(state.tsDen);
-      const subdivisionDur = beatDur / subdivisions;
       const loopMeasures = isNative() ? NATIVE_BG_LOOP_MEASURES : BG_LOOP_MEASURES;
       const loopDuration = beatDur * state.beatsPerMeasure * loopMeasures;
       const frameCount = Math.max(1, Math.ceil(rate * loopDuration));
       const OfflineCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
       const offlineCtx = new OfflineCtx(1, frameCount, rate);
 
-      const measureSubdivisions = state.beatsPerMeasure * subdivisions;
+      const measureEvents = buildMeasureSubBeatEvents({
+        bpm: state.bpm,
+        beatsPerMeasure: state.beatsPerMeasure,
+        tsDen: state.tsDen,
+        swingMode: state.swingMode,
+        swingAmount: state.swingAmount,
+      });
       for (let measure = 0; measure < loopMeasures; measure++) {
         const measureBaseTime = measure * beatDur * state.beatsPerMeasure;
-        for (let subBeat = 0; subBeat < measureSubdivisions; subBeat++) {
-          const time = measureBaseTime + subBeat * subdivisionDur;
+        for (const event of measureEvents) {
+          const subBeat = event.subBeat;
+          const time = measureBaseTime + event.offsetSec;
           const beatOffset = subBeat % subdivisions;
           const beatIdx = Math.floor(subBeat / subdivisions);
           if (beatOffset === 0) {

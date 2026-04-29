@@ -18,7 +18,7 @@ import {
   SCHEDULER_AHEAD_SEC,
 } from '../config.js';
 import { renderClick, getSubdivisionsPerBeat } from './synth.js';
-import { getBeatDurationSec } from './timing.js';
+import { buildMeasureSubBeatEvents, getBeatDurationSec } from './timing.js';
 
 export function createScheduler({
   getCtx,
@@ -29,7 +29,8 @@ export function createScheduler({
   onBeatFlash,
 }) {
   let nextNoteTime = 0;
-  let subBeatCount = 0;
+  let measureStartTime = 0;
+  let eventIndex = 0;
   let timerID = null;
   let scheduledBeatTimes = [];
 
@@ -65,16 +66,18 @@ export function createScheduler({
 
   function tick() {
     const ctx = getCtx();
-    const { bpm, beatsPerMeasure, tsDen } = getState();
-    const subdivisions = getSubdivisionsPerBeat(tsDen);
+    const { bpm, beatsPerMeasure, tsDen, swingMode, swingAmount } = getState();
+    const events = buildMeasureSubBeatEvents({ bpm, beatsPerMeasure, tsDen, swingMode, swingAmount });
     const beatIntervalSec = getBeatDurationSec(bpm);
-    const subdivisionInterval = beatIntervalSec / subdivisions;
-    const measureSubdivisionCount = beatsPerMeasure * subdivisions;
+    const measureDurationSec = beatIntervalSec * beatsPerMeasure;
 
     while (nextNoteTime < ctx.currentTime + SCHEDULER_AHEAD_SEC) {
-      scheduleNote(nextNoteTime, subBeatCount);
-      subBeatCount = (subBeatCount + 1) % measureSubdivisionCount;
-      nextNoteTime += subdivisionInterval;
+      scheduleNote(nextNoteTime, events[eventIndex].subBeat);
+      eventIndex = (eventIndex + 1) % events.length;
+      if (eventIndex === 0) {
+        measureStartTime += measureDurationSec;
+      }
+      nextNoteTime = measureStartTime + events[eventIndex].offsetSec;
     }
     timerID = setTimeout(tick, SCHEDULER_LOOKAHEAD_MS);
   }
@@ -85,8 +88,9 @@ export function createScheduler({
       clearTimeout(timerID);
       timerID = null;
     }
-    subBeatCount = 0;
-    nextNoteTime = ctx.currentTime + (isNative() ? 0.005 : 0.05);
+    eventIndex = 0;
+    measureStartTime = ctx.currentTime + (isNative() ? 0.005 : 0.05);
+    nextNoteTime = measureStartTime;
     scheduledBeatTimes = [];
     tick();
   }

@@ -1,0 +1,119 @@
+
+/* ── Swing Section (Page 2) ── */
+.swing-panel {
+  width: 100%;
+  max-width: 420px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 2px 12px rgba(100,80,200,0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 24px 22px;
+}
+
+.swing-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.swing-label {
+  color: var(--text);
+  font-weight: 800;
+  font-size: 0.98rem;
+}
+
+.swing-value {
+  color: var(--accent);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  font-size: 1.05rem;
+}
+
+.swing-mode {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.swing-mode-btn {
+  height: 38px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface2);
+  color: var(--text2);
+  font-size: 0.8rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.swing-mode-btn.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.swing-slider {
+  width: 100%;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(to right, var(--accent) var(--pct,66.7%), var(--border) var(--pct,66.7%));
+  outline: none;
+  cursor: pointer;
+}
+
+.swing-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent);
+  cursor: pointer;
+}
+
+.swing-slider::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent);
+  cursor: pointer;
+}
+
+.swing-scale {
+  position: relative;
+  height: 24px;
+  color: var(--text2);
+  font-size: 0.72rem;
+}
+
+.swing-preset {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  border: none;
+  background: transparent;
+  color: var(--text2);
+  font: inherit;
+  font-weight: 700;
+  padding: 4px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.swing-preset:nth-child(1) { left: 0; transform: translateX(0); }
+.swing-preset:nth-child(2) { left: 50%; }
+.swing-preset:nth-child(3) { left: 66.7%; }
+.swing-preset:nth-child(4) { right: 0; transform: translateX(0); }
+
+.swing-preset.active {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
