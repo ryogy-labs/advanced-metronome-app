@@ -95,7 +95,7 @@
 - 永続ドメインモデルはストアへ集約済み（セットリスト=`src/state/setlist.js`、曲ライブラリ=`src/state/song-library.js`）。UI セレクション状態は `src/state/ui-selection.js` に集約済みで、選択変更に伴う副作用 (`setActiveRow` / `updateNowPlaying` / フォーム開閉) は `src/app/collections-controller.js` が orchestration する。再生中フラグ・AudioContext・native loop アンカー・Wake Lock センチネルなど audio runtime のミュータブル状態は `metronome-controller.js` のクロージャに残る
 - 曲設定のデフォルト埋め (`tsNum` / `tsDen` / `beatStates` / `beatVolumes` / `swingMode` / `swingAmount`) は `src/state/song-config.js` の `withSongDefaults` に集約済み。setlist 曲がライブラリ曲を参照する fallback chain も `withSongDefaults(p, linkedLibSong)` 経由
 - セットリスト追加フォームとライブラリ追加フォームは `src/ui/song-form.js` の `createSongForm` で共通化済み（名前・BPM・拍子・キャプチャプレビュー・保存/キャンセル/Enter ハンドリング）。外側フォーム可視制御・Pro ゲート・ストア dispatch・ライブラリ→セットリスト伝播 (`propagateLibSongChange`) は `src/app/collections-controller.js` 側が担当する
-- 型チェック（`@ts-check` / JSDoc 型注釈）は未導入。`src/state/song-config.js` の `withSongDefaults` を起点に、controller / song-form の I/O 表面から段階的に型を入れる余地がある
+- 型チェック（`@ts-check` / JSDoc 型注釈）は `src/state/song-config.js` の `SongConfig` と、setlist / song-library store、song-form、collections / metronome controller の曲設定 I/O 表面に seed 導入済み。audio runtime や UI renderer 全般、controller 内部状態への型導入は未対応で、次段階で広げる余地がある
 - 自動テストは `node:test` ベースで `src/audio/timing.js` と `src/state/beat-states.js` の最小カバレッジのみ。`src/state/song-config.js` / 各ストア (`setlist.js` / `song-library.js`) のミューテーション / `src/audio/synth.js` などは未カバー
 - ページドット、拍子矢印、音量入力、編集/削除アイコンなど一部の icon-only / context-only 操作には accessible name を付与済み。settings / paywall モーダルは初期フォーカス・フォーカス復帰・Escape 閉鎖・Tab フォーカストラップに対応済み。静的な `aria-label` は `data-i18n-aria-label` 経由で言語切替に追従する。主要フォーム入力には screen-reader 用 label を付与済み。包括的な a11y 監査は未対応
 - データは `localStorage` のみのため、ブラウザ削除・端末変更・プライベートモードでは失われる

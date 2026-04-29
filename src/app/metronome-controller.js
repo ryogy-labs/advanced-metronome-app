@@ -1,3 +1,5 @@
+// @ts-check
+
 import { registerPlugin } from '@capacitor/core';
 import {
   BPM_MIN, BPM_MAX, BPM_DEFAULT,
@@ -30,16 +32,31 @@ import {
 } from '../state/beat-states.js';
 import { withSongDefaults } from '../state/song-config.js';
 
+/**
+ * @typedef {import('../state/song-config.js').SongConfig} SongConfig
+ * @typedef {import('../state/song-config.js').BeatVolumes} BeatVolumes
+ * @typedef {import('../state/song-config.js').BeatState} BeatState
+ */
+
+/**
+ * @template {HTMLElement} T
+ * @param {string} id
+ * @returns {T}
+ */
+function byId(id) {
+  return /** @type {T} */ (document.getElementById(id));
+}
+
 const NativeMetronomeAudio = registerPlugin('MetronomeAudio');
-const isNative = Boolean(
-  window.Capacitor &&
-  typeof window.Capacitor.isNativePlatform === 'function' &&
-  window.Capacitor.isNativePlatform()
+const capacitor = /** @type {{ isNativePlatform?: () => boolean } | undefined} */ (
+  /** @type {any} */ (window).Capacitor
 );
+const isNative = Boolean(capacitor?.isNativePlatform?.());
 
 export function createMetronomeController({ i18n, t, onPlaybackStateChange, onI18nChange }) {
   let bpm = BPM_DEFAULT;
   let beatsPerMeasure = 4;
+  /** @type {BeatState[]} */
   let beatStates = ['accent', 'normal', 'normal', 'normal'];
   let tsNum = 4;
   let tsDen = 4;
@@ -76,37 +93,37 @@ export function createMetronomeController({ i18n, t, onPlaybackStateChange, onI1
   })();
   let wakeLockSentinel = null;
 
-  const bpmDisplay = document.getElementById('bpmDisplay');
-  const bpmSlider = document.getElementById('bpmSlider');
+  const bpmDisplay = byId('bpmDisplay');
+  const bpmSlider = /** @type {HTMLInputElement} */ (byId('bpmSlider'));
   const beatRowEls = [
-    document.getElementById('beatRow'),
-    document.getElementById('beatRowSetlist'),
-    document.getElementById('beatRowLibrary'),
+    byId('beatRow'),
+    byId('beatRowSetlist'),
+    byId('beatRowLibrary'),
   ].filter(Boolean);
   const muteBtnEls = [
-    document.getElementById('muteBtnMetro'),
-    document.getElementById('muteBtnSetlist'),
-    document.getElementById('muteBtnLibrary'),
+    byId('muteBtnMetro'),
+    byId('muteBtnSetlist'),
+    byId('muteBtnLibrary'),
   ].filter(Boolean);
-  const playBtn = document.getElementById('playBtn');
-  const tapBtn = document.getElementById('tapBtn');
-  const tsNumValEl = document.getElementById('tsNumVal');
-  const tsDenValEl = document.getElementById('tsDenVal');
+  const playBtn = byId('playBtn');
+  const tapBtn = byId('tapBtn');
+  const tsNumValEl = byId('tsNumVal');
+  const tsDenValEl = byId('tsDenVal');
   const pageDotEls = document.querySelectorAll('.page-dot');
-  const volMasterEl = document.getElementById('volMaster');
-  const volMasterNum = document.getElementById('volMasterNum');
-  const volBeat1El = document.getElementById('volBeat1');
-  const volQuarterEl = document.getElementById('volQuarter');
-  const volEighthEl = document.getElementById('volEighth');
-  const volSixteenthEl = document.getElementById('volSixteenth');
-  const volBeat1Num = document.getElementById('volBeat1Num');
-  const volQuarterNum = document.getElementById('volQuarterNum');
-  const volEighthNum = document.getElementById('volEighthNum');
-  const volSixteenthNum = document.getElementById('volSixteenthNum');
-  const swingAmountEl = document.getElementById('swingAmount');
-  const swingAmountNum = document.getElementById('swingAmountNum');
-  const swingModeBtns = Array.from(document.querySelectorAll('[data-swing-mode]'));
-  const swingPresetBtns = Array.from(document.querySelectorAll('[data-swing-preset]'));
+  const volMasterEl = /** @type {HTMLInputElement} */ (byId('volMaster'));
+  const volMasterNum = /** @type {HTMLInputElement} */ (byId('volMasterNum'));
+  const volBeat1El = /** @type {HTMLInputElement} */ (byId('volBeat1'));
+  const volQuarterEl = /** @type {HTMLInputElement} */ (byId('volQuarter'));
+  const volEighthEl = /** @type {HTMLInputElement} */ (byId('volEighth'));
+  const volSixteenthEl = /** @type {HTMLInputElement} */ (byId('volSixteenth'));
+  const volBeat1Num = /** @type {HTMLInputElement} */ (byId('volBeat1Num'));
+  const volQuarterNum = /** @type {HTMLInputElement} */ (byId('volQuarterNum'));
+  const volEighthNum = /** @type {HTMLInputElement} */ (byId('volEighthNum'));
+  const volSixteenthNum = /** @type {HTMLInputElement} */ (byId('volSixteenthNum'));
+  const swingAmountEl = /** @type {HTMLInputElement} */ (byId('swingAmount'));
+  const swingAmountNum = /** @type {HTMLInputElement} */ (byId('swingAmountNum'));
+  const swingModeBtns = /** @type {HTMLElement[]} */ (Array.from(document.querySelectorAll('[data-swing-mode]')));
+  const swingPresetBtns = /** @type {HTMLButtonElement[]} */ (Array.from(document.querySelectorAll('[data-swing-preset]')));
   const denominatorAwareVolumeEls = [
     { labelKey: 'volume.quarter', slider: volQuarterEl, num: volQuarterNum },
     { labelKey: 'volume.eighth', slider: volEighthEl, num: volEighthNum },
@@ -152,7 +169,7 @@ export function createMetronomeController({ i18n, t, onPlaybackStateChange, onI1
   }
 
   function syncBeatStatesForMeasure() {
-    beatStates = buildDefaultBeatStates(beatsPerMeasure, tsDen);
+    beatStates = /** @type {BeatState[]} */ (buildDefaultBeatStates(beatsPerMeasure, tsDen));
   }
 
   function getQuarterBeatSound(beatIdx) {
@@ -170,7 +187,8 @@ export function createMetronomeController({ i18n, t, onPlaybackStateChange, onI1
 
   function getCtx() {
     if (!audioCtx) {
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const AudioContextCtor = window.AudioContext || /** @type {any} */ (window).webkitAudioContext;
+      audioCtx = new AudioContextCtor();
       masterGainNode = audioCtx.createGain();
       masterGainNode.gain.value = isMuted ? 0 : 1;
       masterGainNode.connect(audioCtx.destination);
@@ -566,6 +584,7 @@ export function createMetronomeController({ i18n, t, onPlaybackStateChange, onI1
     });
   }
 
+  /** @returns {BeatVolumes} */
   function currentBeatVolumes() {
     return {
       master: masterVol,
@@ -576,6 +595,7 @@ export function createMetronomeController({ i18n, t, onPlaybackStateChange, onI1
     };
   }
 
+  /** @returns {BeatState[]} */
   function currentBeatStates() {
     return [...beatStates];
   }
@@ -584,6 +604,7 @@ export function createMetronomeController({ i18n, t, onPlaybackStateChange, onI1
     return { swingMode, swingAmount };
   }
 
+  /** @param {BeatVolumes | null} bv */
   function applyBeatVolumes(bv) {
     if (!bv) return;
     masterVol = bv.master ?? 1.0;
@@ -597,12 +618,13 @@ export function createMetronomeController({ i18n, t, onPlaybackStateChange, onI1
   }
 
   function applyBeatStates(states, { refreshLoop = true } = {}) {
-    beatStates = normalizeBeatStates(states, beatsPerMeasure, tsDen);
+    beatStates = /** @type {BeatState[]} */ (normalizeBeatStates(states, beatsPerMeasure, tsDen));
     buildBeatDots();
     updateBeatIndicators(getCurrentBeatIndicatorIndex());
     if (refreshLoop) refreshRunningLoopOnly();
   }
 
+  /** @param {SongConfig} songCfg */
   function applySongConfig(songCfg) {
     const next = withSongDefaults(songCfg);
     setBPM(next.bpm);
@@ -618,8 +640,8 @@ export function createMetronomeController({ i18n, t, onPlaybackStateChange, onI1
     tsDen = TS_DENS.includes(nextDen) ? nextDen : 4;
     beatsPerMeasure = tsNum;
     syncBeatStatesForMeasure();
-    tsNumValEl.textContent = tsNum;
-    tsDenValEl.textContent = tsDen;
+    tsNumValEl.textContent = String(tsNum);
+    tsDenValEl.textContent = String(tsDen);
     buildBeatDots();
     updateDenominatorAwareVolumeUi();
     updateBeatIndicators(running ? 0 : null);
@@ -670,7 +692,7 @@ export function createMetronomeController({ i18n, t, onPlaybackStateChange, onI1
 
   function syncVolumeBindings() {
     getVolumeBindings().forEach(({ slider, num, get }) => {
-      slider.value = Math.round(get() * 100);
+      slider.value = String(Math.round(get() * 100));
       updateVolSlider(slider, num);
     });
   }
@@ -720,12 +742,12 @@ export function createMetronomeController({ i18n, t, onPlaybackStateChange, onI1
     slider: bpmSlider,
     display: bpmDisplay,
     buttons: {
-      minus10: document.getElementById('bpmMinus10'),
-      minus5: document.getElementById('bpmMinus5'),
-      minus1: document.getElementById('bpmMinus1'),
-      plus1: document.getElementById('bpmPlus1'),
-      plus5: document.getElementById('bpmPlus5'),
-      plus10: document.getElementById('bpmPlus10'),
+      minus10: byId('bpmMinus10'),
+      minus5: byId('bpmMinus5'),
+      minus1: byId('bpmMinus1'),
+      plus1: byId('bpmPlus1'),
+      plus5: byId('bpmPlus5'),
+      plus10: byId('bpmPlus10'),
     },
     min: BPM_MIN,
     max: BPM_MAX,
@@ -735,10 +757,10 @@ export function createMetronomeController({ i18n, t, onPlaybackStateChange, onI1
 
   createTimeSignatureControls({
     buttons: {
-      numUp: document.getElementById('tsNumUp'),
-      numDown: document.getElementById('tsNumDn'),
-      denUp: document.getElementById('tsDenUp'),
-      denDown: document.getElementById('tsDenDn'),
+      numUp: byId('tsNumUp'),
+      numDown: byId('tsNumDn'),
+      denUp: byId('tsDenUp'),
+      denDown: byId('tsDenDn'),
     },
     nums: TS_NUMS,
     dens: TS_DENS,
@@ -748,7 +770,7 @@ export function createMetronomeController({ i18n, t, onPlaybackStateChange, onI1
 
   getVolumeBindings().forEach(({ slider, num, set }) => {
     slider.addEventListener('input', () => {
-      set(slider.value / 100);
+      set(Number(slider.value) / 100);
       updateVolSlider(slider, num);
       refreshRunningLoopOnly();
     });
@@ -779,7 +801,8 @@ export function createMetronomeController({ i18n, t, onPlaybackStateChange, onI1
   tapBtn.addEventListener('click', tapTempo);
   muteBtnEls.forEach(btn => btn.addEventListener('click', () => setMute(!isMuted)));
   document.addEventListener('keydown', e => {
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.isContentEditable) return;
+    const target = /** @type {HTMLElement | null} */ (e.target);
+    if (target?.tagName === 'INPUT' || target?.tagName === 'SELECT' || target?.isContentEditable) return;
     if (e.code === 'Space') { e.preventDefault(); togglePlayback(); }
     if (e.code === 'KeyT') tapTempo();
     if (e.code === 'KeyM') setMute(!isMuted);
@@ -794,21 +817,21 @@ export function createMetronomeController({ i18n, t, onPlaybackStateChange, onI1
 
   createSettingsPanel({
     els: {
-      overlay: document.getElementById('settingsOverlay'),
+      overlay: byId('settingsOverlay'),
       openBtns: document.querySelectorAll('.settings-btn'),
-      closeBtn: document.getElementById('settingsClose'),
-      langJaBtn: document.getElementById('langJa'),
-      langEnBtn: document.getElementById('langEn'),
-      wakelockOnBtn: document.getElementById('wakelockOnBtn'),
-      wakelockOffBtn: document.getElementById('wakelockOffBtn'),
-      visualDelaySlider: document.getElementById('visualDelaySlider'),
-      visualDelayNum: document.getElementById('visualDelayNum'),
-      visualDelayCalibrateBtn: document.getElementById('visualDelayCalibrateBtn'),
-      visualDelayCalibrateStatus: document.getElementById('visualDelayCalibrateStatus'),
-      modeVerticalBtn: document.getElementById('modeVertical'),
-      modeHorizontalBtn: document.getElementById('modeHorizontal'),
-      squashOnBtn: document.getElementById('squashOnBtn'),
-      squashOffBtn: document.getElementById('squashOffBtn'),
+      closeBtn: byId('settingsClose'),
+      langJaBtn: byId('langJa'),
+      langEnBtn: byId('langEn'),
+      wakelockOnBtn: byId('wakelockOnBtn'),
+      wakelockOffBtn: byId('wakelockOffBtn'),
+      visualDelaySlider: /** @type {HTMLInputElement} */ (byId('visualDelaySlider')),
+      visualDelayNum: /** @type {HTMLInputElement} */ (byId('visualDelayNum')),
+      visualDelayCalibrateBtn: byId('visualDelayCalibrateBtn'),
+      visualDelayCalibrateStatus: byId('visualDelayCalibrateStatus'),
+      modeVerticalBtn: byId('modeVertical'),
+      modeHorizontalBtn: byId('modeHorizontal'),
+      squashOnBtn: byId('squashOnBtn'),
+      squashOffBtn: byId('squashOffBtn'),
     },
     getLang: () => i18n.lang,
     setLang: (lang) => {

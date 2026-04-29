@@ -17,7 +17,7 @@ export function renderSongRows({
   items,
   activeId,
   emptyText,
-  untitledText,
+  untitledText = '',
   editTitle,
   deleteTitle,
   showTrackNumber = false,
