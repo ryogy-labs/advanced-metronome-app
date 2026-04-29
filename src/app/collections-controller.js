@@ -269,7 +269,13 @@ export function createCollectionsController({ t, metronome, paywall }) {
         updateNowPlaying();
       }
     } else {
-      setlistStore.addSong(sl.id, { ...values, libSongId: null });
+      // Route through withSongDefaults so the store always holds a
+      // fully-populated song. The form's readValues() already defaults
+      // swingMode/swingAmount today, but normalizing both store-write
+      // paths the same way keeps the "store always holds normalized
+      // records" invariant honest if a future field is added to the
+      // schema before the form learns it.
+      setlistStore.addSong(sl.id, { ...values, ...withSongDefaults(values), libSongId: null });
     }
     closeSongForm();
     renderSongs();
@@ -427,11 +433,15 @@ export function createCollectionsController({ t, metronome, paywall }) {
   }
 
   function commitLibForm(values) {
+    // Normalize on write so the library store mirrors the setlist
+    // store invariant ("records are always fully populated") — see
+    // commitSongForm above for the rationale.
+    const normalized = { ...values, ...withSongDefaults(values) };
     let editedSong = null;
     if (selection.editingLibrarySongId) {
-      editedSong = songLibraryStore.update(selection.editingLibrarySongId, values);
+      editedSong = songLibraryStore.update(selection.editingLibrarySongId, normalized);
     } else {
-      songLibraryStore.add(values);
+      songLibraryStore.add(normalized);
     }
     if (editedSong) propagateLibSongChange(editedSong);
     closeLibForm();
