@@ -27,10 +27,37 @@
 }
 
 .swing-value {
+  width: 72px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface2);
   color: var(--accent);
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   font-size: 1.05rem;
+  text-align: right;
+  padding: 3px 8px;
+}
+
+.swing-value:focus {
+  outline: 1px solid var(--accent);
+  border-color: var(--accent);
+}
+
+.swing-value:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.swing-value::-webkit-outer-spin-button,
+.swing-value::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.swing-value[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
 }
 
 .swing-mode {
@@ -87,6 +114,21 @@
   cursor: pointer;
 }
 
+.swing-slider:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.swing-slider:disabled::-webkit-slider-thumb {
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.swing-slider:disabled::-moz-range-thumb {
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
 .swing-scale {
   position: relative;
   height: 24px;
@@ -116,4 +158,9 @@
 .swing-preset.active {
   color: var(--accent);
   background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.swing-preset:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }

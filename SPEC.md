@@ -28,7 +28,7 @@
 - `src/ui/song-row.js`: セットリスト/ライブラリで共通の曲行レンダラ (`renderSongRows`)。トラック番号・ドラッグハンドルの有無や `data-action` 名、各種コールバックを引数で渡してビュー差分を吸収する。ID keyed reconciliation で既存行を再利用し、追加/削除/並び替え時もリスト全体の HTML 再生成を避ける。選択行だけの切り替えは `setActiveRow(listEl, activeId)` で `.active` クラスのみを同期する
 - `src/ui/setlist-row.js`: セットリスト一覧行レンダラ (`renderSetlistRows`)。セットリスト名・曲数・編集/削除アイコン・DnD ハンドルの DOM と listener 配線を内包し、ホスト側は `onOpen` / `onEdit` / `onDelete` を渡す。ID keyed reconciliation で既存行を再利用し、直前と同じ行データで再描画された場合は DOM 更新をスキップする
 - `src/ui/library-picker.js`: セットリスト曲フォーム内のライブラリ選択リスト (`renderLibraryPicker`)。ライブラリ曲候補の DOM と選択 listener 配線を内包する。ID keyed reconciliation で候補行を再利用し、直前と同じ候補リストで再描画された場合は DOM 更新をスキップする
-- `src/ui/ts-picker.js`: セットリスト曲フォーム/ライブラリフォーム共通の拍子ピッカー。DOM API で初回描画し、クリック時の hidden input 更新、`setTsPickerValues` でマウント済みピッカーの選択値を後から差し替える。`prefix` (`'pfTs'` / `'libTs'`) で hidden input の id を分岐する
+- `src/ui/ts-picker.js`: セットリスト曲フォーム/ライブラリフォーム共通の拍子ピッカー。セットリスト曲フォームはボタン式、ライブラリフォームは選択式で描画し、`setTsPickerValues` でマウント済みピッカーの選択値を後から差し替える。`prefix` (`'pfTs'` / `'libTs'`) で入力 id を分岐する
 - `src/ui/song-form.js`: セットリスト曲フォーム (`pf*` id) とライブラリフォーム (`lib*` id) で共通の手動入力ライフサイクル (`createSongForm`)。名前・BPM・拍子ピッカー・キャプチャプレビュー・保存/キャンセル/Enter ハンドリング・`beatVolumes` / `beatStates` / `swingMode` / `swingAmount` の一時バッファを内包し、`open` / `close` / `applyCapture` / `focusName` を公開する。外側のフォーム可視制御 (`#presetForm.style.display` / `#libForm.style.display`)・Pro ゲート・ストア dispatch・`propagateLibSongChange` などのクロスカット処理は `src/app/collections-controller.js` 側が担当する
 - `src/ui/paywall.js`: Pro 状態と paywall モーダルのライフサイクル (`createPaywall`)。Web では dev-only の Pro 切替トグルと `localStorage` の `metro-dev-force-pro` 同期を内包し、`isPro` / `requirePro` を公開する。フリープラン上限との比較や、Pro 状態変更後のリスト再描画は `src/app/collections-controller.js` 側が担当する
 - `src/ui/modal-a11y.js`: モーダル共通のフォーカス管理 (`createModalFocusController`)。開いたときの初期フォーカス、閉じた後のフォーカス復帰、Escape 閉鎖、Tab / Shift+Tab のフォーカストラップを提供する
@@ -55,7 +55,7 @@
 - TAP TEMPO は直近のタップ間隔から BPM を算出する。一定時間タップが空くと計測はリセットされる
 - 拍子画面では分子 `2` から `12`、分母 `4` / `8` を切り替えられる。変更時はビート表示を更新し、再生中ならメトロノームをその拍子で再始動する
 - BPM は拍子の分母音符のテンポとして扱う。例として `4/4 BPM120` は4分音符=120、`6/8 BPM120` は8分音符=120として再生する
-- スウィング画面ではスウィング対象 (`OFF` / `8分` / `16分`) とスウィング幅 (`0.1` から `99.9`) を設定できる。スウィング幅はペア内の後ろ側ノート位置として扱い、`50.0` が 1:1、`66.7` が約 2:1、`50.0` 未満は裏拍が前に寄る逆スウィングになる。初期状態は `OFF`、幅の初期値は `66.7`。目盛りは `0` / `50` / `66.7` / `100` と表示し、それぞれ内部値 `0.1` / `50.0` / `66.7` / `99.9` へジャンプするプリセットボタンとして動作する
+- スウィング画面ではスウィング対象 (`OFF` / `8分` / `16分`) とスウィング幅 (`0.1` から `99.9`) を設定できる。スウィング幅はペア内の後ろ側ノート位置として扱い、`50.0` が 1:1、`66.7` が約 2:1、`50.0` 未満は裏拍が前に寄る逆スウィングになる。初期状態は `OFF`、幅の初期値は `66.7`。スウィング幅はスライダーと数値入力で直接編集できる。目盛りは `0` / `50` / `66.7` / `100` と表示し、それぞれ内部値 `0.1` / `50.0` / `66.7` / `99.9` へジャンプするプリセットボタンとして動作する。`OFF` 時は幅スライダー・数値入力・プリセットボタンを無効化する
 - ボール画面では移動方向とスクワッシュ演出を切り替えられる。これは視覚表現だけに影響し、テンポや音価は変えない。ボール色は音声側の拍状態に追従し、強拍は赤、通常拍は紫、ミュート拍は灰色で表示する
 - Setlist ビューではセットリストの作成・編集・削除・並び替えができる
 - セットリスト詳細では曲の追加・編集・削除・並び替えができる。曲追加は直接入力とライブラリ選択の2モードを持つ

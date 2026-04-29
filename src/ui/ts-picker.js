@@ -1,11 +1,9 @@
 // Time-signature picker for the setlist song form and library form.
 //
-// Renders a row of numerator buttons + a row of denominator buttons,
-// plus two hidden `<input>`s (`<prefix>Num` / `<prefix>Den`) that hold
-// the current selection so callers can read them via the standard
-// form-element lookup. Clicking a button toggles the `.active` class on
-// the siblings sharing the same `data-target` and writes the value to
-// the matching hidden input.
+// Renders either compact select controls (library form) or a row of
+// numerator buttons + a row of denominator buttons (setlist form). Both
+// variants expose `<prefix>Num` / `<prefix>Den` values so callers can
+// read them via the standard form-element lookup.
 //
 // The same picker mounts in two places (setlist add/edit form, library
 // add/edit form), so callers pass a `prefix` (`'pfTs'` or `'libTs'`)
@@ -34,6 +32,42 @@ function createHiddenInput(id, value) {
   input.id = id;
   input.value = String(value);
   return input;
+}
+
+function createSelect(id, values, current) {
+  const select = document.createElement('select');
+  select.id = id;
+  select.className = 'ts-select';
+  values.forEach(value => {
+    const option = document.createElement('option');
+    option.value = String(value);
+    option.textContent = String(value);
+    option.selected = value === current;
+    select.appendChild(option);
+  });
+  return select;
+}
+
+function buildSelectPickerFragment(tsNum, tsDen, prefix, label) {
+  const row = document.createElement('div');
+  row.className = 'ts-picker-row ts-picker-row-select';
+
+  const labelEl = document.createElement('label');
+  labelEl.textContent = label;
+  row.appendChild(labelEl);
+
+  const group = document.createElement('div');
+  group.className = 'ts-picker-group ts-picker-select-group';
+  group.appendChild(createSelect(`${prefix}Num`, TS_NUMS, tsNum));
+
+  const slash = document.createElement('span');
+  slash.className = 'ts-slash';
+  slash.textContent = '/';
+  group.appendChild(slash);
+
+  group.appendChild(createSelect(`${prefix}Den`, TS_DENS, tsDen));
+  row.appendChild(group);
+  return row;
 }
 
 function buildPickerFragment(tsNum, tsDen, prefix, label) {
@@ -73,7 +107,12 @@ function buildPickerFragment(tsNum, tsDen, prefix, label) {
 // so the active-button state matches the editing target).
 export function mountTsPicker({ container, tsNum, tsDen, prefix, t }) {
   if (!container) return;
-  container.replaceChildren(buildPickerFragment(tsNum, tsDen, prefix, t('page.timesig')));
+  const isLibraryForm = prefix === 'libTs';
+  container.replaceChildren(
+    isLibraryForm
+      ? buildSelectPickerFragment(tsNum, tsDen, prefix, t('page.timesig'))
+      : buildPickerFragment(tsNum, tsDen, prefix, t('page.timesig'))
+  );
   container.onclick = e => {
     const btn = e.target.closest('.ts-btn');
     if (!btn || !container.contains(btn)) return;
