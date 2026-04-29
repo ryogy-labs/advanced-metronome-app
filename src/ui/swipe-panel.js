@@ -1,8 +1,8 @@
-// 5-slot clone carousel for the metronome / setlist / library views.
+// Clone carousel for the metronome / setlist / library views.
 //
-// Slot layout (physicalIdx → logical page):
-//   [clone-P2][P0][P1][P2][clone-P0]
-//        0     1   2   3       4
+// Slot layout (physicalIdx → logical page, for N real pages):
+//   [clone-last][P0][P1] ... [P(N-1)][clone-P0]
+//        0       1   2          N        N+1
 //
 // Logical pages are 0..(totalPages-1). The carousel always lives at slot
 // 1..3; slots 0 and 4 are clone sentinels that the carousel briefly lands

@@ -33,13 +33,16 @@
 //                            preview text.
 //   - onSave(values):        host commits values to its store. `values`
 //                            shape: { name, bpm, tsNum, tsDen,
-//                            beatVolumes, beatStates }.
+//                            beatVolumes, beatStates, swingMode,
+//                            swingAmount }.
 //   - onCancel():            host reacts to the cancel button. Always
 //                            fires *after* the form's own state is
 //                            cleared.
 //   - onCaptureRequest():    fires when the capture button is clicked.
 //                            Host should pro-gate, then call back into
 //                            `applyCapture(values)`.
+
+import { SWING_DEFAULT_AMOUNT, SWING_DEFAULT_MODE } from '../config.js';
 
 export function createSongForm({
   prefix,
@@ -66,9 +69,17 @@ export function createSongForm({
   // instance because they aren't tied to any input element.
   let beatVolumes = null;
   let beatStates = null;
+  let swingMode = SWING_DEFAULT_MODE;
+  let swingAmount = SWING_DEFAULT_AMOUNT;
 
   function clamp(min, max, n) {
     return Math.min(max, Math.max(min, n));
+  }
+
+  function getSwingPreviewText() {
+    if (swingMode === 'off') return t('common.off');
+    const label = swingMode === 'sixteenth' ? t('swing.sixteenth') : t('swing.eighth');
+    return `${label} ${swingAmount.toFixed(1)}`;
   }
 
   function renderPreview({ capturedBpm = null, capturedDen } = {}) {
@@ -88,7 +99,8 @@ export function createSongForm({
       `${t('volume.beat1')}:${Math.round((beatVolumes.beat1 ?? 1) * 100)} ` +
       `${labels.quarter}:${Math.round((beatVolumes.quarter ?? 0.8) * 100)} ` +
       `${labels.eighth}:${Math.round((beatVolumes.eighth ?? 0.5) * 100)} ` +
-      `${labels.sixteenth}:${Math.round((beatVolumes.sixteenth ?? 0) * 100)}`;
+      `${labels.sixteenth}:${Math.round((beatVolumes.sixteenth ?? 0) * 100)} ` +
+      `${t('swing.preview')}:${getSwingPreviewText()}`;
   }
 
   function readTsValues() {
@@ -105,7 +117,7 @@ export function createSongForm({
       Number.isFinite(parsed) ? parsed : getCurrentBpm()
     );
     const { tsNum, tsDen } = readTsValues();
-    return { name, bpm, tsNum, tsDen, beatVolumes, beatStates };
+    return { name, bpm, tsNum, tsDen, beatVolumes, beatStates, swingMode, swingAmount };
   }
 
   // Populate fields and refresh the preview. Does NOT toggle the outer
@@ -118,9 +130,13 @@ export function createSongForm({
     tsDen = 4,
     beatVolumes: bv = null,
     beatStates: bs = null,
+    swingMode: sm = SWING_DEFAULT_MODE,
+    swingAmount: sa = SWING_DEFAULT_AMOUNT,
   }) {
     beatVolumes = bv;
     beatStates = bs;
+    swingMode = sm;
+    swingAmount = Number.isFinite(Number(sa)) ? Number(sa) : SWING_DEFAULT_AMOUNT;
     nameEl.value = name;
     bpmEl.value = bpm;
     mountTsPicker({ container: tsEl, tsNum, tsDen, prefix: `${prefix}Ts`, t });
@@ -130,14 +146,18 @@ export function createSongForm({
   function close() {
     beatVolumes = null;
     beatStates = null;
+    swingMode = SWING_DEFAULT_MODE;
+    swingAmount = SWING_DEFAULT_AMOUNT;
     renderPreview();
   }
 
   // Apply a capture snapshot taken from the live metronome state. Host
   // calls this from inside its pro-gated capture handler.
-  function applyCapture({ bpm, tsNum, tsDen, beatVolumes: bv, beatStates: bs }) {
+  function applyCapture({ bpm, tsNum, tsDen, beatVolumes: bv, beatStates: bs, swingMode: sm, swingAmount: sa }) {
     beatVolumes = bv;
     beatStates = bs;
+    swingMode = sm ?? SWING_DEFAULT_MODE;
+    swingAmount = Number.isFinite(Number(sa)) ? Number(sa) : SWING_DEFAULT_AMOUNT;
     bpmEl.value = bpm;
     setTsPickerValues({ prefix: `${prefix}Ts`, tsNum, tsDen });
     renderPreview({ capturedBpm: bpm, capturedDen: tsDen });

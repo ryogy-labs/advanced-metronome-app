@@ -9,7 +9,8 @@
  *                      carousel, page dots, metro-bottom, play/tap, ball,
  *                      swipe page titles, toggle row + swipe-page paddings
  *   volume             page-1 volume sliders + master/per-sound section
- *   ts-picker          page-2 time-signature picker (large variant)
+ *   swing             page-2 swing controls
+ *   ts-picker          page-3 time-signature picker (large variant)
  *   setlist-screen     card-label, setlist list, drag handle, DnD,
  *                      preset rows, mode selector
  *   song-form          shared preset/lib song form (createSongForm)
@@ -22,6 +23,7 @@
 @import './styles/layout.css';
 @import './styles/metronome-screen.css';
 @import './styles/volume.css';
+@import './styles/swing.css';
 @import './styles/ts-picker.css';
 @import './styles/setlist-screen.css';
 @import './styles/song-form.css';

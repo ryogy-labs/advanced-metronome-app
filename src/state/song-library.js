@@ -9,7 +9,7 @@
 // live with the host (currently src/main.js).
 //
 // Songs are plain objects:
-//   { id, name, bpm, tsNum, tsDen, beatVolumes, beatStates }
+//   { id, name, bpm, tsNum, tsDen, beatVolumes, beatStates, swingMode, swingAmount }
 // The `add()` helper assigns an `id` if one isn't supplied.
 //
 // `all()` returns the *live* array. Callers can iterate and `.find()`
