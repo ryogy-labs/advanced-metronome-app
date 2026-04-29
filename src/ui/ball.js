@@ -118,6 +118,7 @@ export function createBallAnimator({
   isNative,                  // () => bool
   getNativeLoopAnchorMs,     // () => number (0 means inactive)
   getBeatIndicatorState,     // (beatIdx) => 'accent' | 'normal' | 'mute'
+  getVisualDelayMs = () => 0,
   onNativeBeat,              // (beatIdx) => void  — called per frame on native path
   onIdle,                    // () => void — called per frame when not running
 }) {
@@ -142,12 +143,13 @@ export function createBallAnimator({
 
   function frame() {
     const { running, bpm, beatsPerMeasure, tsDen, swingMode, swingAmount, animMode, squashEnabled } = getState();
+    const visualDelayMs = Math.max(0, Number(getVisualDelayMs()) || 0);
 
     let phase   = 0;
     let beatIdx = 0;
     if (isNative() && running && getNativeLoopAnchorMs() > 0) {
       ({ beatIdx, phase } = getNativeBeatPosition({
-        nowMs: performance.now(),
+        nowMs: performance.now() - visualDelayMs,
         anchorMs: getNativeLoopAnchorMs(),
         bpm,
         beatsPerMeasure,
@@ -157,7 +159,7 @@ export function createBallAnimator({
       }));
       onNativeBeat(beatIdx);
     } else if (running && getAudioCtx()) {
-      const now = getAudioCtx().currentTime;
+      const now = getAudioCtx().currentTime - (visualDelayMs / 1000);
       const position = getScheduledBeatPosition({
         scheduledBeatTimes: getScheduledBeatTimes(),
         nowSec: now,

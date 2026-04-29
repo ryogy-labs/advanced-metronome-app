@@ -27,6 +27,7 @@ export function createScheduler({
   getState,
   getQuarterBeatSound,
   onBeatFlash,
+  getVisualDelayMs = () => 0,
 }) {
   let nextNoteTime = 0;
   let measureStartTime = 0;
@@ -49,7 +50,7 @@ export function createScheduler({
     if (beatOffset === 0) {
       scheduledBeatTimes.push({ time, beatIdx });
       if (scheduledBeatTimes.length > 8) scheduledBeatTimes.shift();
-      const delay = (time - getCtx().currentTime) * 1000;
+      const delay = (time - getCtx().currentTime) * 1000 + getVisualDelayMs();
       setTimeout(() => onBeatFlash(beatIdx, time), Math.max(0, delay));
       const beatSound = getQuarterBeatSound(beatIdx);
       if (beatSound) {

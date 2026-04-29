@@ -352,6 +352,20 @@
       </div>
 
       <div class="settings-section-title" data-i18n="settings.ball">ボール設定</div>
+      <div class="settings-row settings-row-stack">
+        <div class="settings-row-head">
+          <span class="settings-label" data-i18n="settings.visualDelay">Bluetooth補正</span>
+          <label class="settings-num-wrap">
+            <input type="number" class="settings-num-input" id="visualDelayNum" min="0" max="500" step="5" value="0" inputmode="numeric" aria-label="Bluetooth補正" data-i18n-aria-label="aria.visualDelay">
+            <span>ms</span>
+          </label>
+        </div>
+        <input type="range" class="settings-slider" id="visualDelaySlider" min="0" max="500" step="5" value="0" aria-label="Bluetooth補正" data-i18n-aria-label="aria.visualDelay">
+        <div class="settings-calibration">
+          <button type="button" class="settings-calibration-btn" id="visualDelayCalibrateBtn" data-i18n="settings.visualDelayCalibrate">音に合わせて3回タップ</button>
+          <span class="settings-calibration-status" id="visualDelayCalibrateStatus" aria-live="polite" data-i18n="settings.visualDelayCalibrateHint">再生中に使うと補正値を推定できます</span>
+        </div>
+      </div>
       <div class="settings-row">
         <span class="settings-label" data-i18n="settings.ballDirection">移動方向</span>
         <div class="toggle-pair">
