@@ -79,6 +79,27 @@
   color: var(--text2);
   line-height: 1;
 }
+.form-ts-picker .ts-picker-row-select {
+  align-items: center;
+}
+.form-ts-picker .ts-picker-select-group {
+  flex-wrap: nowrap;
+}
+.form-ts-picker .ts-select {
+  height: 34px;
+  min-width: 72px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface2);
+  color: var(--text);
+  font-size: 0.86rem;
+  font-weight: 700;
+  padding: 0 30px 0 10px;
+}
+.form-ts-picker .ts-select:focus {
+  outline: 1px solid var(--accent);
+  border-color: var(--accent);
+}
 
 .capture-btn {
   background: var(--surface2);
@@ -89,10 +110,11 @@
   font-size: 0.8rem;
   width: 100%;
   cursor: pointer;
+  margin-bottom: 14px;
 }
 .capture-preview {
-  margin-top: 6px;
-  margin-bottom: 10px;
+  margin-top: -8px;
+  margin-bottom: 16px;
   font-size: 0.75rem;
   color: var(--text2);
 }

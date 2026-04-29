@@ -93,7 +93,7 @@ export function createMetronomeController({ i18n, t, onPlaybackStateChange, onI1
   const volEighthNum = document.getElementById('volEighthNum');
   const volSixteenthNum = document.getElementById('volSixteenthNum');
   const swingAmountEl = document.getElementById('swingAmount');
-  const swingAmountLabel = document.getElementById('swingAmountLabel');
+  const swingAmountNum = document.getElementById('swingAmountNum');
   const swingModeBtns = Array.from(document.querySelectorAll('[data-swing-mode]'));
   const swingPresetBtns = Array.from(document.querySelectorAll('[data-swing-preset]'));
   const denominatorAwareVolumeEls = [
@@ -369,18 +369,24 @@ export function createMetronomeController({ i18n, t, onPlaybackStateChange, onI1
   }
 
   function syncSwingUi() {
+    const amountDisabled = swingMode === 'off';
     swingModeBtns.forEach(btn => {
       btn.classList.toggle('active', btn.dataset.swingMode === swingMode);
     });
     if (swingAmountEl) {
+      swingAmountEl.disabled = amountDisabled;
       swingAmountEl.value = swingAmount.toFixed(1);
       const pct = ((swingAmount - SWING_MIN) / (SWING_MAX - SWING_MIN)) * 100;
       swingAmountEl.style.setProperty('--pct', `${pct}%`);
     }
-    if (swingAmountLabel) swingAmountLabel.textContent = swingAmount.toFixed(1);
+    if (swingAmountNum) {
+      swingAmountNum.disabled = amountDisabled;
+      swingAmountNum.value = swingAmount.toFixed(1);
+    }
     swingPresetBtns.forEach(btn => {
       const preset = Number(btn.dataset.swingPreset);
       const isActive = Math.abs(swingAmount - preset) <= 0.05;
+      btn.disabled = amountDisabled;
       btn.classList.toggle('active', isActive);
       btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
     });
@@ -646,6 +652,19 @@ export function createMetronomeController({ i18n, t, onPlaybackStateChange, onI1
     btn.addEventListener('click', () => setSwingMode(btn.dataset.swingMode));
   });
   swingAmountEl?.addEventListener('input', () => setSwingAmount(Number(swingAmountEl.value)));
+  swingAmountNum?.addEventListener('change', () => setSwingAmount(Number(swingAmountNum.value)));
+  swingAmountNum?.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      setSwingAmount(Number(swingAmountNum.value));
+      swingAmountNum.blur();
+    }
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      syncSwingUi();
+      swingAmountNum.blur();
+    }
+  });
   swingPresetBtns.forEach(btn => {
     btn.addEventListener('click', () => setSwingAmount(Number(btn.dataset.swingPreset)));
   });
