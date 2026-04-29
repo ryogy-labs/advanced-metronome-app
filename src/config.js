@@ -36,6 +36,10 @@ export const NATIVE_BG_LOOP_MEASURES = 2;
 export const BALL_TOP_MARGIN = 15;
 export const BALL_RANGE_SCALE = 0.8;
 export const BALL_R = 30;
+export const VISUAL_DELAY_DEFAULT_MS = 0;
+export const VISUAL_DELAY_MIN_MS = 0;
+export const VISUAL_DELAY_MAX_MS = 500;
+export const VISUAL_DELAY_STEP_MS = 5;
 
 // Swipe carousel
 export const SWIPE_TOTAL_PAGES = 4;
@@ -59,5 +63,6 @@ export const LS_KEYS = {
   songLib: 'metro-song-lib',
   lang: 'metro-lang',
   wakelock: 'metro-wakelock',
+  visualDelayMs: 'metro-visual-delay-ms',
   devForcePro: 'metro-dev-force-pro',
 };

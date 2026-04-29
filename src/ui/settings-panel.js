@@ -9,6 +9,10 @@ export function createSettingsPanel({
     langEnBtn,
     wakelockOnBtn,
     wakelockOffBtn,
+    visualDelaySlider,
+    visualDelayNum,
+    visualDelayCalibrateBtn,
+    visualDelayCalibrateStatus,
     modeVerticalBtn,
     modeHorizontalBtn,
     squashOnBtn,
@@ -18,6 +22,10 @@ export function createSettingsPanel({
   setLang,
   getWakeLockEnabled,
   setWakeLockEnabled,
+  getVisualDelayMs,
+  setVisualDelayMs,
+  onVisualDelayCalibrateTap,
+  getVisualDelayCalibrationHint,
   getMode,
   setMode,
   getSquashEnabled,
@@ -44,6 +52,19 @@ export function createSettingsPanel({
     const squashEnabled = getSquashEnabled();
     squashOnBtn.classList.toggle('active', squashEnabled);
     squashOffBtn.classList.toggle('active', !squashEnabled);
+
+    const delayMs = getVisualDelayMs();
+    if (visualDelaySlider) {
+      visualDelaySlider.value = String(delayMs);
+      const min = Number(visualDelaySlider.min) || 0;
+      const max = Number(visualDelaySlider.max) || 500;
+      const pct = ((delayMs - min) / (max - min)) * 100;
+      visualDelaySlider.style.setProperty('--pct', `${pct}%`);
+    }
+    if (visualDelayNum) visualDelayNum.value = String(delayMs);
+    if (visualDelayCalibrateStatus && getVisualDelayCalibrationHint) {
+      visualDelayCalibrateStatus.textContent = getVisualDelayCalibrationHint();
+    }
   }
 
   function open() {
@@ -70,6 +91,32 @@ export function createSettingsPanel({
   langEnBtn.addEventListener('click', () => { setLang('en'); syncActiveStates(); });
   wakelockOnBtn.addEventListener('click', () => { setWakeLockEnabled(true); syncActiveStates(); });
   wakelockOffBtn.addEventListener('click', () => { setWakeLockEnabled(false); syncActiveStates(); });
+  visualDelaySlider?.addEventListener('input', () => {
+    setVisualDelayMs(Number(visualDelaySlider.value));
+    syncActiveStates();
+  });
+  visualDelayNum?.addEventListener('change', () => {
+    setVisualDelayMs(Number(visualDelayNum.value));
+    syncActiveStates();
+  });
+  visualDelayNum?.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      setVisualDelayMs(Number(visualDelayNum.value));
+      syncActiveStates();
+      visualDelayNum.blur();
+    }
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      syncActiveStates();
+      visualDelayNum.blur();
+    }
+  });
+  visualDelayCalibrateBtn?.addEventListener('click', () => {
+    if (!onVisualDelayCalibrateTap || !visualDelayCalibrateStatus) return;
+    visualDelayCalibrateStatus.textContent = onVisualDelayCalibrateTap();
+    syncActiveStates();
+  });
   modeVerticalBtn.addEventListener('click', () => { setMode('vertical'); syncActiveStates(); });
   modeHorizontalBtn.addEventListener('click', () => { setMode('horizontal'); syncActiveStates(); });
   squashOnBtn.addEventListener('click', () => { setSquashEnabled(true); syncActiveStates(); });

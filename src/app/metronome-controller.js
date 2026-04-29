@@ -4,6 +4,7 @@ import {
   TAP_RESET_MS,
   TS_NUMS, TS_DENS,
   SWING_MODES, SWING_DEFAULT_MODE, SWING_DEFAULT_AMOUNT, SWING_MIN, SWING_MAX,
+  VISUAL_DELAY_DEFAULT_MS, VISUAL_DELAY_MIN_MS, VISUAL_DELAY_MAX_MS, VISUAL_DELAY_STEP_MS,
   CLICK_ACCENT, CLICK_QUARTER,
   LS_KEYS,
 } from '../config.js';
@@ -60,6 +61,17 @@ export function createMetronomeController({ i18n, t, onPlaybackStateChange, onI1
   let nativeLoopAnchorMs = 0;
   let squashEnabled = true;
   let animMode = 'vertical';
+  let visualDelayMs = (() => {
+    try {
+      const stored = Number(localStorage.getItem(LS_KEYS.visualDelayMs));
+      if (!Number.isFinite(stored)) return VISUAL_DELAY_DEFAULT_MS;
+      return clampVisualDelayMs(stored);
+    } catch {
+      return VISUAL_DELAY_DEFAULT_MS;
+    }
+  })();
+  let visualDelayCalibrationSamples = [];
+  let visualDelayCalibrationText = '';
   let wakeLockEnabled = (() => {
     try { return localStorage.getItem(LS_KEYS.wakelock) !== '0'; } catch { return true; }
   })();
@@ -179,6 +191,7 @@ export function createMetronomeController({ i18n, t, onPlaybackStateChange, onI1
     }),
     getQuarterBeatSound,
     onBeatFlash: flashBeat,
+    getVisualDelayMs: () => visualDelayMs,
   });
 
   function getCurrentBeatIndicatorIndex() {
@@ -224,7 +237,7 @@ export function createMetronomeController({ i18n, t, onPlaybackStateChange, onI1
   function flashBeat(beatIdx, scheduledTime) {
     if (document.hidden) return;
     if (audioCtx && typeof scheduledTime === 'number' &&
-        Math.abs(audioCtx.currentTime - scheduledTime) > 0.5) return;
+        Math.abs((audioCtx.currentTime - visualDelayMs / 1000) - scheduledTime) > 0.5) return;
     updateBeatIndicators(beatIdx);
   }
 
@@ -366,6 +379,105 @@ export function createMetronomeController({ i18n, t, onPlaybackStateChange, onI1
     swingAmount = clampSwingAmount(amount);
     syncSwingUi();
     refreshRunningPlayback({ realignVisuals: true });
+  }
+
+  function clampVisualDelayMs(value) {
+    const next = Number(value);
+    if (!Number.isFinite(next)) return VISUAL_DELAY_DEFAULT_MS;
+    const stepped = Math.round(next / VISUAL_DELAY_STEP_MS) * VISUAL_DELAY_STEP_MS;
+    return Math.min(VISUAL_DELAY_MAX_MS, Math.max(VISUAL_DELAY_MIN_MS, stepped));
+  }
+
+  function setVisualDelayMs(value) {
+    visualDelayMs = clampVisualDelayMs(value);
+    try { localStorage.setItem(LS_KEYS.visualDelayMs, String(visualDelayMs)); } catch {}
+  }
+
+  function getAudioContextTimeForNow() {
+    if (!audioCtx) return null;
+    if (typeof audioCtx.getOutputTimestamp === 'function') {
+      const timestamp = audioCtx.getOutputTimestamp();
+      if (Number.isFinite(timestamp.contextTime) && Number.isFinite(timestamp.performanceTime)) {
+        return timestamp.contextTime + (performance.now() - timestamp.performanceTime) / 1000;
+      }
+    }
+    return audioCtx.currentTime;
+  }
+
+  function getPreviousScheduledBeatTime(nowSec) {
+    const beats = scheduler.getScheduledBeatTimes();
+    for (let i = beats.length - 1; i >= 0; i--) {
+      if (beats[i].time <= nowSec) return beats[i].time;
+    }
+    return null;
+  }
+
+  function setVisualDelayCalibrationText(text) {
+    visualDelayCalibrationText = text;
+    return visualDelayCalibrationText;
+  }
+
+  function getVisualDelayCalibrationHint() {
+    if (visualDelayCalibrationText) return visualDelayCalibrationText;
+    return t('settings.visualDelayCalibrateHint');
+  }
+
+  function calibrateVisualDelayTap() {
+    if (!running) {
+      visualDelayCalibrationSamples = [];
+      startMetronome();
+      return setVisualDelayCalibrationText(
+        i18n.lang === 'ja'
+          ? '再生を開始しました。音が聞こえたら3回タップしてください'
+          : 'Started playback. Tap 3 times when you hear the sound'
+      );
+    }
+
+    const nowSec = getAudioContextTimeForNow();
+    if (nowSec == null) {
+      return setVisualDelayCalibrationText(
+        i18n.lang === 'ja'
+          ? '音声クロックの取得に失敗しました'
+          : 'Could not read the audio clock'
+      );
+    }
+
+    const previousBeatTime = getPreviousScheduledBeatTime(nowSec);
+    if (previousBeatTime == null) {
+      return setVisualDelayCalibrationText(
+        i18n.lang === 'ja'
+          ? '拍を検出中です。もう一度タップしてください'
+          : 'Finding the beat. Tap again'
+      );
+    }
+
+    const sampleMs = (nowSec - previousBeatTime) * 1000;
+    if (!Number.isFinite(sampleMs) || sampleMs < 0) {
+      return setVisualDelayCalibrationText(
+        i18n.lang === 'ja'
+          ? 'うまく読めませんでした。もう一度タップしてください'
+          : 'Could not read that tap. Try again'
+      );
+    }
+
+    visualDelayCalibrationSamples.push(sampleMs);
+    if (visualDelayCalibrationSamples.length < 3) {
+      return setVisualDelayCalibrationText(
+        i18n.lang === 'ja'
+          ? `${visualDelayCalibrationSamples.length}/3 タップ`
+          : `${visualDelayCalibrationSamples.length}/3 taps`
+      );
+    }
+
+    const sorted = [...visualDelayCalibrationSamples].sort((a, b) => a - b);
+    const median = sorted[Math.floor(sorted.length / 2)];
+    setVisualDelayMs(median);
+    visualDelayCalibrationSamples = [];
+    return setVisualDelayCalibrationText(
+      i18n.lang === 'ja'
+        ? `${visualDelayMs}ms に設定しました`
+        : `Set to ${visualDelayMs} ms`
+    );
   }
 
   function syncSwingUi() {
@@ -586,6 +698,9 @@ export function createMetronomeController({ i18n, t, onPlaybackStateChange, onI1
     });
     updateDenominatorAwareVolumeUi();
     syncSwingUi();
+    if (!visualDelayCalibrationText) {
+      visualDelayCalibrationText = t('settings.visualDelayCalibrateHint');
+    }
   }
 
   bpmControls = createBpmControls({
@@ -699,6 +814,10 @@ export function createMetronomeController({ i18n, t, onPlaybackStateChange, onI1
       langEnBtn: document.getElementById('langEn'),
       wakelockOnBtn: document.getElementById('wakelockOnBtn'),
       wakelockOffBtn: document.getElementById('wakelockOffBtn'),
+      visualDelaySlider: document.getElementById('visualDelaySlider'),
+      visualDelayNum: document.getElementById('visualDelayNum'),
+      visualDelayCalibrateBtn: document.getElementById('visualDelayCalibrateBtn'),
+      visualDelayCalibrateStatus: document.getElementById('visualDelayCalibrateStatus'),
       modeVerticalBtn: document.getElementById('modeVertical'),
       modeHorizontalBtn: document.getElementById('modeHorizontal'),
       squashOnBtn: document.getElementById('squashOnBtn'),
@@ -716,6 +835,10 @@ export function createMetronomeController({ i18n, t, onPlaybackStateChange, onI1
       if (!enabled) releaseWakeLock();
       else if (running) void acquireWakeLock();
     },
+    getVisualDelayMs: () => visualDelayMs,
+    setVisualDelayMs,
+    onVisualDelayCalibrateTap: calibrateVisualDelayTap,
+    getVisualDelayCalibrationHint,
     getMode: () => animMode,
     setMode: (mode) => { animMode = mode; },
     getSquashEnabled: () => squashEnabled,
@@ -730,6 +853,7 @@ export function createMetronomeController({ i18n, t, onPlaybackStateChange, onI1
     isNative: () => isNative,
     getNativeLoopAnchorMs: () => nativeLoopAnchorMs,
     getBeatIndicatorState,
+    getVisualDelayMs: () => visualDelayMs,
     onNativeBeat: (idx) => updateBeatIndicators(idx),
     onIdle: () => updateBeatIndicators(),
   });

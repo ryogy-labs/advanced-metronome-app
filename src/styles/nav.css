@@ -111,7 +111,127 @@
 }
 .settings-row:last-child { border-bottom: none; }
 
+.settings-row-stack {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+}
+
+.settings-row-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .settings-label {
   font-size: 0.95rem;
   color: var(--text);
+}
+
+.settings-slider {
+  width: 100%;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(to right, var(--accent) var(--pct,0%), var(--border) var(--pct,0%));
+  outline: none;
+  cursor: pointer;
+}
+
+.settings-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent);
+  cursor: pointer;
+}
+
+.settings-slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent);
+  cursor: pointer;
+}
+
+.settings-num-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text2);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.settings-num-input {
+  width: 68px;
+  text-align: right;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface2);
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 700;
+  padding: 4px 8px;
+}
+
+.settings-num-input:focus {
+  outline: 1px solid var(--accent);
+  border-color: var(--accent);
+}
+
+.settings-num-input::-webkit-outer-spin-button,
+.settings-num-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.settings-num-input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.settings-calibration {
+  display: grid;
+  grid-template-columns: minmax(0, auto) 1fr;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-calibration-btn {
+  border: 1px solid var(--accent);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent);
+  font-size: 0.78rem;
+  font-weight: 800;
+  padding: 7px 10px;
+  cursor: pointer;
+}
+
+.settings-calibration-btn:active {
+  transform: translateY(1px);
+}
+
+.settings-calibration-status {
+  min-width: 0;
+  color: var(--text2);
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
+@media (max-width: 380px) {
+  .settings-calibration {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-calibration-btn {
+    width: 100%;
+  }
 }
