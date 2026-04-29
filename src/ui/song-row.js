@@ -10,37 +10,7 @@
 // renderSongRows centralizes the markup + listener wiring; callers pass a
 // description of the list and the per-action callbacks.
 
-const renderCache = new WeakMap();
-
-function buildRenderSignature({
-  items,
-  emptyText,
-  untitledText,
-  editTitle,
-  deleteTitle,
-  showTrackNumber,
-  showDragHandle,
-  editAction,
-  deleteAction,
-}) {
-  return JSON.stringify({
-    items: items.map(item => ({
-      id: item.id,
-      name: item.name,
-      bpm: item.bpm,
-      tsNum: item.tsNum ?? 4,
-      tsDen: item.tsDen ?? 4,
-    })),
-    emptyText,
-    untitledText,
-    editTitle,
-    deleteTitle,
-    showTrackNumber,
-    showDragHandle,
-    editAction,
-    deleteAction,
-  });
-}
+import { getSongTimeSignature } from '../state/song-config.js';
 
 export function renderSongRows({
   listEl,
@@ -58,23 +28,6 @@ export function renderSongRows({
   onEdit,            // (id) => void
   onDelete,          // (id) => void
 }) {
-  const signature = buildRenderSignature({
-    items,
-    emptyText,
-    untitledText,
-    editTitle,
-    deleteTitle,
-    showTrackNumber,
-    showDragHandle,
-    editAction,
-    deleteAction,
-  });
-  if (renderCache.get(listEl) === signature) {
-    setActiveRow(listEl, activeId);
-    return;
-  }
-  renderCache.set(listEl, signature);
-
   if (!items.length) {
     const emptyEl = document.createElement('div');
     emptyEl.className = 'setlist-empty';
@@ -167,9 +120,7 @@ function updateSongRow(row, {
   onDelete,
 }) {
   const id = String(item.id);
-  const tsNum = item.tsNum ?? 4;
-  const tsDen = item.tsDen ?? 4;
-  const rawName = item.name || untitledText || '';
+  const { tsNum, tsDen } = getSongTimeSignature(item);
   const nameText = item.name || untitledText || '';
   const rowSignature = JSON.stringify({
     id,
@@ -190,7 +141,10 @@ function updateSongRow(row, {
   row.dataset.id = id;
   row.dataset.idx = String(idx);
   row.classList.toggle('active', activeId === id);
-  if (row.dataset.signature === rowSignature) return;
+  if (row.dataset.signature === rowSignature) {
+    bindSongRowHandlers(row, { id, editAction, deleteAction, onApply, onEdit, onDelete });
+    return;
+  }
   row.dataset.signature = rowSignature;
 
   const children = [];
@@ -205,7 +159,6 @@ function updateSongRow(row, {
   const applyBtn = document.createElement('button');
   applyBtn.className = 'preset-apply';
   applyBtn.dataset.id = id;
-  applyBtn.addEventListener('click', () => onApply(id));
 
   if (showTrackNumber) {
     const num = document.createElement('span');
@@ -235,9 +188,8 @@ function updateSongRow(row, {
   editBtn.dataset.id = id;
   editBtn.dataset.action = editAction;
   editBtn.title = editTitle;
-  editBtn.setAttribute('aria-label', `${rawName} ${editTitle}`.trim());
+  editBtn.setAttribute('aria-label', `${nameText} ${editTitle}`.trim());
   editBtn.textContent = '✏';
-  editBtn.addEventListener('click', () => onEdit(id));
   children.push(editBtn);
 
   const deleteBtn = document.createElement('button');
@@ -245,12 +197,21 @@ function updateSongRow(row, {
   deleteBtn.dataset.id = id;
   deleteBtn.dataset.action = deleteAction;
   deleteBtn.title = deleteTitle;
-  deleteBtn.setAttribute('aria-label', `${rawName} ${deleteTitle}`.trim());
+  deleteBtn.setAttribute('aria-label', `${nameText} ${deleteTitle}`.trim());
   deleteBtn.textContent = '✕';
-  deleteBtn.addEventListener('click', () => onDelete(id));
   children.push(deleteBtn);
 
   row.replaceChildren(...children);
+  bindSongRowHandlers(row, { id, editAction, deleteAction, onApply, onEdit, onDelete });
+}
+
+function bindSongRowHandlers(row, { id, editAction, deleteAction, onApply, onEdit, onDelete }) {
+  const applyBtn = row.querySelector('.preset-apply');
+  const editBtn = row.querySelector(`[data-action="${editAction}"]`);
+  const deleteBtn = row.querySelector(`[data-action="${deleteAction}"]`);
+  if (applyBtn) applyBtn.onclick = () => onApply(id);
+  if (editBtn) editBtn.onclick = () => onEdit(id);
+  if (deleteBtn) deleteBtn.onclick = () => onDelete(id);
 }
 
 // Selection-only update: toggles the `.active` class on rows in `listEl`

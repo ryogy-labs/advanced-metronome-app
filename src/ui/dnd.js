@@ -15,9 +15,11 @@ export function setupDnD(listEl, rowSel, handleSel, onReorder) {
   }
 
   function start(clientX, clientY, handle) {
-    const row = handle.closest('[data-idx]');
+    const row = handle.closest(rowSel);
     if (!row) return;
-    const srcIdx = parseInt(row.dataset.idx);
+    const rows = Array.from(listEl.querySelectorAll(rowSel));
+    const srcIdx = rows.indexOf(row);
+    if (srcIdx < 0) return;
     const rect = row.getBoundingClientRect();
 
     row.classList.add('dnd-source');
@@ -35,7 +37,6 @@ export function setupDnD(listEl, rowSel, handleSel, onReorder) {
     });
     document.body.appendChild(g);
 
-    const rows = Array.from(listEl.querySelectorAll(rowSel));
     const rowRects = rows.map(r => r.getBoundingClientRect());
     src = {
       srcIdx,

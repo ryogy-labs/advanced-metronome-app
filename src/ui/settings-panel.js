@@ -26,6 +26,7 @@ export function createSettingsPanel({
   setVisualDelayMs,
   onVisualDelayCalibrateTap,
   getVisualDelayCalibrationHint,
+  visualDelayRange = { min: 0, max: 500 },
   getMode,
   setMode,
   getSquashEnabled,
@@ -56,8 +57,8 @@ export function createSettingsPanel({
     const delayMs = getVisualDelayMs();
     if (visualDelaySlider) {
       visualDelaySlider.value = String(delayMs);
-      const min = Number(visualDelaySlider.min) || 0;
-      const max = Number(visualDelaySlider.max) || 500;
+      const min = Number(visualDelaySlider.min) || visualDelayRange.min;
+      const max = Number(visualDelaySlider.max) || visualDelayRange.max;
       const pct = ((delayMs - min) / (max - min)) * 100;
       visualDelaySlider.style.setProperty('--pct', `${pct}%`);
     }
