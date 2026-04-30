@@ -120,7 +120,7 @@ export function createSongForm({
     }
     const den = capturedDen ?? readTsValues().tsDen;
     const labels = getSubdivisionVolumeLabels(den);
-    const bpmText = Number.isFinite(capturedBpm)
+    const bpmText = typeof capturedBpm === 'number' && Number.isFinite(capturedBpm)
       ? `BPM:${Math.round(capturedBpm)} `
       : '';
     previewEl.style.display = 'block';

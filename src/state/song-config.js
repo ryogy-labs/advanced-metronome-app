@@ -27,18 +27,19 @@ import { BPM_DEFAULT, SWING_DEFAULT_AMOUNT, SWING_DEFAULT_MODE } from '../config
 
 /**
  * @param {SongConfigInput} [song]
- * @param {SongConfigInput} [fallback]
+ * @param {SongConfigInput | null} [fallback]
  * @returns {SongConfig}
  */
 export function withSongDefaults(song = {}, fallback = {}) {
+  const fallbackConfig = fallback ?? {};
   return {
-    bpm: song.bpm ?? fallback?.bpm ?? BPM_DEFAULT,
-    tsNum: song.tsNum ?? fallback?.tsNum ?? 4,
-    tsDen: song.tsDen ?? fallback?.tsDen ?? 4,
-    beatStates: song.beatStates ?? fallback?.beatStates ?? null,
-    beatVolumes: song.beatVolumes ?? fallback?.beatVolumes ?? null,
-    swingMode: song.swingMode ?? fallback?.swingMode ?? SWING_DEFAULT_MODE,
-    swingAmount: song.swingAmount ?? fallback?.swingAmount ?? SWING_DEFAULT_AMOUNT,
+    bpm: song.bpm ?? fallbackConfig.bpm ?? BPM_DEFAULT,
+    tsNum: song.tsNum ?? fallbackConfig.tsNum ?? 4,
+    tsDen: song.tsDen ?? fallbackConfig.tsDen ?? 4,
+    beatStates: song.beatStates ?? fallbackConfig.beatStates ?? null,
+    beatVolumes: song.beatVolumes ?? fallbackConfig.beatVolumes ?? null,
+    swingMode: song.swingMode ?? fallbackConfig.swingMode ?? SWING_DEFAULT_MODE,
+    swingAmount: song.swingAmount ?? fallbackConfig.swingAmount ?? SWING_DEFAULT_AMOUNT,
   };
 }
 

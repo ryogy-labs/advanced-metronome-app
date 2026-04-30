@@ -1,5 +1,7 @@
 // @ts-check
 
+import { withSongDefaults } from './song-config.js';
+
 // Song-library store.
 //
 // Owns the persisted list of library songs (`localStorage` key
@@ -21,8 +23,9 @@
 
 /**
  * @typedef {import('./song-config.js').SongConfigInput} SongConfigInput
+ * @typedef {import('./song-config.js').SongConfig} SongConfig
  * @typedef {SongConfigInput & { id?: string, name?: string }} LibrarySongInput
- * @typedef {SongConfigInput & { id: string, name: string }} LibrarySong
+ * @typedef {SongConfig & { id: string, name: string }} LibrarySong
  * @typedef {Partial<LibrarySongInput>} LibrarySongPatch
  * @typedef {'manual' | 'name' | 'bpm'} SortMode
  */
@@ -123,6 +126,7 @@ export function createSongLibraryStore({
   function normalizeSong(song) {
     return {
       ...song,
+      ...withSongDefaults(song),
       id: song.id ?? generateId(),
       name: song.name ?? '',
     };

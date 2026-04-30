@@ -1,5 +1,7 @@
 // @ts-check
 
+import { withSongDefaults } from './song-config.js';
+
 // Setlist store.
 //
 // Owns the persisted list of setlists (`localStorage` key
@@ -19,8 +21,9 @@
 
 /**
  * @typedef {import('./song-config.js').SongConfigInput} SongConfigInput
+ * @typedef {import('./song-config.js').SongConfig} SongConfig
  * @typedef {SongConfigInput & { id?: string, name?: string, libSongId?: string | null }} SetlistSongInput
- * @typedef {SongConfigInput & { id: string, name: string, libSongId?: string | null }} SetlistSong
+ * @typedef {SongConfig & { id: string, name: string, libSongId?: string | null }} SetlistSong
  * @typedef {{ id: string, name: string, songs: SetlistSong[] }} Setlist
  * @typedef {{ name?: string, songs?: SetlistSongInput[] }} SetlistInput
  * @typedef {{ name?: string, songs?: SetlistSong[] }} SetlistPatch
@@ -160,6 +163,7 @@ export function createSetlistStore({
   function normalizeSong(song) {
     return {
       ...song,
+      ...withSongDefaults(song),
       id: song.id ?? generateId(),
       name: song.name ?? '',
     };

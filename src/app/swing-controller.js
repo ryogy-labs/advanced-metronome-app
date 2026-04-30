@@ -36,7 +36,11 @@ export function createSwingController({
 
   /** @param {string | undefined} mode */
   function setSwingMode(mode) {
-    swingMode = /** @type {SwingMode} */ (SWING_MODES.includes(mode) ? mode : SWING_DEFAULT_MODE);
+    swingMode = /** @type {SwingMode} */ (
+      typeof mode === 'string' && SWING_MODES.includes(mode)
+        ? mode
+        : SWING_DEFAULT_MODE
+    );
     syncSwingUi();
     onModeChange();
     onChange({ realignVisuals: true });

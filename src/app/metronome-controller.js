@@ -92,6 +92,7 @@ export function createMetronomeController({ els, i18n, t, onPlaybackStateChange,
     beatDots.render({ count: beatsPerMeasure, getBeatState: getBeatIndicatorState });
   }
 
+  /** @param {number | null} [beatIdx] */
   function updateBeatIndicators(beatIdx = null) {
     beatDots.update(beatIdx, getBeatIndicatorState);
   }

@@ -249,8 +249,14 @@ export function createAudioRuntime({
     if (!audioCtx) return null;
     if (typeof audioCtx.getOutputTimestamp === 'function') {
       const timestamp = audioCtx.getOutputTimestamp();
-      if (Number.isFinite(timestamp.contextTime) && Number.isFinite(timestamp.performanceTime)) {
-        return timestamp.contextTime + (performance.now() - timestamp.performanceTime) / 1000;
+      const { contextTime, performanceTime } = timestamp;
+      if (
+        typeof contextTime === 'number' &&
+        typeof performanceTime === 'number' &&
+        Number.isFinite(contextTime) &&
+        Number.isFinite(performanceTime)
+      ) {
+        return contextTime + (performance.now() - performanceTime) / 1000;
       }
     }
     return audioCtx.currentTime;

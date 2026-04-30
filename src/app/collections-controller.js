@@ -107,7 +107,8 @@ export function createCollectionsController({ t, metronome, paywall }) {
   let pfSongForm;
 
   function currentSetlist() {
-    return setlistStore.findById(selection.currentSetlistId);
+    const id = selection.currentSetlistId;
+    return id ? setlistStore.findById(id) : null;
   }
 
   function updateNowPlayingState() {
@@ -187,9 +188,10 @@ export function createCollectionsController({ t, metronome, paywall }) {
   function saveSlForm() {
     const name = slNameInput.value.trim();
     if (!name) { slNameInput.focus(); return; }
-    if (selection.editingSetlistId) {
-      const sl = setlistStore.update(selection.editingSetlistId, { name });
-      if (sl && selection.currentSetlistId === selection.editingSetlistId) {
+    const editingSetlistId = selection.editingSetlistId;
+    if (editingSetlistId) {
+      const sl = setlistStore.update(editingSetlistId, { name });
+      if (sl && selection.currentSetlistId === editingSetlistId) {
         slDetailTitle.textContent = name;
       }
     } else {
@@ -243,15 +245,16 @@ export function createCollectionsController({ t, metronome, paywall }) {
     if (!sl) return;
     const p = sl.songs.find(s => s.id === id);
     if (!p) return;
-    const linkedLibSong = (p.libSongId ?? null)
-      ? songLibraryStore.findById(p.libSongId ?? null)
+    const linkedLibSongId = p.libSongId ?? null;
+    const linkedLibSong = linkedLibSongId
+      ? songLibraryStore.findById(linkedLibSongId)
       : null;
     const songCfg = withSongDefaults(p, linkedLibSong);
     if (selection.activeSongId === id) {
       restartOrStopSameSong(songCfg);
       return;
     }
-    selection.activateSetlistSong(selection.currentSetlistId, id);
+    selection.activateSetlistSong(sl.id, id);
     metronome.applySongConfig(songCfg);
     setActiveRow(songList, id);
     updateNowPlaying();
@@ -308,12 +311,13 @@ export function createCollectionsController({ t, metronome, paywall }) {
   function commitSongForm(values) {
     const sl = currentSetlist();
     if (!sl) return;
-    if (selection.editingSongId) {
-      const updated = setlistStore.updateSong(sl.id, selection.editingSongId, {
+    const editingSongId = selection.editingSongId;
+    if (editingSongId) {
+      const updated = setlistStore.updateSong(sl.id, editingSongId, {
         ...values,
         libSongId: null,
       });
-      if (updated && selection.activeSongId === selection.editingSongId) {
+      if (updated && selection.activeSongId === editingSongId) {
         metronome.applySongConfig(withSongDefaults(values));
         updateNowPlaying();
       }
@@ -368,9 +372,10 @@ export function createCollectionsController({ t, metronome, paywall }) {
       ...withSongDefaults(libSong),
       libSongId: libSong.id,
     };
-    if (selection.editingSongId) {
-      const updated = setlistStore.updateSong(sl.id, selection.editingSongId, values);
-      if (updated && selection.activeSongId === selection.editingSongId) {
+    const editingSongId = selection.editingSongId;
+    if (editingSongId) {
+      const updated = setlistStore.updateSong(sl.id, editingSongId, values);
+      if (updated && selection.activeSongId === editingSongId) {
         metronome.applySongConfig(values);
         updateNowPlaying();
       }
@@ -492,8 +497,9 @@ export function createCollectionsController({ t, metronome, paywall }) {
     // commitSongForm above for the rationale.
     const normalized = { ...values, ...withSongDefaults(values) };
     let editedSong = null;
-    if (selection.editingLibrarySongId) {
-      editedSong = songLibraryStore.update(selection.editingLibrarySongId, normalized);
+    const editingLibrarySongId = selection.editingLibrarySongId;
+    if (editingLibrarySongId) {
+      editedSong = songLibraryStore.update(editingLibrarySongId, normalized);
     } else {
       songLibraryStore.add(normalized);
     }
