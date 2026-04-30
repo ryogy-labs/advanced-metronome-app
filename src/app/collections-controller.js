@@ -1,3 +1,5 @@
+// @ts-check
+
 import {
   BPM_MIN, BPM_MAX,
   FREE_SETLIST_LIMIT, FREE_SONGS_PER_SETLIST, FREE_LIBRARY_LIMIT,
@@ -17,6 +19,47 @@ import { createSetlistStore } from '../state/setlist.js';
 import { withSongDefaults } from '../state/song-config.js';
 import { createUiSelection } from '../state/ui-selection.js';
 
+/**
+ * @typedef {import('../state/song-config.js').SongConfig} SongConfig
+ * @typedef {import('../state/setlist.js').SetlistSong} SetlistSong
+ * @typedef {import('../state/song-library.js').LibrarySong} LibrarySong
+ * @typedef {import('../ui/song-form.js').SongFormValues} SongFormValues
+ */
+
+/**
+ * @template {HTMLElement} T
+ * @param {string} id
+ * @returns {T}
+ */
+function byId(id) {
+  return /** @type {T} */ (document.getElementById(id));
+}
+
+/**
+ * @param {{
+ *   t: (key: string) => string,
+ *   metronome: {
+ *     bpm: number,
+ *     tsNum: number,
+ *     tsDen: number,
+ *     swingMode: import('../state/song-config.js').SwingMode,
+ *     swingAmount: number,
+ *     running: boolean,
+ *     startMetronome: () => void,
+ *     stopMetronome: () => void,
+ *     togglePlayback: () => void,
+ *     applySongConfig: (songCfg: SongConfig) => void,
+ *     currentBeatVolumes: () => import('../state/song-config.js').BeatVolumes,
+ *     currentBeatStates: () => import('../state/song-config.js').BeatState[],
+ *     currentSwing: () => { swingMode: import('../state/song-config.js').SwingMode, swingAmount: number },
+ *     getSubdivisionVolumeLabels: (den: number) => { quarter: string, eighth: string, sixteenth: string },
+ *   },
+ *   paywall: {
+ *     isPro: () => boolean,
+ *     requirePro: (onGranted: () => void) => void,
+ *   },
+ * }} deps
+ */
 export function createCollectionsController({ t, metronome, paywall }) {
   const setlistStore = createSetlistStore({
     initial: safeParseJSON(LS_KEYS.setlists, []),
@@ -30,29 +73,29 @@ export function createCollectionsController({ t, metronome, paywall }) {
   });
   const selection = createUiSelection();
 
-  const slIndexEl = document.getElementById('slIndex');
-  const slDetailEl = document.getElementById('slDetail');
-  const slDetailTitle = document.getElementById('slDetailTitle');
-  const slIndexList = document.getElementById('slIndexList');
-  const slForm = document.getElementById('slForm');
-  const slNameInput = document.getElementById('slName');
-  const songList = document.getElementById('songList');
-  const presetForm = document.getElementById('presetForm');
-  const pfModeManual = document.getElementById('pfModeManual');
-  const pfModeLib = document.getElementById('pfModeLib');
-  const pfManual = document.getElementById('pfManual');
-  const pfLibPicker = document.getElementById('pfLibPicker');
-  const pfLibList = document.getElementById('pfLibList');
-  const libSongList = document.getElementById('libSongList');
-  const libForm = document.getElementById('libForm');
-  const libSortManualBtn = document.getElementById('libSortManual');
-  const libSortNameBtn = document.getElementById('libSortName');
-  const libSortBpmBtn = document.getElementById('libSortBpm');
+  const slIndexEl = byId('slIndex');
+  const slDetailEl = byId('slDetail');
+  const slDetailTitle = byId('slDetailTitle');
+  const slIndexList = byId('slIndexList');
+  const slForm = byId('slForm');
+  const slNameInput = /** @type {HTMLInputElement} */ (byId('slName'));
+  const songList = byId('songList');
+  const presetForm = byId('presetForm');
+  const pfModeManual = byId('pfModeManual');
+  const pfModeLib = byId('pfModeLib');
+  const pfManual = byId('pfManual');
+  const pfLibPicker = byId('pfLibPicker');
+  const pfLibList = byId('pfLibList');
+  const libSongList = byId('libSongList');
+  const libForm = byId('libForm');
+  const libSortManualBtn = byId('libSortManual');
+  const libSortNameBtn = byId('libSortName');
+  const libSortBpmBtn = byId('libSortBpm');
 
   const nowPlaying = createNowPlaying({
     els: [
-      document.getElementById('nowPlaying'),
-      document.getElementById('nowPlayingLib'),
+      byId('nowPlaying'),
+      byId('nowPlayingLib'),
     ].filter(Boolean),
     onTogglePlayback: () => {
       if (!selection.hasActiveSong()) return;
@@ -60,10 +103,12 @@ export function createCollectionsController({ t, metronome, paywall }) {
     },
   });
 
-  let pfSongForm = null;
+  /** @type {ReturnType<typeof createSongForm>} */
+  let pfSongForm;
 
   function currentSetlist() {
-    return setlistStore.findById(selection.currentSetlistId);
+    const id = selection.currentSetlistId;
+    return id ? setlistStore.findById(id) : null;
   }
 
   function updateNowPlayingState() {
@@ -143,9 +188,10 @@ export function createCollectionsController({ t, metronome, paywall }) {
   function saveSlForm() {
     const name = slNameInput.value.trim();
     if (!name) { slNameInput.focus(); return; }
-    if (selection.editingSetlistId) {
-      const sl = setlistStore.update(selection.editingSetlistId, { name });
-      if (sl && selection.currentSetlistId === selection.editingSetlistId) {
+    const editingSetlistId = selection.editingSetlistId;
+    if (editingSetlistId) {
+      const sl = setlistStore.update(editingSetlistId, { name });
+      if (sl && selection.currentSetlistId === editingSetlistId) {
         slDetailTitle.textContent = name;
       }
     } else {
@@ -183,6 +229,7 @@ export function createCollectionsController({ t, metronome, paywall }) {
     });
   }
 
+  /** @param {SongConfig} songCfg */
   function restartOrStopSameSong(songCfg) {
     if (metronome.running) {
       metronome.stopMetronome();
@@ -192,26 +239,29 @@ export function createCollectionsController({ t, metronome, paywall }) {
     metronome.startMetronome();
   }
 
+  /** @param {string} id */
   function applySong(id) {
     const sl = currentSetlist();
     if (!sl) return;
     const p = sl.songs.find(s => s.id === id);
     if (!p) return;
-    const linkedLibSong = (p.libSongId ?? null)
-      ? songLibraryStore.findById(p.libSongId ?? null)
+    const linkedLibSongId = p.libSongId ?? null;
+    const linkedLibSong = linkedLibSongId
+      ? songLibraryStore.findById(linkedLibSongId)
       : null;
     const songCfg = withSongDefaults(p, linkedLibSong);
     if (selection.activeSongId === id) {
       restartOrStopSameSong(songCfg);
       return;
     }
-    selection.activateSetlistSong(selection.currentSetlistId, id);
+    selection.activateSetlistSong(sl.id, id);
     metronome.applySongConfig(songCfg);
     setActiveRow(songList, id);
     updateNowPlaying();
     metronome.startMetronome();
   }
 
+  /** @param {string} id */
   function applyLibrarySong(id) {
     const s = songLibraryStore.findById(id);
     if (!s) return;
@@ -235,6 +285,7 @@ export function createCollectionsController({ t, metronome, paywall }) {
     pfSongForm.focusName();
   }
 
+  /** @param {string} id */
   function openEditSongForm(id) {
     const sl = currentSetlist();
     if (!sl) return;
@@ -256,15 +307,17 @@ export function createCollectionsController({ t, metronome, paywall }) {
     if (presetForm) presetForm.style.display = 'none';
   }
 
+  /** @param {SongFormValues} values */
   function commitSongForm(values) {
     const sl = currentSetlist();
     if (!sl) return;
-    if (selection.editingSongId) {
-      const updated = setlistStore.updateSong(sl.id, selection.editingSongId, {
+    const editingSongId = selection.editingSongId;
+    if (editingSongId) {
+      const updated = setlistStore.updateSong(sl.id, editingSongId, {
         ...values,
         libSongId: null,
       });
-      if (updated && selection.activeSongId === selection.editingSongId) {
+      if (updated && selection.activeSongId === editingSongId) {
         metronome.applySongConfig(withSongDefaults(values));
         updateNowPlaying();
       }
@@ -308,6 +361,7 @@ export function createCollectionsController({ t, metronome, paywall }) {
     });
   }
 
+  /** @param {string} libId */
   function pickFromLibrary(libId) {
     const libSong = songLibraryStore.findById(libId);
     if (!libSong) return;
@@ -318,9 +372,10 @@ export function createCollectionsController({ t, metronome, paywall }) {
       ...withSongDefaults(libSong),
       libSongId: libSong.id,
     };
-    if (selection.editingSongId) {
-      const updated = setlistStore.updateSong(sl.id, selection.editingSongId, values);
-      if (updated && selection.activeSongId === selection.editingSongId) {
+    const editingSongId = selection.editingSongId;
+    if (editingSongId) {
+      const updated = setlistStore.updateSong(sl.id, editingSongId, values);
+      if (updated && selection.activeSongId === editingSongId) {
         metronome.applySongConfig(values);
         updateNowPlaying();
       }
@@ -331,10 +386,12 @@ export function createCollectionsController({ t, metronome, paywall }) {
     renderSongs();
   }
 
+  /** @param {SongConfig} song */
   function applyPreset(song) {
     metronome.applySongConfig(withSongDefaults(song));
   }
 
+  /** @param {LibrarySong} libSong */
   function propagateLibSongChange(libSong) {
     let changed = false;
     setlistStore.all().forEach(sl => {
@@ -414,6 +471,7 @@ export function createCollectionsController({ t, metronome, paywall }) {
     libSongForm.focusName();
   }
 
+  /** @param {string} id */
   function openEditLibForm(id) {
     const s = songLibraryStore.findById(id);
     if (!s) return;
@@ -432,14 +490,16 @@ export function createCollectionsController({ t, metronome, paywall }) {
     libForm.style.display = 'none';
   }
 
+  /** @param {SongFormValues} values */
   function commitLibForm(values) {
     // Normalize on write so the library store mirrors the setlist
     // store invariant ("records are always fully populated") — see
     // commitSongForm above for the rationale.
     const normalized = { ...values, ...withSongDefaults(values) };
     let editedSong = null;
-    if (selection.editingLibrarySongId) {
-      editedSong = songLibraryStore.update(selection.editingLibrarySongId, normalized);
+    const editingLibrarySongId = selection.editingLibrarySongId;
+    if (editingLibrarySongId) {
+      editedSong = songLibraryStore.update(editingLibrarySongId, normalized);
     } else {
       songLibraryStore.add(normalized);
     }
@@ -480,18 +540,18 @@ export function createCollectionsController({ t, metronome, paywall }) {
     },
   });
 
-  document.getElementById('btnAddSetlist').addEventListener('click', () => {
+  byId('btnAddSetlist').addEventListener('click', () => {
     if (setlistStore.count() >= FREE_SETLIST_LIMIT && !paywall.isPro()) {
       paywall.requirePro(() => openAddSlForm());
     } else {
       openAddSlForm();
     }
   });
-  document.getElementById('slSave').addEventListener('click', saveSlForm);
-  document.getElementById('slCancel').addEventListener('click', closeSlForm);
+  byId('slSave').addEventListener('click', saveSlForm);
+  byId('slCancel').addEventListener('click', closeSlForm);
   slNameInput.addEventListener('keydown', e => { if (e.key === 'Enter') saveSlForm(); });
-  document.getElementById('btnBack').addEventListener('click', showSlIndex);
-  document.getElementById('btnAddSong').addEventListener('click', () => {
+  byId('btnBack').addEventListener('click', showSlIndex);
+  byId('btnAddSong').addEventListener('click', () => {
     const sl = currentSetlist();
     const currentSongs = sl ? sl.songs : [];
     if (currentSongs.length >= FREE_SONGS_PER_SETLIST && !paywall.isPro()) {
@@ -502,8 +562,8 @@ export function createCollectionsController({ t, metronome, paywall }) {
   });
   pfModeManual.addEventListener('click', () => setFormMode('manual'));
   pfModeLib.addEventListener('click', () => setFormMode('library'));
-  document.getElementById('pfLibPickerCancel').addEventListener('click', closeSongForm);
-  document.getElementById('btnAddLibSong').addEventListener('click', () => {
+  byId('pfLibPickerCancel').addEventListener('click', closeSongForm);
+  byId('btnAddLibSong').addEventListener('click', () => {
     if (songLibraryStore.count() >= FREE_LIBRARY_LIMIT && !paywall.isPro()) {
       paywall.requirePro(() => openAddLibForm());
     } else {
