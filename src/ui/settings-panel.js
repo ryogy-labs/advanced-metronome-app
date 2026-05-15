@@ -26,7 +26,7 @@ export function createSettingsPanel({
   setVisualDelayMs,
   onVisualDelayCalibrateTap,
   getVisualDelayCalibrationHint,
-  visualDelayRange = { min: 0, max: 500 },
+  visualDelayRange,
   getMode,
   setMode,
   getSquashEnabled,

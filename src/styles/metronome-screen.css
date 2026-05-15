@@ -261,21 +261,31 @@ h1 span { color: var(--accent); }
   flex-shrink: 0;
   display: flex;
   justify-content: center;
-  gap: 10px;
-  padding: 6px 0 4px;
+  gap: 4px;
+  padding: 0 0 2px;
 }
 
 .page-dot {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.page-dot::after {
+  content: "";
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  border: none;
   background: var(--border);
-  cursor: pointer;
-  padding: 0;
   transition: background 0.2s, transform 0.2s;
 }
-.page-dot.active {
+.page-dot.active::after {
   background: var(--accent);
   transform: scale(1.4);
 }
@@ -304,8 +314,8 @@ h1 span { color: var(--accent); }
   border: none;
   border-radius: var(--radius);
   background: var(--surface);
-  color: var(--accent);
-  box-shadow: inset 0 0 0 2px var(--accent);
+  color: var(--accent-text);
+  box-shadow: inset 0 0 0 2px var(--accent-text);
   font-size: 1rem;
   font-weight: 700;
   letter-spacing: 0.08em;

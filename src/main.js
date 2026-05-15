@@ -7,6 +7,7 @@ import {
 } from './config.js';
 import { createI18n, readInitialLang } from './i18n.js';
 import { createMetronomeController } from './app/metronome-controller.js';
+import { getMetronomeElements } from './app/metronome-elements.js';
 import { createCollectionsController } from './app/collections-controller.js';
 import { createPaywall } from './ui/paywall.js';
 import { createSwipePanel } from './ui/swipe-panel.js';
@@ -19,6 +20,7 @@ import { createViewNav } from './ui/view-nav.js';
   let collections = null;
 
   const metronome = createMetronomeController({
+    els: getMetronomeElements(),
     i18n,
     t,
     onPlaybackStateChange: () => {

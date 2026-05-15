@@ -1,3 +1,5 @@
+// @ts-check
+
 // Shared lifecycle for the manual song form.
 //
 // Both the setlist song form (`pf*` ids — the "直接入力" branch of
@@ -44,6 +46,30 @@
 
 import { SWING_DEFAULT_AMOUNT, SWING_DEFAULT_MODE } from '../config.js';
 
+/**
+ * @typedef {import('../state/song-config.js').BeatStates} BeatStates
+ * @typedef {import('../state/song-config.js').BeatVolumes} BeatVolumes
+ * @typedef {import('../state/song-config.js').SongConfig} SongConfig
+ * @typedef {import('../state/song-config.js').SongConfigInput} SongConfigInput
+ * @typedef {SongConfig & { name: string }} SongFormValues
+ * @typedef {SongConfigInput & { name?: string }} SongFormOpenValues
+ * @typedef {SongConfigInput & { bpm: number, tsNum: number, tsDen: number }} SongFormCaptureValues
+ */
+
+/**
+ * @param {{
+ *   prefix: string,
+ *   t: (key: string) => string,
+ *   mountTsPicker: (args: { container: HTMLElement, tsNum: number, tsDen: number, prefix: string, t: (key: string) => string }) => void,
+ *   setTsPickerValues: (args: { prefix: string, tsNum: number, tsDen: number }) => void,
+ *   bpmRange: { min: number, max: number },
+ *   getCurrentBpm: () => number,
+ *   getSubdivisionVolumeLabels: (denominator: number) => { quarter: string, eighth: string, sixteenth: string },
+ *   onSave: (values: SongFormValues) => void,
+ *   onCancel?: () => void,
+ *   onCaptureRequest?: () => void,
+ * }} options
+ */
 export function createSongForm({
   prefix,
   t,
@@ -56,22 +82,26 @@ export function createSongForm({
   onCancel,
   onCaptureRequest,
 }) {
-  const nameEl    = document.getElementById(`${prefix}Name`);
-  const bpmEl     = document.getElementById(`${prefix}Bpm`);
-  const tsEl      = document.getElementById(`${prefix}TsPicker`);
-  const captureBtn = document.getElementById(`${prefix}CaptureBtn`);
-  const previewEl = document.getElementById(`${prefix}CapturePreview`);
-  const saveBtn   = document.getElementById(`${prefix}Save`);
-  const cancelBtn = document.getElementById(`${prefix}Cancel`);
+  const nameEl = /** @type {HTMLInputElement} */ (document.getElementById(`${prefix}Name`));
+  const bpmEl = /** @type {HTMLInputElement} */ (document.getElementById(`${prefix}Bpm`));
+  const tsEl = /** @type {HTMLElement} */ (document.getElementById(`${prefix}TsPicker`));
+  const captureBtn = /** @type {HTMLButtonElement | null} */ (document.getElementById(`${prefix}CaptureBtn`));
+  const previewEl = /** @type {HTMLElement} */ (document.getElementById(`${prefix}CapturePreview`));
+  const saveBtn = /** @type {HTMLButtonElement} */ (document.getElementById(`${prefix}Save`));
+  const cancelBtn = /** @type {HTMLButtonElement} */ (document.getElementById(`${prefix}Cancel`));
 
   // Beat volumes / states are captured via the "現在の設定を取り込む"
   // button and persisted alongside name/bpm/ts. They live on the form
   // instance because they aren't tied to any input element.
+  /** @type {BeatVolumes | null} */
   let beatVolumes = null;
+  /** @type {BeatStates} */
   let beatStates = null;
+  /** @type {import('../state/song-config.js').SwingMode} */
   let swingMode = SWING_DEFAULT_MODE;
   let swingAmount = SWING_DEFAULT_AMOUNT;
 
+  /** @param {number} min @param {number} max @param {number} n */
   function clamp(min, max, n) {
     return Math.min(max, Math.max(min, n));
   }
@@ -82,6 +112,7 @@ export function createSongForm({
     return `${label} ${swingAmount.toFixed(1)}`;
   }
 
+  /** @param {{ capturedBpm?: number | null, capturedDen?: number }} [args] */
   function renderPreview({ capturedBpm = null, capturedDen } = {}) {
     if (!beatVolumes) {
       previewEl.style.display = 'none';
@@ -89,7 +120,7 @@ export function createSongForm({
     }
     const den = capturedDen ?? readTsValues().tsDen;
     const labels = getSubdivisionVolumeLabels(den);
-    const bpmText = Number.isFinite(capturedBpm)
+    const bpmText = typeof capturedBpm === 'number' && Number.isFinite(capturedBpm)
       ? `BPM:${Math.round(capturedBpm)} `
       : '';
     previewEl.style.display = 'block';
@@ -104,14 +135,17 @@ export function createSongForm({
   }
 
   function readTsValues() {
-    const tsNum = Number(document.getElementById(`${prefix}TsNum`)?.value) || 4;
-    const tsDen = Number(document.getElementById(`${prefix}TsDen`)?.value) || 4;
+    const tsNumEl = /** @type {HTMLInputElement | null} */ (document.getElementById(`${prefix}TsNum`));
+    const tsDenEl = /** @type {HTMLInputElement | null} */ (document.getElementById(`${prefix}TsDen`));
+    const tsNum = Number(tsNumEl?.value) || 4;
+    const tsDen = Number(tsDenEl?.value) || 4;
     return { tsNum, tsDen };
   }
 
+  /** @returns {SongFormValues} */
   function readValues() {
     const name = nameEl.value.trim();
-    const parsed = parseInt(bpmEl.value);
+    const parsed = parseInt(bpmEl.value, 10);
     const bpm = clamp(
       bpmRange.min, bpmRange.max,
       Number.isFinite(parsed) ? parsed : getCurrentBpm()
@@ -123,6 +157,7 @@ export function createSongForm({
   // Populate fields and refresh the preview. Does NOT toggle the outer
   // form's visibility — host handles that (setlist form coexists with a
   // mode toggle + library picker, library form is just shown directly).
+  /** @param {SongFormOpenValues} values */
   function open({
     name = '',
     bpm,
@@ -138,7 +173,7 @@ export function createSongForm({
     swingMode = sm;
     swingAmount = Number.isFinite(Number(sa)) ? Number(sa) : SWING_DEFAULT_AMOUNT;
     nameEl.value = name;
-    bpmEl.value = bpm;
+    bpmEl.value = String(bpm ?? getCurrentBpm());
     mountTsPicker({ container: tsEl, tsNum, tsDen, prefix: `${prefix}Ts`, t });
     renderPreview({ capturedDen: tsDen });
   }
@@ -153,12 +188,13 @@ export function createSongForm({
 
   // Apply a capture snapshot taken from the live metronome state. Host
   // calls this from inside its pro-gated capture handler.
+  /** @param {SongFormCaptureValues} values */
   function applyCapture({ bpm, tsNum, tsDen, beatVolumes: bv, beatStates: bs, swingMode: sm, swingAmount: sa }) {
-    beatVolumes = bv;
-    beatStates = bs;
+    beatVolumes = bv ?? null;
+    beatStates = bs ?? null;
     swingMode = sm ?? SWING_DEFAULT_MODE;
     swingAmount = Number.isFinite(Number(sa)) ? Number(sa) : SWING_DEFAULT_AMOUNT;
-    bpmEl.value = bpm;
+    bpmEl.value = String(bpm);
     setTsPickerValues({ prefix: `${prefix}Ts`, tsNum, tsDen });
     renderPreview({ capturedBpm: bpm, capturedDen: tsDen });
   }

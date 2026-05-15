@@ -7,11 +7,18 @@
 - Framework: Vite を使った素の HTML/CSS/JavaScript 構成。依存を増やさず、単一ページの UI を直接制御している
 - Audio: Web Audio と `HTMLAudioElement` を併用し、foreground / background で再生経路を切り替える
 - Storage: 保存先はブラウザ `localStorage`。サーバー保存や同期機構は持たない
+- Tests: Node 標準 `node:test` を依存追加なしで使用する。テストは `src/` 配下に co-located で `*.test.js` として置き、`npm test` で実行する（Vite ビルドは何処からも import されない `*.test.js` を bundle graph に含めない）
 
 ## Structure
 - `index.html`: 現在の本番エントリ。メトロノーム、セットリスト、ライブラリの3ビューを同一 HTML 内に持つ
 - `src/main.js`: アプリの composition root。i18n インスタンス、metronome / collections controller、paywall、swipe panel、bottom nav を生成して接続する。機能ロジック本体は `src/app/*` と `src/ui/*` / `src/state/*` 側へ分離する
-- `src/app/metronome-controller.js`: メトロノーム機能 controller (`createMetronomeController`)。BPM/拍子/音量/拍状態/ミュート/再生状態、foreground scheduler、background playback、Wake Lock、settings panel、ボール描画、メトロノーム画面内の i18n 反映を束ねる。曲/セットリストの永続データは持たず、外部から `applySongConfig` / `currentBeatVolumes` / `currentBeatStates` などの小さな API で操作される
+- `src/app/metronome-controller.js`: メトロノーム機能 controller (`createMetronomeController`) の thin orchestrator。BPM/拍子/拍状態と曲設定 API を持ち、audio runtime・音量・スウィング・Bluetooth 補正・画面 chrome を組み立てる。曲/セットリストの永続データは持たず、外部から `applySongConfig` / `currentBeatVolumes` / `currentBeatStates` などの小さな API で操作される
+- `src/app/metronome-elements.js`: メトロノーム画面で使う DOM ハンドルを収集する helper。`main.js` がここで取得した `els` を `createMetronomeController` に注入する
+- `src/app/metronome-chrome.js`: メトロノーム画面の DOM wiring (`createMetronomeChrome`)。BPM controls、拍子 controls、settings panel、keyboard shortcut、ball animator、volume layout、画面内 i18n 反映を束ねる
+- `src/app/audio-runtime.js`: メトロノーム音声 runtime (`createAudioRuntime`)。foreground scheduler、background playback、AudioContext lifecycle、mute、Wake Lock、visibility/focus/pageshow 復帰、iOS audio unlock を内包する
+- `src/app/volume-controller.js`: 音量 controller (`createVolumeController`)。音量 slider / number input wiring、拍子分母に応じた音価ラベル、8分スウィング時の16分音量無効化、保存用 `beatVolumes` 取得/適用を内包する
+- `src/app/swing-controller.js`: スウィング controller (`createSwingController`)。スウィング対象、幅 slider / number input、プリセットボタン、UI active/disabled 状態同期を内包する
+- `src/app/visual-delay-calibration.js`: Bluetooth 補正 controller (`createVisualDelayCalibration`)。補正値の clamp / localStorage 永続化、3タップ推定、設定モーダルのステータステキストを内包する
 - `src/app/collections-controller.js`: セットリスト・曲ライブラリ controller (`createCollectionsController`)。setlist/library ストア、UI 選択状態、CRUD、DnD、曲フォーム、ライブラリピッカー、Now Playing を束ねる。曲選択時のテンポ反映・再生トグルは `metronome-controller` の公開 API 経由で行う
 - `src/config.js`: BPM / 拍子 / スウィング / クリック音 / フリープラン上限などの定数と `localStorage` キー (`LS_KEYS`) を集約する
 - `src/i18n.js`: ja/en 翻訳辞書と `createI18n(initialLang)` ファクトリ。言語切替は `localStorage` の `metro-lang` を経由する
@@ -26,9 +33,9 @@
 - `src/state/beat-states.js`: 拍状態 (`accent` / `normal` / `mute`) の初期化・正規化・循環 (`buildDefaultBeatStates` / `normalizeBeatStates` / `getNextBeatState`) を持つ。複合拍子 (`6/8`、`9/8`、`12/8`) の3カウントごとのアクセント規則もここに集約する
 - `src/state/ui-selection.js`: UI 選択状態 (`currentSetlistId`・`activeSongId`・`activeSetlistId`・`activeLibrarySongId`・各種 editing id) をまとめる `createUiSelection`。選択/解除/編集中 ID の更新メソッドを提供する。状態の用途判断や副作用 (`updateNowPlaying` / row active 同期) はホスト側に残す
 - `src/ui/dnd.js`: タッチ/マウス共通の DnD 並び替えロジック (`setupDnD`)
-- `src/ui/song-row.js`: セットリスト/ライブラリで共通の曲行レンダラ (`renderSongRows`)。トラック番号・ドラッグハンドルの有無や `data-action` 名、各種コールバックを引数で渡してビュー差分を吸収する。ID keyed reconciliation で既存行を再利用し、追加/削除/並び替え時もリスト全体の HTML 再生成を避ける。選択行だけの切り替えは `setActiveRow(listEl, activeId)` で `.active` クラスのみを同期する
-- `src/ui/setlist-row.js`: セットリスト一覧行レンダラ (`renderSetlistRows`)。セットリスト名・曲数・編集/削除アイコン・DnD ハンドルの DOM と listener 配線を内包し、ホスト側は `onOpen` / `onEdit` / `onDelete` を渡す。ID keyed reconciliation で既存行を再利用し、直前と同じ行データで再描画された場合は DOM 更新をスキップする
-- `src/ui/library-picker.js`: セットリスト曲フォーム内のライブラリ選択リスト (`renderLibraryPicker`)。ライブラリ曲候補の DOM と選択 listener 配線を内包する。ID keyed reconciliation で候補行を再利用し、直前と同じ候補リストで再描画された場合は DOM 更新をスキップする
+- `src/ui/song-row.js`: セットリスト/ライブラリで共通の曲行レンダラ (`renderSongRows`)。トラック番号・ドラッグハンドルの有無や `data-action` 名、各種コールバックを引数で渡してビュー差分を吸収する。ID keyed reconciliation で既存行を再利用し、追加/削除/並び替え時もリスト全体の HTML 再生成を避ける。各行の `apply` / `edit` / `delete` ハンドラは `.onclick =` プロパティ代入で再描画ごとに最新 callback へ張り替えるため、行データが同一でも stale closure 化しない。選択行だけの切り替えは `setActiveRow(listEl, activeId)` で `.active` クラスのみを同期する
+- `src/ui/setlist-row.js`: セットリスト一覧行レンダラ (`renderSetlistRows`)。セットリスト名・曲数・編集/削除アイコン・DnD ハンドルの DOM と listener 配線を内包し、ホスト側は `onOpen` / `onEdit` / `onDelete` を渡す。ID keyed reconciliation で既存行を再利用し、`.onclick =` 経由のハンドラ張り替えで stale closure を避ける
+- `src/ui/library-picker.js`: セットリスト曲フォーム内のライブラリ選択リスト (`renderLibraryPicker`)。ライブラリ曲候補の DOM と選択 listener 配線を内包する。ID keyed reconciliation で候補行を再利用し、`onPick` ハンドラは `.onclick =` で張り替える
 - `src/ui/ts-picker.js`: セットリスト曲フォーム/ライブラリフォーム共通の拍子ピッカー。セットリスト曲フォームはボタン式、ライブラリフォームは選択式で描画し、`setTsPickerValues` でマウント済みピッカーの選択値を後から差し替える。`prefix` (`'pfTs'` / `'libTs'`) で入力 id を分岐する
 - `src/ui/song-form.js`: セットリスト曲フォーム (`pf*` id) とライブラリフォーム (`lib*` id) で共通の手動入力ライフサイクル (`createSongForm`)。名前・BPM・拍子ピッカー・キャプチャプレビュー・保存/キャンセル/Enter ハンドリング・`beatVolumes` / `beatStates` / `swingMode` / `swingAmount` の一時バッファを内包し、`open` / `close` / `applyCapture` / `focusName` を公開する。外側のフォーム可視制御 (`#presetForm.style.display` / `#libForm.style.display`)・Pro ゲート・ストア dispatch・`propagateLibSongChange` などのクロスカット処理は `src/app/collections-controller.js` 側が担当する
 - `src/ui/paywall.js`: Pro 状態と paywall モーダルのライフサイクル (`createPaywall`)。Web では dev-only の Pro 切替トグルと `localStorage` の `metro-dev-force-pro` 同期を内包し、`isPro` / `requirePro` を公開する。フリープラン上限との比較や、Pro 状態変更後のリスト再描画は `src/app/collections-controller.js` 側が担当する
@@ -45,6 +52,8 @@
 - `src/utils/storage.js`: `localStorage` の安全な読み書きラッパー。破損 JSON は `${key}.corrupt-backup` に退避してフォールバックを返す
 - `src/utils/dom.js`: HTML エスケープなど DOM 関連の小ユーティリティ (`escHtml`)
 - `src/utils/id.js`: ms 解像度＋シーケンス付きの衝突しにくい ID 生成 (`nextId`)
+- `src/audio/timing.test.js`: `audio/timing.js` の純粋関数群（スウィング演算、小節内イベントの並び順、native ループ拍位置）の `node:test` ベースユニットテスト
+- `src/state/beat-states.test.js`: `state/beat-states.js` の `node:test` ベースユニットテスト。複合拍子のデフォルトアクセント、不正値の正規化、状態循環をカバー
 - `src/style.css`: 全画面スタイルのエントリ。`src/styles/*.css` を `@import` で順番に読み込む薄いインデックスで、`<link rel="stylesheet">` (index.html) と `import './style.css'` (main.js) の双方からこのファイルを参照する
 - `src/styles/`: 用途別に分割された CSS。`base.css` (リセット・カラートークン・body) → `layout.css` (`.view` コンテナ) → `metronome-screen.css` (メトロ画面: metro-top / 拍ドット / BPM / スワイプ / メトロ下部 / Play・Tap / ボール / トグル行) → `volume.css` (Page 1 音量) → `swing.css` (Page 2 スウィング) → `ts-picker.css` (Page 3 拍子ピッカー) → `setlist-screen.css` (card-label・セットリストリスト・ドラッグハンドル・DnD・preset 行・モードセレクター) → `song-form.css` (`createSongForm` 用フォーム) → `nav.css` (ボトムナビ・設定モーダル) → `setlist-views.css` (セットリスト詳細/フル表示・Now Playing) → `paywall.css` の順で `@import` する。Vite がバンドル時にインライン化する
 - `legacy/metro-beat.html`: 旧プロトタイプの単一 HTML。現行の Vite エントリではないため、基本的には `index.html` / `src/*` を正とする
@@ -85,13 +94,15 @@
 - 背景再生は foreground の Web Audio と hidden 時の `HTMLAudioElement` ループを併用している。テンポや音量変更時は両方の再生系への影響を確認する
 - 並び替えは DnD 実装に依存しており、ライブラリは `manual` ソート時のみ手動並び替えが有効
 - パラメータ範囲・初期値はコード上の定数を正とする。`SPEC.md` には重複記載しない
-- 機能追加時は、まず `src/app/metronome-controller.js` / `src/app/collections-controller.js` の責務を崩さないか確認する。大きく拡張する場合のみ controller 内の責務分割を検討する
+- 機能追加時は、まず `src/app/metronome-controller.js` / `src/app/collections-controller.js` の責務を崩さないか確認する。メトロノーム側の新しい副作用は、可能な限り `audio-runtime` / `volume-controller` / `swing-controller` / `visual-delay-calibration` / `metronome-chrome` の該当責務へ寄せる
 
 ## Known Issues
-- `src/main.js` は 100 行台の composition root まで縮小済み。現在の大きな責務単位は `src/app/metronome-controller.js` と `src/app/collections-controller.js` に分離されている。今後さらに進める場合は controller 内を domain service / view adapter に分ける余地がある
-- リスト描画（renderSetlists / renderSongs / renderLibrary / renderLibraryPicker）は ID keyed reconciliation に移行済み。追加/削除/並び替え時も既存行を再利用し、同一データの再描画は DOM 更新をスキップする。`src` 内では `innerHTML` / `insertAdjacentHTML` を使用しない
-- 永続ドメインモデルはストアへ集約済み（セットリスト=`src/state/setlist.js`、曲ライブラリ=`src/state/song-library.js`）。UI セレクション状態は `src/state/ui-selection.js` に集約済みで、選択変更に伴う副作用 (`setActiveRow` / `updateNowPlaying` / フォーム開閉) は `src/app/collections-controller.js` が orchestration する
+- `src/main.js` は 100 行台の composition root、`src/app/metronome-controller.js` は 200 行台の thin orchestrator まで縮小済み。メトロノーム側の audio runtime・volume・swing・visual delay・画面 chrome は責務別 controller へ分割済み。今後さらに進めるなら、各 sub controller の JSDoc 型を強めて `any` を減らす余地がある
+- 永続ドメインモデルはストアへ集約済み（セットリスト=`src/state/setlist.js`、曲ライブラリ=`src/state/song-library.js`）。UI セレクション状態は `src/state/ui-selection.js` に集約済みで、選択変更に伴う副作用 (`setActiveRow` / `updateNowPlaying` / フォーム開閉) は `src/app/collections-controller.js` が orchestration する。再生中フラグ・AudioContext・native loop アンカー・Wake Lock センチネルなど audio runtime のミュータブル状態は `src/app/audio-runtime.js` に閉じている
+- 曲設定のデフォルト埋め (`tsNum` / `tsDen` / `beatStates` / `beatVolumes` / `swingMode` / `swingAmount`) は `src/state/song-config.js` の `withSongDefaults` に集約済み。setlist 曲がライブラリ曲を参照する fallback chain も `withSongDefaults(p, linkedLibSong)` 経由
 - セットリスト追加フォームとライブラリ追加フォームは `src/ui/song-form.js` の `createSongForm` で共通化済み（名前・BPM・拍子・キャプチャプレビュー・保存/キャンセル/Enter ハンドリング）。外側フォーム可視制御・Pro ゲート・ストア dispatch・ライブラリ→セットリスト伝播 (`propagateLibSongChange`) は `src/app/collections-controller.js` 側が担当する
-- ページドット、拍子矢印、音量入力、編集/削除アイコンなど一部の icon-only / context-only 操作には accessible name を付与済み。settings / paywall モーダルは初期フォーカス・フォーカス復帰・Escape 閉鎖・Tab フォーカストラップに対応済み。静的な `aria-label` は `data-i18n-aria-label` 経由で言語切替に追従する。主要フォーム入力には screen-reader 用 label を付与済み。包括的な a11y 監査は未対応
+- 型チェック（`@ts-check` / JSDoc 型注釈）は `src/state/song-config.js` の `SongConfig` と、setlist / song-library store、UI selection、song-form、collections / metronome controller、metronome sub controller の曲設定 I/O 表面に seed 導入済み。対象ファイル群は `strictNullChecks` 付き `checkJs` で通る。UI renderer 全般や `noImplicitAny` 対応は未対応で、次段階で広げる余地がある
+- 自動テストは `node:test` ベースで `src/audio/timing.js` と `src/state/beat-states.js` の最小カバレッジのみ。`src/state/song-config.js` / 各ストア (`setlist.js` / `song-library.js`) のミューテーション / `src/audio/synth.js` などは未カバー
+- ページドット、拍子矢印、音量入力、編集/削除アイコンなど一部の icon-only / context-only 操作には accessible name を付与済み。settings / paywall モーダルは初期フォーカス・フォーカス復帰・Escape 閉鎖・Tab フォーカストラップに対応済み。静的な `aria-label` は `data-i18n-aria-label` 経由で言語切替に追従する。主要フォーム入力には screen-reader 用 label を付与済み。Lighthouse accessibility は light/dark とも 100 点（critical / serious 違反なし）まで確認済み。手動 screen reader テストと自動 a11y テストの CI 組み込みは未対応
 - データは `localStorage` のみのため、ブラウザ削除・端末変更・プライベートモードでは失われる
 - `legacy/metro-beat.html` は旧プロトタイプとして残存している（現行実装との二重管理に見える点は緩和）
