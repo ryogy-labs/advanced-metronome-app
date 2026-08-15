@@ -3,6 +3,7 @@
 import { registerPlugin } from '@capacitor/core';
 import { createBgLoopBuilder, arrayBufferToBase64 } from '../audio/bg-loop.js';
 import { createBgPlayback } from '../audio/bg-playback.js';
+import { createMasterChain } from '../audio/master-chain.js';
 import { createScheduler } from '../audio/scheduler.js';
 import { getLoopDurationMs } from '../audio/timing.js';
 import { LS_KEYS } from '../config.js';
@@ -79,7 +80,7 @@ export function createAudioRuntime({
       audioCtx = new AudioContextCtor();
       masterGainNode = audioCtx.createGain();
       masterGainNode.gain.value = isMuted ? 0 : 1;
-      masterGainNode.connect(audioCtx.destination);
+      masterGainNode.connect(createMasterChain(audioCtx, audioCtx.destination));
     }
     return audioCtx;
   }

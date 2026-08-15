@@ -4,6 +4,7 @@ import {
   CLICK_EIGHTH,
   CLICK_SIXTEENTH,
 } from '../config.js';
+import { createMasterChain } from './master-chain.js';
 import { renderClick, getSubdivisionsPerBeat } from './synth.js';
 import { buildMeasureSubBeatEvents } from './timing.js';
 
@@ -47,6 +48,7 @@ export function createBgLoopBuilder({ getCtx, isNative }) {
       const frameCount = Math.max(1, Math.ceil(rate * loopDuration));
       const OfflineCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
       const offlineCtx = new OfflineCtx(1, frameCount, rate);
+      const clickBus = createMasterChain(offlineCtx, offlineCtx.destination);
 
       const measureEvents = buildMeasureSubBeatEvents({
         bpm: state.bpm,
@@ -64,11 +66,11 @@ export function createBgLoopBuilder({ getCtx, isNative }) {
           const beatIdx = Math.floor(subBeat / subdivisions);
           if (beatOffset === 0) {
             const sound = getQuarterBeatSound(beatIdx);
-            if (sound) renderClick(offlineCtx, offlineCtx.destination, time, sound.volume, sound.freq, sound.dur);
+            if (sound) renderClick(offlineCtx, clickBus, time, sound.volume, sound.freq, sound.dur);
           } else if (subdivisions === 2 || beatOffset === 2) {
-            renderClick(offlineCtx, offlineCtx.destination, time, state.volEighth * state.masterVol, CLICK_EIGHTH.freq, CLICK_EIGHTH.dur);
+            renderClick(offlineCtx, clickBus, time, state.volEighth * state.masterVol, CLICK_EIGHTH.freq, CLICK_EIGHTH.dur);
           } else {
-            renderClick(offlineCtx, offlineCtx.destination, time, state.volSixteenth * state.masterVol, CLICK_SIXTEENTH.freq, CLICK_SIXTEENTH.dur);
+            renderClick(offlineCtx, clickBus, time, state.volSixteenth * state.masterVol, CLICK_SIXTEENTH.freq, CLICK_SIXTEENTH.dur);
           }
         }
       }

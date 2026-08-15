@@ -57,6 +57,14 @@ export const CLICK_QUARTER = { freq: 900, dur: 0.025 };
 export const CLICK_EIGHTH = { freq: 700, dur: 0.022 };
 export const CLICK_SIXTEENTH = { freq: 550, dur: 0.018 };
 
+// Master output stage. Clicks are rendered at CLICK_PEAK_SCALE, then pushed
+// through a tanh soft clipper (src/audio/master-chain.js) driven by
+// MASTER_DRIVE so maximum volume reaches full scale instead of the ~0.6 peak
+// the bare square wave produced.
+export const CLICK_PEAK_SCALE = 0.6;
+export const MASTER_DRIVE = 5;
+export const MASTER_CURVE_SAMPLES = 2049;
+
 // localStorage keys
 export const LS_KEYS = {
   setlists: 'metro-setlists',

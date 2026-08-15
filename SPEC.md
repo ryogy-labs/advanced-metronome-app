@@ -23,6 +23,7 @@
 - `src/config.js`: BPM / 拍子 / スウィング / クリック音 / フリープラン上限などの定数と `localStorage` キー (`LS_KEYS`) を集約する
 - `src/i18n.js`: ja/en 翻訳辞書と `createI18n(initialLang)` ファクトリ。言語切替は `localStorage` の `metro-lang` を経由する
 - `src/audio/synth.js`: スクエア波クリックの共通レンダラ `renderClick` と `getSubdivisionsPerBeat` を持つ。live AudioContext と OfflineAudioContext の双方から共有される
+- `src/audio/master-chain.js`: クリック出力段の共通ソフトクリッパー (`createMasterChain`)。`WaveShaper` に tanh カーブ (`MASTER_DRIVE`) を設定して destination へ繋ぐ。live AudioContext と背景ループの OfflineAudioContext の双方で同じカーブを共有する
 - `src/audio/timing.js`: BPM からの拍長・小節長・native loop の拍位置・foreground scheduler の直近拍位置・スウィング適用後の小節内サブビート時刻を計算する純粋関数群。`main.js`、`src/ui/ball.js`、`src/audio/scheduler.js`、`src/audio/bg-loop.js` から共有する
 - `src/audio/scheduler.js`: 16 分音符解像度の foreground スケジューラ (`createScheduler`)。スウィング適用済みの小節内イベント、タイマー ID、直近スケジュール済み拍時刻を内包し、`start` / `stop` / `getScheduledBeatTimes` を公開する
 - `src/audio/bg-loop.js`: バックグラウンド再生用の WAV ループを `OfflineAudioContext` で構築する `createBgLoopBuilder` ファクトリ。BPM/拍子/音量/スウィングのシグネチャでキャッシュする
@@ -90,6 +91,9 @@
 - スウィングはスケジューラとバックグラウンド WAV ループで同じ `src/audio/timing.js` の小節内イベント計算を使う。`8分` スウィングは8分ペア、`16分` スウィングは16分ペアの後ろ側を `swingAmount / 100` の位置へ移動する
 - 拍ボタン・音・ボールは分子の各カウントに対応する。初期アクセントは通常1拍目のみ、`6/8`、`9/8`、`12/8` では複合拍子として3カウントごとに強拍にする
 - Bluetooth 補正は視覚補正のみで、クリック音・バックグラウンド再生・保存曲データには影響しない。タップ推定はユーザーの反応時間や演奏環境に左右されるため、最終的な補正値は手動調整できる状態を保つ
+- クリック出力は `src/audio/master-chain.js` の tanh ソフトクリッパーを通す。素のスクエア波はピーク約 0.6 までしか出ず他アプリより小さく聞こえるため、`MASTER_DRIVE` で押し込んで最大音量時にフルスケール付近まで到達させる。foreground の Web Audio と背景ループ WAV の両方が同じ段を通るので、両経路の音量は揃う
+- ソフトクリッパーには `DynamicsCompressor` ではなく `WaveShaper` を使う。コンプレッサーは実装依存のプリディレイを持ち、クリックの発音タイミングがずれるため。`oversample` も同じ理由で `'none'` に固定する
+- 音量スライダーは実効音量に対して線形のままだが、ソフトクリップにより最大付近ほど圧縮がかかるため、最小〜最大のダイナミックレンジは素の出力よりやや狭くなる
 - 音量設定の音価表示は拍子分母に追従する。`x/8` では通常拍を8分、細分を16分として表示し、16分解像度より細かい32分相当の項目は無効化する。`8分` スウィング中は16分音量 UI を 0 表示で無効化し、再生時の有効音量も 0 とする。ただし保存済みの16分音量値は破棄せず、スウィング解除時に復元する
 - 背景再生は foreground の Web Audio と hidden 時の `HTMLAudioElement` ループを併用している。テンポや音量変更時は両方の再生系への影響を確認する
 - 並び替えは DnD 実装に依存しており、ライブラリは `manual` ソート時のみ手動並び替えが有効
@@ -102,7 +106,7 @@
 - 曲設定のデフォルト埋め (`tsNum` / `tsDen` / `beatStates` / `beatVolumes` / `swingMode` / `swingAmount`) は `src/state/song-config.js` の `withSongDefaults` に集約済み。setlist 曲がライブラリ曲を参照する fallback chain も `withSongDefaults(p, linkedLibSong)` 経由
 - セットリスト追加フォームとライブラリ追加フォームは `src/ui/song-form.js` の `createSongForm` で共通化済み（名前・BPM・拍子・キャプチャプレビュー・保存/キャンセル/Enter ハンドリング）。外側フォーム可視制御・Pro ゲート・ストア dispatch・ライブラリ→セットリスト伝播 (`propagateLibSongChange`) は `src/app/collections-controller.js` 側が担当する
 - 型チェック（`@ts-check` / JSDoc 型注釈）は `src/state/song-config.js` の `SongConfig` と、setlist / song-library store、UI selection、song-form、collections / metronome controller、metronome sub controller の曲設定 I/O 表面に seed 導入済み。対象ファイル群は `strictNullChecks` 付き `checkJs` で通る。UI renderer 全般や `noImplicitAny` 対応は未対応で、次段階で広げる余地がある
-- 自動テストは `node:test` ベースで `src/audio/timing.js` と `src/state/beat-states.js` の最小カバレッジのみ。`src/state/song-config.js` / 各ストア (`setlist.js` / `song-library.js`) のミューテーション / `src/audio/synth.js` などは未カバー
+- 自動テストは `node:test` ベースで `src/audio/timing.js` と `src/state/beat-states.js` の最小カバレッジのみ。`src/state/song-config.js` / 各ストア (`setlist.js` / `song-library.js`) のミューテーション / `src/audio/synth.js` / `src/audio/master-chain.js` などは未カバー（音声系は Web Audio 依存のため node:test 単体では検証しにくく、出力レベルの確認はブラウザ上の OfflineAudioContext 計測に依存している）
 - ページドット、拍子矢印、音量入力、編集/削除アイコンなど一部の icon-only / context-only 操作には accessible name を付与済み。settings / paywall モーダルは初期フォーカス・フォーカス復帰・Escape 閉鎖・Tab フォーカストラップに対応済み。静的な `aria-label` は `data-i18n-aria-label` 経由で言語切替に追従する。主要フォーム入力には screen-reader 用 label を付与済み。Lighthouse accessibility は light/dark とも 100 点（critical / serious 違反なし）まで確認済み。手動 screen reader テストと自動 a11y テストの CI 組み込みは未対応
 - データは `localStorage` のみのため、ブラウザ削除・端末変更・プライベートモードでは失われる
 - `legacy/metro-beat.html` は旧プロトタイプとして残存している（現行実装との二重管理に見える点は緩和）
