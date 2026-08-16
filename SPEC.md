@@ -112,6 +112,11 @@
 - バックアップの読み込みは信頼できない入力として扱う。`validateSnapshot` を通らないファイルは既存データに一切触れない
 - 課金は買い切り非消耗型 1 品目のみ。商品 ID は `InAppPurchasePlugin.swift` と `Products.storekit` の双方で一致させる
 - paywall のボタンに価格をハードコードしない。表示価格は StoreKit が返すローカライズ済み文字列 (`displayPrice`) を使い、取得できない場合は価格なしのラベルにフォールバックする
+- ボール canvas の高さはコンテナ (`.swipe-page`) の残り空間から決める。`vh` などビューポート基準の固定値はセーフエリアや周辺 chrome を無視するため、インセットの大きい端末で `overflow: hidden` の親を突き抜けて見切れる
+- canvas の描画バッファは `ResizeObserver` で実寸に追従させる。ズレたバッファは引き伸ばされ、跳ねの軌道と接地線の位置が狂う
+- フォーカス可能な入力要素（`input` / `contenteditable`）の font-size は 16px 以上を保つ。これを下回ると iOS が WebView を自動ズームし、blur してもズームが戻らない
+- セーフエリアの余白は `body` の padding だけで与える。個別要素で `env(safe-area-inset-*)` を再度足すと二重計上になり、その分だけ表示領域が削られる
+- ダブルタップズームは `touch-action: manipulation` で無効化する。`user-scalable=no` は使わない（ピンチズームまで失われ、アクセシビリティが落ちるため）。DnD ハンドルは自身に `touch-action: none` を持ち、詳細度で勝つ
 - パラメータ範囲・初期値はコード上の定数を正とする。`SPEC.md` には重複記載しない
 - 機能追加時は、まず `src/app/metronome-controller.js` / `src/app/collections-controller.js` の責務を崩さないか確認する。メトロノーム側の新しい副作用は、可能な限り `audio-runtime` / `volume-controller` / `swing-controller` / `visual-delay-calibration` / `metronome-chrome` の該当責務へ寄せる
 

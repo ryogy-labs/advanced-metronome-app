@@ -352,9 +352,14 @@ h1 span { color: var(--accent); }
 
 /* ── Ball Animation ── */
 .ball-canvas {
-  flex: 0 0 auto;
-  height: clamp(220px, 42vh, 600px);
-  min-height: 220px;
+  /* Sized from the space the swipe page actually has, not from the
+     viewport. A vh-based height ignores the safe-area insets and the
+     surrounding chrome, so on devices with a large inset the canvas grew
+     past its overflow:hidden parent and the ball's bottom was cut off. */
+  flex: 1 1 auto;
+  min-height: 0;
+  height: auto;
+  max-height: 600px;
   width: 100%;
   max-width: 420px;
   display: block;

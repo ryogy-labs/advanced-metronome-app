@@ -12,17 +12,18 @@
   margin-bottom: 8px;
 }
 .pf-fields input {
+  /* 16px minimum: iOS zooms the web view when a focused input is smaller. */
   background: var(--surface2);
   border: 1px solid var(--border);
   color: var(--text);
   border-radius: 7px;
   padding: 7px 9px;
-  font-size: 0.85rem;
+  font-size: 16px;
   outline: none;
 }
 .pf-fields input:focus { border-color: var(--accent); }
 .pf-name { flex: 1; min-width: 0; }
-.pf-bpm  { width: 70px; }
+.pf-bpm  { width: 78px; }
 
 .form-ts-picker {
   margin: 6px 0 10px;

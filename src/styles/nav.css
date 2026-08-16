@@ -60,7 +60,9 @@
   max-width: 480px;
   background: var(--surface);
   border-radius: 20px 20px 0 0;
-  padding: 0 0 env(safe-area-inset-bottom, 16px);
+  /* `body` already pads for env(safe-area-inset-bottom); adding it again
+     here double-counted the inset and stole height from the view above. */
+  padding: 0;
   box-shadow: 0 -4px 24px rgba(0,0,0,0.3);
   max-height: 80vh;
   overflow-y: auto;
@@ -176,7 +178,7 @@
   border-radius: 7px;
   background: var(--surface2);
   color: var(--text);
-  font-size: 0.9rem;
+  font-size: 16px;
   font-weight: 700;
   padding: 4px 8px;
 }

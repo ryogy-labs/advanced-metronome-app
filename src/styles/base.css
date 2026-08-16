@@ -1,5 +1,14 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* Double-tap-to-zoom is page behaviour, not app behaviour, and it fired on
+   the bottom nav during fast switching. `manipulation` drops double-tap zoom
+   (and the legacy 300ms tap delay) while leaving scrolling and pinch-to-zoom
+   intact, so the accessibility affordance survives. The DnD handles set
+   `touch-action: none` on themselves and win on specificity.
+   Focus zoom is handled separately, by keeping every editable field at
+   16px or larger — below that iOS zooms the web view and never restores. */
+* { touch-action: manipulation; }
+
 /* ── Light mode (default) ── */
 :root {
   --bg: #f5f5fb;

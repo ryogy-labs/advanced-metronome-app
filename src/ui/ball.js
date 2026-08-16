@@ -128,17 +128,31 @@ export function createBallAnimator({
     canvases = Array.from(document.querySelectorAll(canvasSelector))
       .map(canvas => ({ canvas, ctx: canvas.getContext('2d') }))
       .filter(v => !!v.ctx);
+    observeSizes();
   }
 
   function resize() {
     canvases.forEach(({ canvas }) => {
       const w = canvas.offsetWidth;
       const h = canvas.offsetHeight;
-      if (w > 0 && h > 0) {
+      if (w > 0 && h > 0 && (canvas.width !== w || canvas.height !== h)) {
         canvas.width  = w;
         canvas.height = h;
       }
     });
+  }
+
+  // The canvas is flex-sized, so its box can change without a window resize
+  // (keyboard, rotation, page enter). A stale bitmap gets stretched to fit,
+  // which distorts the bounce and misplaces the ground line.
+  const sizeObserver = typeof ResizeObserver === 'function'
+    ? new ResizeObserver(() => resize())
+    : null;
+
+  function observeSizes() {
+    if (!sizeObserver) return;
+    sizeObserver.disconnect();
+    canvases.forEach(({ canvas }) => sizeObserver.observe(canvas));
   }
 
   function frame() {
