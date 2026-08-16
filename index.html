@@ -365,9 +365,11 @@
         </div>
         <input type="range" class="settings-slider" id="visualDelaySlider" min="0" max="500" step="5" value="0" aria-label="Bluetooth補正" data-i18n-aria-label="aria.visualDelay">
         <div class="settings-calibration">
-          <button type="button" class="settings-calibration-btn" id="visualDelayCalibrateBtn" data-i18n="settings.visualDelayCalibrate">音に合わせて3回タップ</button>
-          <span class="settings-calibration-status" id="visualDelayCalibrateStatus" aria-live="polite" data-i18n="settings.visualDelayCalibrateHint">再生中に使うと補正値を推定できます</span>
+          <button type="button" class="settings-calibration-btn" id="visualDelayCalibrateBtn" data-i18n="settings.visualDelayCalibrate">補正を開始</button>
+          <button type="button" class="settings-calibration-cancel" id="visualDelayCancelBtn" hidden data-i18n="settings.visualDelayCancel">中止</button>
+          <span class="settings-calibration-status" id="visualDelayCalibrateStatus" aria-live="polite" data-i18n="settings.visualDelayCalibrateHint">120BPM で鳴らし、拍に合わせてタップします</span>
         </div>
+        <button type="button" class="settings-tap-pad" id="visualDelayTapPad" hidden data-i18n="settings.visualDelayTapPad">ここをタップ</button>
       </div>
       <div class="settings-row">
         <span class="settings-label" data-i18n="settings.ballDirection">移動方向</span>

@@ -207,9 +207,13 @@ export function createMetronomeController({ els, i18n, t, onPlaybackStateChange,
     t,
     getLang: () => i18n.lang,
     getRunning: () => audioRuntime.running,
+    isNativeApp: () => audioRuntime.isNative,
+    getBpm: () => bpm,
+    setBpm: setBPM,
     startMetronome: audioRuntime.startMetronome,
     getAudioContextTimeForNow: audioRuntime.getAudioContextTimeForNow,
     getScheduledBeatTimes: audioRuntime.getScheduledBeatTimes,
+    getNativeLoopAnchorMs: () => audioRuntime.nativeLoopAnchorMs,
   });
 
   buildBeatDots();

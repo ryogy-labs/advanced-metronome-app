@@ -40,6 +40,21 @@ export const VISUAL_DELAY_DEFAULT_MS = 0;
 export const VISUAL_DELAY_MIN_MS = 0;
 export const VISUAL_DELAY_MAX_MS = 500;
 export const VISUAL_DELAY_STEP_MS = 5;
+// Calibration runs at a fixed tempo so the measurement is unambiguous: one
+// beat at 120 BPM is 500ms, which is exactly VISUAL_DELAY_MAX_MS, so the
+// supported range maps one-to-one onto a single beat period.
+export const CALIBRATION_BPM = 120;
+export const CALIBRATION_TAPS_REQUIRED = 8;
+// A tap further than this from the group is treated as a stray.
+export const CALIBRATION_TOLERANCE_MS = 60;
+// Rejection thresholds, chosen from simulated tap distributions rather than
+// by feel. Drop count separates the cases far better than spread does: a run
+// with no rhythm needs 3+ discards 96.6% of the time, while even a sloppy
+// but rhythmic player hits that only 2.6% of the time. Spread alone overlaps
+// badly (no-rhythm median 0.78 vs sloppy 5th-percentile 0.87), so it serves
+// only as a secondary floor.
+export const CALIBRATION_MAX_DROPS = 2;
+export const CALIBRATION_MIN_CONCENTRATION = 0.85;
 
 // Swipe carousel
 export const SWIPE_TOTAL_PAGES = 4;

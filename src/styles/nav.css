@@ -244,3 +244,31 @@
   gap: 8px;
 }
 .backup-actions .settings-calibration-btn { flex: 1 1 auto; }
+
+.settings-calibration-cancel {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  color: var(--text2);
+  padding: 6px 12px;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+/* Eight taps in rhythm need a target that is hard to miss; a small button
+   adds its own timing error to the measurement. */
+.settings-tap-pad {
+  width: 100%;
+  margin-top: 10px;
+  padding: 26px 12px;
+  border: 2px dashed var(--accent);
+  border-radius: 12px;
+  background: var(--surface2);
+  color: var(--accent-text);
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.settings-tap-pad:active { background: var(--accent); color: #fff; }
+.settings-tap-pad[hidden], .settings-calibration-cancel[hidden] { display: none; }

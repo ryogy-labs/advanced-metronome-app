@@ -12,6 +12,8 @@ export function createSettingsPanel({
     visualDelaySlider,
     visualDelayNum,
     visualDelayCalibrateBtn,
+    visualDelayCancelBtn,
+    visualDelayTapPad,
     visualDelayCalibrateStatus,
     modeVerticalBtn,
     modeHorizontalBtn,
@@ -25,6 +27,9 @@ export function createSettingsPanel({
   getVisualDelayMs,
   setVisualDelayMs,
   onVisualDelayCalibrateTap,
+  onVisualDelayCalibrateStart,
+  onVisualDelayCalibrateCancel,
+  isCalibrating,
   getVisualDelayCalibrationHint,
   visualDelayRange,
   getMode,
@@ -113,11 +118,37 @@ export function createSettingsPanel({
       visualDelayNum.blur();
     }
   });
-  visualDelayCalibrateBtn?.addEventListener('click', () => {
-    if (!onVisualDelayCalibrateTap || !visualDelayCalibrateStatus) return;
-    visualDelayCalibrateStatus.textContent = onVisualDelayCalibrateTap();
+  // While a run is in progress the tap target is a large pad rather than the
+  // start button: eight taps in rhythm on a small control is its own source
+  // of timing error.
+  function syncCalibrationUi() {
+    const active = Boolean(isCalibrating?.());
+    if (visualDelayTapPad) visualDelayTapPad.hidden = !active;
+    if (visualDelayCancelBtn) visualDelayCancelBtn.hidden = !active;
+    if (visualDelayCalibrateBtn) visualDelayCalibrateBtn.hidden = active;
+  }
+
+  function showStatus(text) {
+    if (visualDelayCalibrateStatus && typeof text === 'string') {
+      visualDelayCalibrateStatus.textContent = text;
+    }
+    syncCalibrationUi();
     syncActiveStates();
+  }
+
+  visualDelayCalibrateBtn?.addEventListener('click', () => {
+    if (!onVisualDelayCalibrateStart) return;
+    showStatus(onVisualDelayCalibrateStart());
   });
+  visualDelayTapPad?.addEventListener('click', () => {
+    if (!onVisualDelayCalibrateTap) return;
+    showStatus(onVisualDelayCalibrateTap());
+  });
+  visualDelayCancelBtn?.addEventListener('click', () => {
+    if (!onVisualDelayCalibrateCancel) return;
+    showStatus(onVisualDelayCalibrateCancel());
+  });
+  syncCalibrationUi();
   modeVerticalBtn.addEventListener('click', () => { setMode('vertical'); syncActiveStates(); });
   modeHorizontalBtn.addEventListener('click', () => { setMode('horizontal'); syncActiveStates(); });
   squashOnBtn.addEventListener('click', () => { setSquashEnabled(true); syncActiveStates(); });

@@ -18,12 +18,13 @@
 - `src/app/audio-runtime.js`: メトロノーム音声 runtime (`createAudioRuntime`)。foreground scheduler、background playback、AudioContext lifecycle、mute、Wake Lock、visibility/focus/pageshow 復帰、iOS audio unlock を内包する
 - `src/app/volume-controller.js`: 音量 controller (`createVolumeController`)。音量 slider / number input wiring、拍子分母に応じた音価ラベル、8分スウィング時の16分音量無効化、保存用 `beatVolumes` 取得/適用を内包する
 - `src/app/swing-controller.js`: スウィング controller (`createSwingController`)。スウィング対象、幅 slider / number input、プリセットボタン、UI active/disabled 状態同期を内包する
-- `src/app/visual-delay-calibration.js`: Bluetooth 補正 controller (`createVisualDelayCalibration`)。補正値の clamp / localStorage 永続化、3タップ推定、設定モーダルのステータステキストを内包する
+- `src/app/visual-delay-calibration.js`: Bluetooth 補正 controller (`createVisualDelayCalibration`)。補正値の clamp / localStorage 永続化、タップ補正のセッション管理（開始/中止/タップ収集/判定）、設定モーダルのステータステキストを内包する
 - `src/app/collections-controller.js`: セットリスト・曲ライブラリ controller (`createCollectionsController`)。setlist/library ストア、UI 選択状態、CRUD、DnD、曲フォーム、ライブラリピッカー、Now Playing を束ねる。曲選択時のテンポ反映・再生トグルは `metronome-controller` の公開 API 経由で行う
 - `src/config.js`: BPM / 拍子 / スウィング / クリック音 / フリープラン上限などの定数と `localStorage` キー (`LS_KEYS`) を集約する
 - `src/i18n.js`: ja/en 翻訳辞書と `createI18n(initialLang)` ファクトリ。言語切替は `localStorage` の `metro-lang` を経由する
 - `src/audio/synth.js`: スクエア波クリックの共通レンダラ `renderClick` と `getSubdivisionsPerBeat` を持つ。live AudioContext と OfflineAudioContext の双方から共有される
 - `src/audio/master-chain.js`: クリック出力段の共通ソフトクリッパー (`createMasterChain`)。`WaveShaper` に tanh カーブ (`MASTER_DRIVE`) を設定して destination へ繋ぐ。live AudioContext と背景ループの OfflineAudioContext の双方で同じカーブを共有する
+- `src/audio/tap-offset.js`: タップ補正の統計 (`wrapToPeriod` / `circularDistance` / `circularMean` / `robustCircularMean`)。オフセットは1拍を周期とする円周上の量なので、角度に変換して単位ベクトル平均を取る。外れ値は円周距離で除去する
 - `src/audio/timing.js`: BPM からの拍長・小節長・native loop の拍位置・foreground scheduler の直近拍位置・スウィング適用後の小節内サブビート時刻を計算する純粋関数群。`main.js`、`src/ui/ball.js`、`src/audio/scheduler.js`、`src/audio/bg-loop.js` から共有する
 - `src/audio/scheduler.js`: 16 分音符解像度の foreground スケジューラ (`createScheduler`)。スウィング適用済みの小節内イベント、タイマー ID、直近スケジュール済み拍時刻を内包し、`start` / `stop` / `getScheduledBeatTimes` を公開する
 - `src/audio/bg-loop.js`: バックグラウンド再生用の WAV ループを `OfflineAudioContext` で構築する `createBgLoopBuilder` ファクトリ。BPM/拍子/音量/スウィングのシグネチャでキャッシュする
@@ -57,6 +58,7 @@
 - `src/state/backup.js`: バックアップファイル入出力 (`createBackup`)。ネイティブは共有シートとドキュメントピッカー、Web は download リンクと file input にフォールバックする
 - `src/utils/dom.js`: HTML エスケープなど DOM 関連の小ユーティリティ (`escHtml`)
 - `src/utils/id.js`: ms 解像度＋シーケンス付きの衝突しにくい ID 生成 (`nextId`)
+- `src/audio/tap-offset.test.js`: `audio/tap-offset.js` の `node:test` ベースユニットテスト。ラップ跨ぎのクラスタ、外れ値除去、方向を持たない入力の拒否をカバー
 - `src/audio/timing.test.js`: `audio/timing.js` の純粋関数群（スウィング演算、小節内イベントの並び順、native ループ拍位置）の `node:test` ベースユニットテスト
 - `src/state/beat-states.test.js`: `state/beat-states.js` の `node:test` ベースユニットテスト。複合拍子のデフォルトアクセント、不正値の正規化、状態循環をカバー
 - `src/style.css`: 全画面スタイルのエントリ。`src/styles/*.css` を `@import` で順番に読み込む薄いインデックスで、`<link rel="stylesheet">` (index.html) と `import './style.css'` (main.js) の双方からこのファイルを参照する
@@ -76,7 +78,8 @@
 - BPM は拍子の分母音符のテンポとして扱う。例として `4/4 BPM120` は4分音符=120、`6/8 BPM120` は8分音符=120として再生する
 - スウィング画面ではスウィング対象 (`OFF` / `8分` / `16分`) とスウィング幅 (`0.1` から `99.9`) を設定できる。スウィング幅はペア内の後ろ側ノート位置として扱い、`50.0` が 1:1、`66.7` が約 2:1、`50.0` 未満は裏拍が前に寄る逆スウィングになる。初期状態は `OFF`、幅の初期値は `66.7`。スウィング幅はスライダーと数値入力で直接編集できる。目盛りは `0` / `50` / `66.7` / `100` と表示し、それぞれ内部値 `0.1` / `50.0` / `66.7` / `99.9` へジャンプするプリセットボタンとして動作する。`OFF` 時は幅スライダー・数値入力・プリセットボタンを無効化する
 - ボール画面では移動方向とスクワッシュ演出を切り替えられる。これは視覚表現だけに影響し、テンポや音価は変えない。ボール色は音声側の拍状態に追従し、強拍は赤、通常拍は紫、ミュート拍は灰色で表示する
-- 設定モーダルでは Bluetooth 補正 (`0` から `500` ms、5ms刻み) を調整できる。無線アンプなどで音声が遅れて聞こえる場合に、音声スケジューリングは変更せず、ボール描画と拍点灯だけを指定ms遅らせる。値は `localStorage` に保存する。再生中に音へ合わせて3回タップすると、直近拍の音声スケジュール時刻との差分中央値から補正値を推定して設定する
+- 設定モーダルでは Bluetooth 補正 (`0` から `500` ms、5ms刻み) を調整できる。無線アンプなどで音声が遅れて聞こえる場合に、音声スケジューリングは変更せず、ボール描画と拍点灯だけを指定ms遅らせる。値は `localStorage` に保存する
+- 「補正を開始」を押すと、テンポを 120BPM に固定して再生を始め、大きなタップパッドを表示する。拍に合わせて8回タップすると、円周統計で外れ値を除いた平均から補正値を決める。終了・中止のいずれでも元の BPM に戻す。タップがばらついた場合は値を書き換えず、やり直しを促す
 - Setlist ビューではセットリストの作成・編集・削除・並び替えができる
 - セットリスト詳細では曲の追加・編集・削除・並び替えができる。曲追加は直接入力とライブラリ選択の2モードを持つ
 - セットリスト内の曲をタップすると、その曲の BPM を現在値へ反映して自動再生する。同じ曲を再タップした場合は再生/停止のトグルとして扱う
@@ -101,7 +104,12 @@
 - メトロノーム音声は 16 分音符解像度でスケジューリングする。拍子分母が `4` の場合は1カウントを16分4ステップ、分母が `8` の場合は1カウントを16分2ステップとして処理する
 - スウィングはスケジューラとバックグラウンド WAV ループで同じ `src/audio/timing.js` の小節内イベント計算を使う。`8分` スウィングは8分ペア、`16分` スウィングは16分ペアの後ろ側を `swingAmount / 100` の位置へ移動する
 - 拍ボタン・音・ボールは分子の各カウントに対応する。初期アクセントは通常1拍目のみ、`6/8`、`9/8`、`12/8` では複合拍子として3カウントごとに強拍にする
-- Bluetooth 補正は視覚補正のみで、クリック音・バックグラウンド再生・保存曲データには影響しない。タップ推定はユーザーの反応時間や演奏環境に左右されるため、最終的な補正値は手動調整できる状態を保つ
+- Bluetooth 補正は視覚補正のみで、クリック音・バックグラウンド再生・保存曲データには影響しない
+- タップ補正の基準時刻は「実際に音を出している系」を使う。ネイティブでは `nativeLoopAnchorMs`（AVAudioPlayer ループ）であり、Web Audio スケジューラは視覚専用で起動時刻がずれるため基準に使ってはいけない
+- タップ補正は「反応」ではなく「同期」の課題として提示する。『音が聞こえたら叩く』は反応時間 150〜250ms を測定値に混ぜ込み、測りたい遅延と同オーダーの誤差になる。『拍に合わせて叩く』なら人は予測するので反応時間が相殺される
+- 補正中のテンポ 120BPM は固定値として扱う。1拍 500ms が `VISUAL_DELAY_MAX_MS` と一致し、測定可能範囲が1拍にちょうど収まるため。変更すると測定値の一意性が崩れる
+- オフセットは円周上の量として扱う。1拍を周期とするため 0ms 付近と 500ms 付近は同じ点であり、単純な平均・中央値は最悪の値（250ms 付近）を返す
+- タップ推定はユーザー個人の先行傾向（拍より数十ms早く叩く癖）を含むため、最終的な補正値は手動調整できる状態を保つ
 - クリック出力は `src/audio/master-chain.js` の tanh ソフトクリッパーを通す。素のスクエア波はピーク約 0.6 までしか出ず他アプリより小さく聞こえるため、`MASTER_DRIVE` で押し込んで最大音量時にフルスケール付近まで到達させる。foreground の Web Audio と背景ループ WAV の両方が同じ段を通るので、両経路の音量は揃う
 - ソフトクリッパーには `DynamicsCompressor` ではなく `WaveShaper` を使う。コンプレッサーは実装依存のプリディレイを持ち、クリックの発音タイミングがずれるため。`oversample` も同じ理由で `'none'` に固定する
 - 音量スライダーは実効音量に対して線形のままだが、ソフトクリップにより最大付近ほど圧縮がかかるため、最小〜最大のダイナミックレンジは素の出力よりやや狭くなる
@@ -127,7 +135,7 @@
 - 曲設定のデフォルト埋め (`tsNum` / `tsDen` / `beatStates` / `beatVolumes` / `swingMode` / `swingAmount`) は `src/state/song-config.js` の `withSongDefaults` に集約済み。setlist 曲がライブラリ曲を参照する fallback chain も `withSongDefaults(p, linkedLibSong)` 経由
 - セットリスト追加フォームとライブラリ追加フォームは `src/ui/song-form.js` の `createSongForm` で共通化済み（名前・BPM・拍子・キャプチャプレビュー・保存/キャンセル/Enter ハンドリング）。外側フォーム可視制御・Pro ゲート・ストア dispatch・ライブラリ→セットリスト伝播 (`propagateLibSongChange`) は `src/app/collections-controller.js` 側が担当する
 - 型チェック（`@ts-check` / JSDoc 型注釈）は `src/state/song-config.js` の `SongConfig` と、setlist / song-library store、UI selection、song-form、collections / metronome controller、metronome sub controller の曲設定 I/O 表面に seed 導入済み。対象ファイル群は `strictNullChecks` 付き `checkJs` で通る。UI renderer 全般や `noImplicitAny` 対応は未対応で、次段階で広げる余地がある
-- 自動テストは `node:test` ベースで `src/audio/timing.js` / `src/state/beat-states.js` / `src/state/snapshot.js` のみ。`src/state/song-config.js` / 各ストア (`setlist.js` / `song-library.js`) のミューテーション / `src/audio/synth.js` / `src/audio/master-chain.js` などは未カバー（音声系は Web Audio 依存のため node:test 単体では検証しにくく、出力レベルの確認はブラウザ上の OfflineAudioContext 計測に依存している）
+- 自動テストは `node:test` ベースで `src/audio/timing.js` / `src/audio/tap-offset.js` / `src/state/beat-states.js` / `src/state/snapshot.js` のみ。`src/state/song-config.js` / 各ストア (`setlist.js` / `song-library.js`) のミューテーション / `src/audio/synth.js` / `src/audio/master-chain.js` などは未カバー（音声系は Web Audio 依存のため node:test 単体では検証しにくく、出力レベルの確認はブラウザ上の OfflineAudioContext 計測に依存している）
 - ページドット、拍子矢印、音量入力、編集/削除アイコンなど一部の icon-only / context-only 操作には accessible name を付与済み。settings / paywall モーダルは初期フォーカス・フォーカス復帰・Escape 閉鎖・Tab フォーカストラップに対応済み。静的な `aria-label` は `data-i18n-aria-label` 経由で言語切替に追従する。主要フォーム入力には screen-reader 用 label を付与済み。Lighthouse accessibility は light/dark とも 100 点（critical / serious 違反なし）まで確認済み。手動 screen reader テストと自動 a11y テストの CI 組み込みは未対応
 - 課金は StoreKit のエンタイトルメント (`Transaction.currentEntitlements`) を直接信頼しており、サーバ側のレシート検証は行っていない。買い切り1品目・サーバ資産なしの構成では実害が小さいと判断しているが、将来サーバ連携機能を足す場合は再検討が必要
 - IAP のエンドツーエンド検証は未実施。`Products.storekit` は Xcode の Run 経由でしか適用されないため、`simctl` 起動の自動確認では購入フローを踏めていない。ビルド・プラグイン登録・価格ラベル配線までは確認済み

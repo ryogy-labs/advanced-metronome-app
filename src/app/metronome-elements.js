@@ -67,6 +67,8 @@ export function getMetronomeElements(doc = document) {
       visualDelaySlider: /** @type {HTMLInputElement} */ (byId(doc, 'visualDelaySlider')),
       visualDelayNum: /** @type {HTMLInputElement} */ (byId(doc, 'visualDelayNum')),
       visualDelayCalibrateBtn: byId(doc, 'visualDelayCalibrateBtn'),
+      visualDelayCancelBtn: byId(doc, 'visualDelayCancelBtn'),
+      visualDelayTapPad: byId(doc, 'visualDelayTapPad'),
       visualDelayCalibrateStatus: byId(doc, 'visualDelayCalibrateStatus'),
       modeVerticalBtn: byId(doc, 'modeVertical'),
       modeHorizontalBtn: byId(doc, 'modeHorizontal'),
