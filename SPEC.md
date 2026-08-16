@@ -39,7 +39,8 @@
 - `src/ui/library-picker.js`: セットリスト曲フォーム内のライブラリ選択リスト (`renderLibraryPicker`)。ライブラリ曲候補の DOM と選択 listener 配線を内包する。ID keyed reconciliation で候補行を再利用し、`onPick` ハンドラは `.onclick =` で張り替える
 - `src/ui/ts-picker.js`: セットリスト曲フォーム/ライブラリフォーム共通の拍子ピッカー。セットリスト曲フォームはボタン式、ライブラリフォームは選択式で描画し、`setTsPickerValues` でマウント済みピッカーの選択値を後から差し替える。`prefix` (`'pfTs'` / `'libTs'`) で入力 id を分岐する
 - `src/ui/song-form.js`: セットリスト曲フォーム (`pf*` id) とライブラリフォーム (`lib*` id) で共通の手動入力ライフサイクル (`createSongForm`)。名前・BPM・拍子ピッカー・キャプチャプレビュー・保存/キャンセル/Enter ハンドリング・`beatVolumes` / `beatStates` / `swingMode` / `swingAmount` の一時バッファを内包し、`open` / `close` / `applyCapture` / `focusName` を公開する。外側のフォーム可視制御 (`#presetForm.style.display` / `#libForm.style.display`)・Pro ゲート・ストア dispatch・`propagateLibSongChange` などのクロスカット処理は `src/app/collections-controller.js` 側が担当する
-- `src/ui/paywall.js`: Pro 状態と paywall モーダルのライフサイクル (`createPaywall`)。Web では dev-only の Pro 切替トグルと `localStorage` の `metro-dev-force-pro` 同期を内包し、`isPro` / `requirePro` を公開する。フリープラン上限との比較や、Pro 状態変更後のリスト再描画は `src/app/collections-controller.js` 側が担当する
+- `src/ui/paywall.js`: Pro 状態と paywall モーダルのライフサイクル (`createPaywall`)。ネイティブでは StoreKit のエンタイトルメントを、Web では dev-only の Pro 切替トグルと `localStorage` の `metro-dev-force-pro` を state のソースとし、`isPro` / `requirePro` を公開する。購入・復元の実行、ストア価格のボタン反映、処理中のステータス表示、フォアグラウンド復帰時のエンタイトルメント再取得を内包する。フリープラン上限との比較や、Pro 状態変更後のリスト再描画は `src/app/collections-controller.js` 側が担当する
+- `src/iap.js`: ネイティブ StoreKit プラグインの薄いラッパー (`createIap`)。`getProduct` / `isEntitled` / `purchase` / `restore` / `onEntitlementChanged` を公開する。Web では全て「ストア無し・未所有」に degrade し、ストア障害時も reject せず resolve する（メトロノーム本体はストア到達性に依存しない）
 - `src/ui/modal-a11y.js`: モーダル共通のフォーカス管理 (`createModalFocusController`)。開いたときの初期フォーカス、閉じた後のフォーカス復帰、Escape 閉鎖、Tab / Shift+Tab のフォーカストラップを提供する
 - `src/ui/settings-panel.js`: 設定モーダル (`createSettingsPanel`)。開閉、言語切替、Wake Lock 切替、Bluetooth 補正、補正タップ、ボール方向/スクワッシュ切替の入力配線と active 状態同期を内包する。実際の状態更新・永続化・i18n 再適用・Wake Lock acquire/release はホストから渡された callback が担当する
 - `src/ui/now-playing.js`: Now Playing バナーの表示制御 (`createNowPlaying`)。曲名/BPM の反映、表示/非表示、再生/停止アイコンと paused クラス同期、クリック時の再生トグル callback 配線を内包する
@@ -59,6 +60,8 @@
 - `src/styles/`: 用途別に分割された CSS。`base.css` (リセット・カラートークン・body) → `layout.css` (`.view` コンテナ) → `metronome-screen.css` (メトロ画面: metro-top / 拍ドット / BPM / スワイプ / メトロ下部 / Play・Tap / ボール / トグル行) → `volume.css` (Page 1 音量) → `swing.css` (Page 2 スウィング) → `ts-picker.css` (Page 3 拍子ピッカー) → `setlist-screen.css` (card-label・セットリストリスト・ドラッグハンドル・DnD・preset 行・モードセレクター) → `song-form.css` (`createSongForm` 用フォーム) → `nav.css` (ボトムナビ・設定モーダル) → `setlist-views.css` (セットリスト詳細/フル表示・Now Playing) → `paywall.css` の順で `@import` する。Vite がバンドル時にインライン化する
 - `legacy/metro-beat.html`: 旧プロトタイプの単一 HTML。現行の Vite エントリではないため、基本的には `index.html` / `src/*` を正とする
 - `vite.config.js`: 開発サーバー設定。現状は `X-Frame-Options: SAMEORIGIN` を付与している
+- `ios/App/App/InAppPurchasePlugin.swift`: Pro 買い切り (`jp.metrobeat.app.pro`) の StoreKit 2 ブリッジ。`getProduct` / `isEntitled` / `purchase` / `restore` を公開し、`Transaction.updates` の購読で明示的な購入以外（Ask to Buy 承認、別端末での購入）のトランザクションも finish する
+- `ios/App/Products.storekit`: ローカル課金テスト用の StoreKit 設定。`App.xcscheme` から参照されるため、**Xcode の Run 経由でのみ**適用される（`simctl` 直接起動では効かない）
 
 ## Core Flows
 - メトロノーム画面では、START/STOP ボタンまたは Space キーで再生状態を切り替える
@@ -75,6 +78,7 @@
 - Library ビューでは曲ライブラリの作成・編集・削除ができる。ソートは手動、曲名、BPM を切り替えられ、手動ソート時のみ DnD 並び替えを許可する
 - ライブラリ内の曲をタップすると、その曲の BPM を現在値へ反映して自動再生する。同じ曲を再タップした場合は再生/停止のトグルとして扱う
 - Now Playing バナーは、セットリストまたはライブラリから現在選択中の曲があるときだけ表示する。バナーをタップすると再生/停止を切り替える
+- フリープラン上限に達した状態で追加操作を行うと paywall を表示する。ネイティブでは購入・復元が StoreKit に繋がり、成功すると即座に Pro が反映される。Web ビルドに購入経路は無く、dev トグルのみ
 - ブラウザがバックグラウンドに入った場合、foreground の Web Audio スケジューラを止めて background 用の `HTMLAudioElement` ループへ切り替える。復帰時は foreground 側へ戻す
 
 ## Data Model
@@ -97,6 +101,8 @@
 - 音量設定の音価表示は拍子分母に追従する。`x/8` では通常拍を8分、細分を16分として表示し、16分解像度より細かい32分相当の項目は無効化する。`8分` スウィング中は16分音量 UI を 0 表示で無効化し、再生時の有効音量も 0 とする。ただし保存済みの16分音量値は破棄せず、スウィング解除時に復元する
 - 背景再生は foreground の Web Audio と hidden 時の `HTMLAudioElement` ループを併用している。テンポや音量変更時は両方の再生系への影響を確認する
 - 並び替えは DnD 実装に依存しており、ライブラリは `manual` ソート時のみ手動並び替えが有効
+- 課金は買い切り非消耗型 1 品目のみ。商品 ID は `InAppPurchasePlugin.swift` と `Products.storekit` の双方で一致させる
+- paywall のボタンに価格をハードコードしない。表示価格は StoreKit が返すローカライズ済み文字列 (`displayPrice`) を使い、取得できない場合は価格なしのラベルにフォールバックする
 - パラメータ範囲・初期値はコード上の定数を正とする。`SPEC.md` には重複記載しない
 - 機能追加時は、まず `src/app/metronome-controller.js` / `src/app/collections-controller.js` の責務を崩さないか確認する。メトロノーム側の新しい副作用は、可能な限り `audio-runtime` / `volume-controller` / `swing-controller` / `visual-delay-calibration` / `metronome-chrome` の該当責務へ寄せる
 
@@ -108,5 +114,8 @@
 - 型チェック（`@ts-check` / JSDoc 型注釈）は `src/state/song-config.js` の `SongConfig` と、setlist / song-library store、UI selection、song-form、collections / metronome controller、metronome sub controller の曲設定 I/O 表面に seed 導入済み。対象ファイル群は `strictNullChecks` 付き `checkJs` で通る。UI renderer 全般や `noImplicitAny` 対応は未対応で、次段階で広げる余地がある
 - 自動テストは `node:test` ベースで `src/audio/timing.js` と `src/state/beat-states.js` の最小カバレッジのみ。`src/state/song-config.js` / 各ストア (`setlist.js` / `song-library.js`) のミューテーション / `src/audio/synth.js` / `src/audio/master-chain.js` などは未カバー（音声系は Web Audio 依存のため node:test 単体では検証しにくく、出力レベルの確認はブラウザ上の OfflineAudioContext 計測に依存している）
 - ページドット、拍子矢印、音量入力、編集/削除アイコンなど一部の icon-only / context-only 操作には accessible name を付与済み。settings / paywall モーダルは初期フォーカス・フォーカス復帰・Escape 閉鎖・Tab フォーカストラップに対応済み。静的な `aria-label` は `data-i18n-aria-label` 経由で言語切替に追従する。主要フォーム入力には screen-reader 用 label を付与済み。Lighthouse accessibility は light/dark とも 100 点（critical / serious 違反なし）まで確認済み。手動 screen reader テストと自動 a11y テストの CI 組み込みは未対応
+- 課金は StoreKit のエンタイトルメント (`Transaction.currentEntitlements`) を直接信頼しており、サーバ側のレシート検証は行っていない。買い切り1品目・サーバ資産なしの構成では実害が小さいと判断しているが、将来サーバ連携機能を足す場合は再検討が必要
+- IAP のエンドツーエンド検証は未実施。`Products.storekit` は Xcode の Run 経由でしか適用されないため、`simctl` 起動の自動確認では購入フローを踏めていない。ビルド・プラグイン登録・価格ラベル配線までは確認済み
+- iOS シミュレータランタイム (26.5) には日本語フォントが含まれておらず、日本語 UI が豆腐文字になる。実機では正常。日本語のストア用スクリーンショットは実機で撮る必要がある
 - データは `localStorage` のみのため、ブラウザ削除・端末変更・プライベートモードでは失われる
 - `legacy/metro-beat.html` は旧プロトタイプとして残存している（現行実装との二重管理に見える点は緩和）

@@ -1,0 +1,38 @@
+{
+  "identifier" : "B1E7C0A2-7C1E-4E51-9B77-0F3A2D4C8E10",
+  "nonRenewingSubscriptions" : [
+  ],
+  "products" : [
+    {
+      "displayPrice" : "7.99",
+      "familyShareable" : false,
+      "internalID" : "C2F8D1B3-8D2F-4F62-AC88-1A4B3E5D9F21",
+      "localizations" : [
+        {
+          "description" : "Unlimited setlists and song library, per-song volume presets and time signatures, plus all future Pro features.",
+          "displayName" : "Metro Beat Pro",
+          "locale" : "en_US"
+        },
+        {
+          "description" : "セットリストとライブラリが無制限に。曲ごとの音量プリセットと拍子の保存、今後追加される Pro 機能すべて。",
+          "displayName" : "Metro Beat Pro",
+          "locale" : "ja"
+        }
+      ],
+      "productID" : "jp.metrobeat.app.pro",
+      "referenceName" : "Metro Beat Pro",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {
+    "_applicationInternalID" : "",
+    "_developerTeamID" : "",
+    "_lastSynchronizedDate" : 0
+  },
+  "subscriptionGroups" : [
+  ],
+  "version" : {
+    "major" : 3,
+    "minor" : 0
+  }
+}

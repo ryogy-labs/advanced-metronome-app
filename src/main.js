@@ -9,6 +9,7 @@ import { createI18n, readInitialLang } from './i18n.js';
 import { createMetronomeController } from './app/metronome-controller.js';
 import { getMetronomeElements } from './app/metronome-elements.js';
 import { createCollectionsController } from './app/collections-controller.js';
+import { createIap } from './iap.js';
 import { createPaywall } from './ui/paywall.js';
 import { createSwipePanel } from './ui/swipe-panel.js';
 import { createViewNav } from './ui/view-nav.js';
@@ -34,11 +35,14 @@ import { createViewNav } from './ui/view-nav.js';
   const paywall = createPaywall({
     isNativeApp: metronome.isNativeApp,
     devForceProKey: LS_KEYS.devForcePro,
+    iap: createIap({ isNativeApp: metronome.isNativeApp }),
+    t,
     els: {
       overlay: document.getElementById('proPaywall'),
       buyBtn: document.getElementById('paywallBuyBtn'),
       restoreBtn: document.getElementById('paywallRestoreBtn'),
       closeBtn: document.getElementById('paywallCloseBtn'),
+      statusEl: document.getElementById('paywallStatus'),
     },
     onProChanged: () => {
       collections?.refreshForProChange();
