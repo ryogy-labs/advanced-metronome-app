@@ -51,7 +51,10 @@
 - `src/ui/volume-layout.js`: 拍子カードの高さに合わせた音量カードの高さ・縦余白同期 (`createVolumeLayout`)。クローン挿入、リサイズ、メトロノームビュー復帰時にホストから再測定される
 - `src/ui/ball.js`: ボール演出の RAF アニメータ (`createBallAnimator`)。`.ball-canvas` 群の取得・リサイズ、Web Audio パスとネイティブループパスを跨いだフェーズ計算、ボール/影/接地線の描画を内包し、`refresh` / `resize` / `start` を公開する
 - `src/ui/swipe-panel.js`: 実ページ数＋両端クローンのカルーセル (`createSwipePanel`)。両端のクローン挿入、タッチ/マウスドラッグ、`transitionend` でのスロット巻き戻し、ドット連動を内包し、`onAfterClonesInserted` と `onPageEnter` フックでホスト側 (ボール初期化・ページ0復帰時のリサイズ) に通知する。クローンは sentinel として `id` を除去し、`aria-hidden` / `inert` を付ける
-- `src/utils/storage.js`: `localStorage` の安全な読み書きラッパー。破損 JSON は `${key}.corrupt-backup` に退避してフォールバックを返す
+- `src/utils/storage.js`: `localStorage` の安全な読み書きラッパー。破損 JSON は `${key}.corrupt-backup` に退避してフォールバックを返す。`setStorageChangeListener` で書き込み通知を受け取れる（耐久ミラーの flush 契機）
+- `src/state/snapshot.js`: 永続データ全体を1つのオブジェクトにまとめる純粋関数群 (`buildSnapshot` / `validateSnapshot` / `snapshotToEntries` / `isEmptySnapshot`)。耐久ミラー・書き出し・読み込みの3機能が同じ形を共有する
+- `src/state/durable-store.js`: `localStorage` をネイティブファイルへ二重化する (`createDurableStore`)。起動時 `hydrate` で復元、書き込み後は 800ms デバウンスで flush、バックグラウンド移行時に即 flush する。Web では全て no-op
+- `src/state/backup.js`: バックアップファイル入出力 (`createBackup`)。ネイティブは共有シートとドキュメントピッカー、Web は download リンクと file input にフォールバックする
 - `src/utils/dom.js`: HTML エスケープなど DOM 関連の小ユーティリティ (`escHtml`)
 - `src/utils/id.js`: ms 解像度＋シーケンス付きの衝突しにくい ID 生成 (`nextId`)
 - `src/audio/timing.test.js`: `audio/timing.js` の純粋関数群（スウィング演算、小節内イベントの並び順、native ループ拍位置）の `node:test` ベースユニットテスト
@@ -61,6 +64,8 @@
 - `legacy/metro-beat.html`: 旧プロトタイプの単一 HTML。現行の Vite エントリではないため、基本的には `index.html` / `src/*` を正とする
 - `vite.config.js`: 開発サーバー設定。現状は `X-Frame-Options: SAMEORIGIN` を付与している
 - `ios/App/App/InAppPurchasePlugin.swift`: Pro 買い切り (`jp.metrobeat.app.pro`) の StoreKit 2 ブリッジ。`getProduct` / `isEntitled` / `purchase` / `restore` を公開し、`Transaction.updates` の購読で明示的な購入以外（Ask to Buy 承認、別端末での購入）のトランザクションも finish する
+- `ios/App/App/DataStorePlugin.swift`: 永続ストアとバックアップの入出力。`read` / `write` は Application Support 内の `metrobeat-store.json` を扱い、`exportFile` は共有シート、`importFile` はドキュメントピッカーを提示する
+- `ios/App/App/BridgeViewController.swift`: Capacitor プラグインを `capacitorDidLoad()` で**明示的に登録**する。自動探索ではないため、ここに書き忘れたプラグインは JS から到達できない
 - `ios/App/Products.storekit`: ローカル課金テスト用の StoreKit 設定。`App.xcscheme` から参照されるため、**Xcode の Run 経由でのみ**適用される（`simctl` 直接起動では効かない）
 
 ## Core Flows
@@ -79,9 +84,11 @@
 - ライブラリ内の曲をタップすると、その曲の BPM を現在値へ反映して自動再生する。同じ曲を再タップした場合は再生/停止のトグルとして扱う
 - Now Playing バナーは、セットリストまたはライブラリから現在選択中の曲があるときだけ表示する。バナーをタップすると再生/停止を切り替える
 - フリープラン上限に達した状態で追加操作を行うと paywall を表示する。ネイティブでは購入・復元が StoreKit に繋がり、成功すると即座に Pro が反映される。Web ビルドに購入経路は無く、dev トグルのみ
+- 設定の「データ」から、セットリスト・曲ライブラリ・各種設定を1つの JSON ファイルに書き出せる。読み込みは確認ダイアログの後に**全置換**で反映し、完了後にリロードする。形式が違う・壊れている・新しいバージョンのファイルは書き込み前に拒否する
 - ブラウザがバックグラウンドに入った場合、foreground の Web Audio スケジューラを止めて background 用の `HTMLAudioElement` ループへ切り替える。復帰時は foreground 側へ戻す
 
 ## Data Model
+- 永続化の作業領域は `localStorage`、耐久性のある正本はネイティブの `Library/Application Support/metrobeat-store.json`。WKWebView の `localStorage` は WebKit にいつ退避されてもおかしくないため、ネイティブでは起動時にファイルから復元する。ファイルが無い、または現行データが空でない場合は復元しない（古いミラーで新しい編集を潰さないため）
 - 永続化されるセットリストは `localStorage` の `metro-setlists` に保存する
 - セットリストの構造は `[{ id, name, songs: [{ id, name, bpm, tsNum, tsDen, beatVolumes, beatStates, swingMode, swingAmount }] }]` を基本とする
 - 永続化される曲ライブラリは `localStorage` の `metro-song-lib` に保存する
@@ -101,6 +108,8 @@
 - 音量設定の音価表示は拍子分母に追従する。`x/8` では通常拍を8分、細分を16分として表示し、16分解像度より細かい32分相当の項目は無効化する。`8分` スウィング中は16分音量 UI を 0 表示で無効化し、再生時の有効音量も 0 とする。ただし保存済みの16分音量値は破棄せず、スウィング解除時に復元する
 - 背景再生は foreground の Web Audio と hidden 時の `HTMLAudioElement` ループを併用している。テンポや音量変更時は両方の再生系への影響を確認する
 - 並び替えは DnD 実装に依存しており、ライブラリは `manual` ソート時のみ手動並び替えが有効
+- ネイティブプラグインを追加したら、必ず `BridgeViewController.capacitorDidLoad()` の登録リストにも追加する。ビルドは通るのに JS から呼べない、という無言の失敗になる
+- バックアップの読み込みは信頼できない入力として扱う。`validateSnapshot` を通らないファイルは既存データに一切触れない
 - 課金は買い切り非消耗型 1 品目のみ。商品 ID は `InAppPurchasePlugin.swift` と `Products.storekit` の双方で一致させる
 - paywall のボタンに価格をハードコードしない。表示価格は StoreKit が返すローカライズ済み文字列 (`displayPrice`) を使い、取得できない場合は価格なしのラベルにフォールバックする
 - パラメータ範囲・初期値はコード上の定数を正とする。`SPEC.md` には重複記載しない
@@ -112,10 +121,12 @@
 - 曲設定のデフォルト埋め (`tsNum` / `tsDen` / `beatStates` / `beatVolumes` / `swingMode` / `swingAmount`) は `src/state/song-config.js` の `withSongDefaults` に集約済み。setlist 曲がライブラリ曲を参照する fallback chain も `withSongDefaults(p, linkedLibSong)` 経由
 - セットリスト追加フォームとライブラリ追加フォームは `src/ui/song-form.js` の `createSongForm` で共通化済み（名前・BPM・拍子・キャプチャプレビュー・保存/キャンセル/Enter ハンドリング）。外側フォーム可視制御・Pro ゲート・ストア dispatch・ライブラリ→セットリスト伝播 (`propagateLibSongChange`) は `src/app/collections-controller.js` 側が担当する
 - 型チェック（`@ts-check` / JSDoc 型注釈）は `src/state/song-config.js` の `SongConfig` と、setlist / song-library store、UI selection、song-form、collections / metronome controller、metronome sub controller の曲設定 I/O 表面に seed 導入済み。対象ファイル群は `strictNullChecks` 付き `checkJs` で通る。UI renderer 全般や `noImplicitAny` 対応は未対応で、次段階で広げる余地がある
-- 自動テストは `node:test` ベースで `src/audio/timing.js` と `src/state/beat-states.js` の最小カバレッジのみ。`src/state/song-config.js` / 各ストア (`setlist.js` / `song-library.js`) のミューテーション / `src/audio/synth.js` / `src/audio/master-chain.js` などは未カバー（音声系は Web Audio 依存のため node:test 単体では検証しにくく、出力レベルの確認はブラウザ上の OfflineAudioContext 計測に依存している）
+- 自動テストは `node:test` ベースで `src/audio/timing.js` / `src/state/beat-states.js` / `src/state/snapshot.js` のみ。`src/state/song-config.js` / 各ストア (`setlist.js` / `song-library.js`) のミューテーション / `src/audio/synth.js` / `src/audio/master-chain.js` などは未カバー（音声系は Web Audio 依存のため node:test 単体では検証しにくく、出力レベルの確認はブラウザ上の OfflineAudioContext 計測に依存している）
 - ページドット、拍子矢印、音量入力、編集/削除アイコンなど一部の icon-only / context-only 操作には accessible name を付与済み。settings / paywall モーダルは初期フォーカス・フォーカス復帰・Escape 閉鎖・Tab フォーカストラップに対応済み。静的な `aria-label` は `data-i18n-aria-label` 経由で言語切替に追従する。主要フォーム入力には screen-reader 用 label を付与済み。Lighthouse accessibility は light/dark とも 100 点（critical / serious 違反なし）まで確認済み。手動 screen reader テストと自動 a11y テストの CI 組み込みは未対応
 - 課金は StoreKit のエンタイトルメント (`Transaction.currentEntitlements`) を直接信頼しており、サーバ側のレシート検証は行っていない。買い切り1品目・サーバ資産なしの構成では実害が小さいと判断しているが、将来サーバ連携機能を足す場合は再検討が必要
 - IAP のエンドツーエンド検証は未実施。`Products.storekit` は Xcode の Run 経由でしか適用されないため、`simctl` 起動の自動確認では購入フローを踏めていない。ビルド・プラグイン登録・価格ラベル配線までは確認済み
 - iOS シミュレータランタイム (26.5) には日本語フォントが含まれておらず、日本語 UI が豆腐文字になる。実機では正常。日本語のストア用スクリーンショットは実機で撮る必要がある
-- データは `localStorage` のみのため、ブラウザ削除・端末変更・プライベートモードでは失われる
+- 端末間同期は未対応。iPhone と iPad で別データになる。iCloud Key-Value Store を使えば解決できるが、entitlement 追加とプロビジョニングプロファイル再生成が必要なため未着手
+- バックアップの読み込みは全置換のみで、既存データへのマージには対応していない
+- Web ビルドは `localStorage` のみのため、ブラウザのデータ削除・プライベートモードでは失われる（ネイティブはファイルミラーで保護済み）
 - `legacy/metro-beat.html` は旧プロトタイプとして残存している（現行実装との二重管理に見える点は緩和）

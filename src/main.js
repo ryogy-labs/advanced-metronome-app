@@ -10,11 +10,31 @@ import { createMetronomeController } from './app/metronome-controller.js';
 import { getMetronomeElements } from './app/metronome-elements.js';
 import { createCollectionsController } from './app/collections-controller.js';
 import { createIap } from './iap.js';
+import { createBackup } from './state/backup.js';
+import { createDurableStore } from './state/durable-store.js';
 import { createPaywall } from './ui/paywall.js';
 import { createSwipePanel } from './ui/swipe-panel.js';
 import { createViewNav } from './ui/view-nav.js';
+import { setStorageChangeListener } from './utils/storage.js';
 
-(() => {
+const isNativeApp = Boolean(
+  /** @type {any} */ (window).Capacitor?.isNativePlatform?.()
+);
+
+// The mirror has to be read before any store touches localStorage, so the
+// whole app boots behind it. A failed hydrate resolves rather than throws,
+// leaving localStorage as the only copy.
+const durableStore = createDurableStore({ isNativeApp });
+const backup = createBackup({ isNativeApp });
+
+durableStore.hydrate().catch(e => {
+  console.warn('[durable] hydrate failed', e);
+}).then(() => {
+  setStorageChangeListener(() => durableStore.markDirty());
+  start();
+});
+
+function start() {
   const i18n = createI18n(readInitialLang());
   const t = (key) => i18n.t(key);
 
@@ -127,9 +147,50 @@ import { createViewNav } from './ui/view-nav.js';
     });
   }
 
+  function mountBackupControls() {
+    const exportBtn = document.getElementById('backupExportBtn');
+    const importBtn = document.getElementById('backupImportBtn');
+    const statusEl = document.getElementById('backupStatus');
+    if (!exportBtn || !importBtn) return;
+
+    let statusTimer = null;
+    function say(key) {
+      if (!statusEl) return;
+      statusEl.textContent = t(key);
+      // Let the hint come back so the row does not read as stuck.
+      if (statusTimer) clearTimeout(statusTimer);
+      statusTimer = setTimeout(() => {
+        statusEl.textContent = t('settings.backupHint');
+      }, 4000);
+    }
+
+    exportBtn.addEventListener('click', async () => {
+      const { ok } = await backup.save(durableStore.exportJson());
+      say(ok ? 'settings.backupDone' : 'settings.backupFailed');
+    });
+
+    importBtn.addEventListener('click', async () => {
+      const { cancelled, json } = await backup.load();
+      if (cancelled || !json) return;
+      // Import replaces everything, so the confirmation comes after the
+      // file is chosen but before anything is written.
+      if (!window.confirm(t('settings.backupConfirm'))) return;
+      const result = durableStore.importJson(json);
+      if (!result.ok) {
+        say(result.reason === 'tooNew' ? 'settings.backupTooNew' : 'settings.backupInvalid');
+        return;
+      }
+      say('settings.backupRestored');
+      // Restored data has to reach the running stores, and they read
+      // localStorage only at construction.
+      window.location.reload();
+    });
+  }
+
   collections.init();
+  mountBackupControls();
   mountSwipePanel();
   mountViewNav();
   applyI18n();
   void metronome.warmUp();
-})();
+}

@@ -1,5 +1,17 @@
 // Crash-safe localStorage helpers. Corrupt or unavailable storage falls
 // back to the supplied default instead of taking the whole app down.
+//
+// localStorage remains the synchronous working store. A durable mirror
+// (src/state/durable-store.js) registers itself here so every write also
+// schedules a flush to storage WebKit cannot evict.
+
+/** @type {(() => void) | null} */
+let onChange = null;
+
+/** @param {() => void} cb */
+export function setStorageChangeListener(cb) {
+  onChange = cb;
+}
 
 export function safeParseJSON(key, fallback) {
   let raw;
@@ -25,6 +37,7 @@ export function safeParseJSON(key, fallback) {
 export function writeJSON(key, value) {
   try {
     localStorage.setItem(key, JSON.stringify(value));
+    onChange?.();
     return true;
   } catch (e) {
     console.warn(`[storage] write failed for ${key}`, e);

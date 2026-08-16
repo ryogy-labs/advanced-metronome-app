@@ -14,6 +14,8 @@
 		8A1C4A082E0D000100000001 /* BridgeViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A1C4A072E0D000100000001 /* BridgeViewController.swift */; };
 		8A1C4A0B2E0D000100000001 /* MetronomeAudioPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A1C4A092E0D000100000001 /* MetronomeAudioPlugin.swift */; };
 		8A1C4A0C2E0D000100000001 /* MetronomeAudioPlugin.m in Sources */ = {isa = PBXBuildFile; fileRef = 8A1C4A0A2E0D000100000001 /* MetronomeAudioPlugin.m */; };
+		8A1C4A132E0D000100000004 /* DataStorePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A1C4A142E0D000100000004 /* DataStorePlugin.swift */; };
+		8A1C4A152E0D000100000004 /* DataStorePlugin.m in Sources */ = {isa = PBXBuildFile; fileRef = 8A1C4A162E0D000100000004 /* DataStorePlugin.m */; };
 		8A1C4A112E0D000100000003 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 8A1C4A122E0D000100000003 /* PrivacyInfo.xcprivacy */; };
 		8A1C4A0D2E0D000100000002 /* InAppPurchasePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A1C4A0E2E0D000100000002 /* InAppPurchasePlugin.swift */; };
 		8A1C4A0F2E0D000100000002 /* InAppPurchasePlugin.m in Sources */ = {isa = PBXBuildFile; fileRef = 8A1C4A102E0D000100000002 /* InAppPurchasePlugin.m */; };
@@ -31,6 +33,8 @@
 		8A1C4A072E0D000100000001 /* BridgeViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BridgeViewController.swift; sourceTree = "<group>"; };
 		8A1C4A092E0D000100000001 /* MetronomeAudioPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetronomeAudioPlugin.swift; sourceTree = "<group>"; };
 		8A1C4A0A2E0D000100000001 /* MetronomeAudioPlugin.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = MetronomeAudioPlugin.m; sourceTree = "<group>"; };
+		8A1C4A142E0D000100000004 /* DataStorePlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataStorePlugin.swift; sourceTree = "<group>"; };
+		8A1C4A162E0D000100000004 /* DataStorePlugin.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = DataStorePlugin.m; sourceTree = "<group>"; };
 		8A1C4A122E0D000100000003 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		8A1C4A0E2E0D000100000002 /* InAppPurchasePlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InAppPurchasePlugin.swift; sourceTree = "<group>"; };
 		8A1C4A102E0D000100000002 /* InAppPurchasePlugin.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = InAppPurchasePlugin.m; sourceTree = "<group>"; };
@@ -79,6 +83,8 @@
 				504EC3071FED79650016851F /* AppDelegate.swift */,
 				8A1C4A092E0D000100000001 /* MetronomeAudioPlugin.swift */,
 				8A1C4A0A2E0D000100000001 /* MetronomeAudioPlugin.m */,
+				8A1C4A142E0D000100000004 /* DataStorePlugin.swift */,
+				8A1C4A162E0D000100000004 /* DataStorePlugin.m */,
 				8A1C4A122E0D000100000003 /* PrivacyInfo.xcprivacy */,
 				8A1C4A0E2E0D000100000002 /* InAppPurchasePlugin.swift */,
 				8A1C4A102E0D000100000002 /* InAppPurchasePlugin.m */,
@@ -176,6 +182,8 @@
 			files = (
 				8A1C4A0C2E0D000100000001 /* MetronomeAudioPlugin.m in Sources */,
 				8A1C4A0B2E0D000100000001 /* MetronomeAudioPlugin.swift in Sources */,
+				8A1C4A132E0D000100000004 /* DataStorePlugin.swift in Sources */,
+				8A1C4A152E0D000100000004 /* DataStorePlugin.m in Sources */,
 				8A1C4A0D2E0D000100000002 /* InAppPurchasePlugin.swift in Sources */,
 				8A1C4A0F2E0D000100000002 /* InAppPurchasePlugin.m in Sources */,
 				8A1C4A082E0D000100000001 /* BridgeViewController.swift in Sources */,
